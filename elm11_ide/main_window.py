@@ -231,6 +231,8 @@ class MainWindow(QMainWindow):
 
     def _refresh_ports(self):
         current = self._port_combo.currentText()
+        if not current:
+            current = QSettings().value('serial/last_port', '')
         ports = [p.device for p in serial.tools.list_ports.comports()]
         self._port_combo.blockSignals(True)
         self._port_combo.clear()
@@ -627,6 +629,7 @@ class MainWindow(QMainWindow):
         s.setValue('window/width',  w)
         s.setValue('window/height', h)
         s.setValue('window/screen', self.screen().name())
+        s.setValue('serial/last_port', self._port_combo.currentText())
         s.sync()
         log.debug('Settings synced to disk')
         event.accept()
