@@ -1,4 +1,7 @@
 """Main application window."""
+import logging
+log = logging.getLogger(__name__)
+
 from PyQt6.QtWidgets import (
     QMainWindow, QSplitter, QTabWidget, QToolBar,
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
@@ -53,6 +56,7 @@ QLabel                      { background:transparent; }
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        log.debug('MainWindow init')
         self.setWindowTitle('ELM11 IDE')
         self.setMinimumSize(1100, 720)
         self.setStyleSheet(DARK)
@@ -60,11 +64,17 @@ class MainWindow(QMainWindow):
         self._workspace_root: Path | None = None
 
         # Build central UI first so _terminal etc. exist before menu is wired
+        log.debug('Setting up central UI')
         self._setup_central()
+        log.debug('Setting up toolbar')
         self._setup_toolbar()
+        log.debug('Setting up menu')
         self._setup_menu()
+        log.debug('Setting up statusbar')
         self._setup_statusbar()
+        log.debug('Restoring geometry')
         self._restore_geometry()
+        log.debug('Restoring workspace')
         self._restore_workspace()
 
         # Auto-refresh serial port list
@@ -242,6 +252,7 @@ class MainWindow(QMainWindow):
     # ── File operations ───────────────────────────────────────────────────────
 
     def _new_file(self):
+        log.debug('New untitled file')
         editor = CodeEditor()
         idx = self._editor_tabs.addTab(editor, 'untitled.lua')
         self._editor_tabs.setCurrentIndex(idx)
@@ -264,6 +275,7 @@ class MainWindow(QMainWindow):
             self.setWindowTitle('ELM11 IDE')
 
     def _open_path(self, path: Path):
+        log.debug('Open path: %s', path)
         # Avoid duplicate tabs
         for i in range(self._editor_tabs.count()):
             w = self._editor_tabs.widget(i)
@@ -282,6 +294,7 @@ class MainWindow(QMainWindow):
         editor = self._cur()
         if not editor:
             return
+        log.debug('Save file: %s', editor.file_path or 'untitled')
         if editor.file_path:
             editor.save()
             self._refresh_tab_title(editor)
@@ -313,6 +326,7 @@ class MainWindow(QMainWindow):
                 break
 
     def _close_tab(self, index: int):
+        log.debug('Close tab index=%d  title=%s', index, self._editor_tabs.tabText(index))
         editor = self._editor_tabs.widget(index)
         if isinstance(editor, CodeEditor) and editor.document().isModified():
             name = self._editor_tabs.tabText(index).lstrip('● ')
@@ -341,6 +355,7 @@ class MainWindow(QMainWindow):
     # ── Serial connection ─────────────────────────────────────────────────────
 
     def _toggle_connect(self, checked: bool):
+        log.debug('Toggle connect: checked=%s', checked)
         if checked:
             port = self._port_combo.currentText()
             if not port:
@@ -353,6 +368,7 @@ class MainWindow(QMainWindow):
             self._terminal.disconnect_port()
 
     def _on_connection_changed(self, connected: bool):
+        log.debug('Connection changed: connected=%s', connected)
         self._connect_btn.setChecked(connected)
         self._connect_btn.setText('Disconnect' if connected else 'Connect')
         if connected:
@@ -367,6 +383,7 @@ class MainWindow(QMainWindow):
     # ── Device actions ────────────────────────────────────────────────────────
 
     def _upload(self):
+        log.debug('Upload triggered')
         editor = self._cur()
         if not editor or not editor.file_path:
             return
@@ -393,16 +410,19 @@ class MainWindow(QMainWindow):
                 worker, prog_name, uploader, lua_file, port))
 
     def _do_upload_step2(self, worker, prog_name, uploader, lua_file, port):
+        log.debug('Upload step 2: sending upload command for %s', prog_name)
         worker.send(f'upload|program("{prog_name}")\n'.encode())
         QTimer.singleShot(200, lambda: self._do_upload_step3(
             worker, uploader, lua_file, port))
 
     def _do_upload_step3(self, worker, uploader, lua_file, port):
+        log.debug('Upload step 3: releasing port, launching uploader %s %s %s', uploader, lua_file, port)
         worker.release_port()
         self._bottom.setCurrentWidget(self._build_out)
         self._build_out.run_upload(uploader, lua_file, port, SettingsDialog.baud())
 
     def _on_build_finished(self, exit_code: int):
+        log.debug('Build/upload finished: exit_code=%d', exit_code)
         worker = self._terminal.get_worker()
         if worker:
             worker.reopen_port()
@@ -432,6 +452,7 @@ class MainWindow(QMainWindow):
     # ── Workspaces ────────────────────────────────────────────────────────────
 
     def _load_workspace(self, path: Path):
+        log.debug('Load workspace: %s', path)
         """Switch the tree root to path and persist it in the workspace history."""
         self._workspace_root = path
         self._tree.set_root(path)
@@ -530,19 +551,28 @@ class MainWindow(QMainWindow):
         s = QSettings()
         raw = s.value('workspaces/history', [])
         history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
+        log.debug('Workspace history: %s', history)
         if history:
             p = Path(history[0])
             if p.is_dir():
+                log.debug('Restoring workspace: %s', p)
                 self._workspace_root = p
                 self._tree.set_root(p)
                 self.setWindowTitle(f'ELM11 IDE — {p.name}')
+            else:
+                log.debug('Workspace dir no longer exists: %s', p)
+        else:
+            log.debug('No workspaces in history')
 
     def _restore_geometry(self):
         s = QSettings()
-        if s.contains('window/geometry'):
-            self.restoreGeometry(s.value('window/geometry'))
-        if s.contains('window/state'):
-            self.restoreState(s.value('window/state'))
+        if s.contains('window/width'):
+            w = int(s.value('window/width'))
+            h = int(s.value('window/height'))
+            log.debug('Restoring window size: %d x %d', w, h)
+            QTimer.singleShot(0, lambda: self.resize(w, h))
+        else:
+            log.debug('No saved window size found')
 
     def closeEvent(self, event):
         for i in range(self._editor_tabs.count()):
@@ -558,6 +588,14 @@ class MainWindow(QMainWindow):
                 break
         self._terminal.disconnect_port()
         s = QSettings()
-        s.setValue('window/geometry', self.saveGeometry())
-        s.setValue('window/state',    self.saveState())
+        screen = QApplication.primaryScreen().availableGeometry()
+        w = min(self.width(), screen.width() - 50)
+        h = min(self.height(), screen.height() - 50)
+        log.debug('Saving window size: %d x %d  (screen available: %d x %d)',
+                  w, h, screen.width(), screen.height())
+        log.debug('Settings file: %s', s.fileName())
+        s.setValue('window/width',  w)
+        s.setValue('window/height', h)
+        s.sync()
+        log.debug('Settings synced to disk')
         event.accept()

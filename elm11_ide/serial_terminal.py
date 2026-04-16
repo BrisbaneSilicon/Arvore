@@ -1,4 +1,7 @@
 """Serial terminal widget + background read thread."""
+import logging
+log = logging.getLogger(__name__)
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPlainTextEdit, QLineEdit, QPushButton, QLabel,
 )
@@ -190,6 +193,7 @@ class SerialTerminal(QWidget):
     # ── Public API ────────────────────────────────────────────────────────
 
     def connect_to_port(self, port: str, baud: int = 115200):
+        log.debug('Connecting to %s @ %d', port, baud)
         self.disconnect_port()
         self._worker = SerialWorker(port, baud)
         self._worker.data_received.connect(self._on_data)
@@ -200,6 +204,7 @@ class SerialTerminal(QWidget):
 
     def disconnect_port(self):
         if self._worker:
+            log.debug('Disconnecting serial')
             self._worker.stop()
             self._worker = None
         self.connected.emit(False)

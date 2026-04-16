@@ -1,4 +1,7 @@
 """Project / file-system tree panel."""
+import logging
+log = logging.getLogger(__name__)
+
 from PyQt6.QtWidgets import (
     QTreeView, QMenu, QMessageBox,
     QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox,
@@ -105,14 +108,17 @@ class ProjectTree(QTreeView):
         return path if path.is_dir() else path.parent
 
     def set_root(self, path: Path):
+        log.debug('set_root: path=%s  parent=%s', path, path.parent)
         self._proxy.set_workspace(path)
-        # Root the view at the parent so the workspace folder is a visible node.
-        # When path is already the filesystem root (parent == self), stay there.
         parent_path = path.parent if path.parent != path else path
         parent_source = self._model.index(str(parent_path))
-        self.setRootIndex(self._proxy.mapFromSource(parent_source))
+        proxy_root = self._proxy.mapFromSource(parent_source)
+        log.debug('set_root: parent_source valid=%s  proxy_root valid=%s',
+                  parent_source.isValid(), proxy_root.isValid())
+        self.setRootIndex(proxy_root)
         # Auto-expand and select the workspace folder
         ws_proxy = self._proxy.mapFromSource(self._model.index(str(path)))
+        log.debug('set_root: ws_proxy valid=%s', ws_proxy.isValid())
         self.expand(ws_proxy)
         self.setCurrentIndex(ws_proxy)
 

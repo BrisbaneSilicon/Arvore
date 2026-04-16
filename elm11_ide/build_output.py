@@ -1,4 +1,7 @@
 """Build output panel — runs external processes and shows their output."""
+import logging
+log = logging.getLogger(__name__)
+
 import sys
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPlainTextEdit
 from PyQt6.QtCore import QProcess, pyqtSignal
@@ -40,6 +43,7 @@ class BuildOutput(QWidget):
     # ── Public API ────────────────────────────────────────────────────────
 
     def run_command(self, program: str, args: list[str], cwd: str | None = None):
+        log.debug('run_command: %s %s  cwd=%s', program, args, cwd)
         """Start an external command and stream its output here."""
         if self._process and self._process.state() != QProcess.ProcessState.NotRunning:
             self._append('A build is already running.\n', WARNING)
