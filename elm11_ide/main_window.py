@@ -333,16 +333,18 @@ class MainWindow(QMainWindow):
 
     def _toggle_connect(self, checked: bool):
         log.debug('Toggle connect: checked=%s', checked)
+
+        port = self._port_combo.currentText()
+        if not port:
+            QMessageBox.warning(self, 'No Port', 'No serial port selected.')
+            self._connect_btn.setChecked(False)
+            return
+
         if checked:
-            port = self._port_combo.currentText()
-            if not port:
-                QMessageBox.warning(self, 'No Port', 'No serial port selected.')
-                self._connect_btn.setChecked(False)
-                return
             self._terminal.connect_to_port(port, SettingsDialog.baud())
             self._bottom.setCurrentWidget(self._terminal)
         else:
-            self._terminal.disconnect_port()
+            self._terminal.disconnect_port(port)
 
     def _on_connection_changed(self, connected: bool):
         log.debug('Connection changed: connected=%s', connected)
@@ -615,7 +617,11 @@ class MainWindow(QMainWindow):
                     event.ignore()
                     return
                 break
-        self._terminal.disconnect_port()
+
+        port = self._port_combo.currentText()
+        if port:
+            self._terminal.disconnect_port(port)
+
         s = QSettings()
         screen = self.screen().availableGeometry()
         max_w = int(screen.width() * 0.95)

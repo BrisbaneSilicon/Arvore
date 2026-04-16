@@ -1,7 +1,12 @@
 """Syntax highlighters for Lua (+ ELM11 API) and C."""
 import re
-from PyQt6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont
+from PyQt6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont, QTextBlockUserData
 from PyQt6.QtCore import QRegularExpression
+
+
+class SkipHighlight(QTextBlockUserData):
+    """Marker: blocks carrying this user data are not syntax-highlighted."""
+    pass
 
 from . import theme
 
@@ -143,6 +148,9 @@ class LuaHighlighter(QSyntaxHighlighter):
         self._ml_end   = QRegularExpression(r'\]\]')
 
     def highlightBlock(self, text: str):
+        if isinstance(self.currentBlock().userData(), SkipHighlight):
+            return
+
         for pattern, fmt in self._rules:
             it = pattern.globalMatch(text)
             while it.hasNext():

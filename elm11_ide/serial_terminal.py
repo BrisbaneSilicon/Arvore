@@ -11,8 +11,8 @@ from PyQt6.QtGui import QColor, QPalette, QFont, QTextCursor, QTextCharFormat
 import serial
 import serial.tools.list_ports
 
-from .highlighter import LuaHighlighter
 from . import theme
+from .highlighter import LuaHighlighter, SkipHighlight
 
 # Basic ANSI 3x colour map (foreground)
 _ANSI_FG = {
@@ -184,8 +184,14 @@ class SerialTerminal(QWidget):
         self._send_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._send_btn.clicked.connect(self._send_input)
 
+        self._clear_btn = QPushButton('Clear')
+        self._clear_btn.setFixedWidth(60)
+        self._clear_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._clear_btn.clicked.connect(self.clear)
+
         row.addWidget(self._input)
         row.addWidget(self._send_btn)
+        row.addWidget(self._clear_btn)
         layout.addLayout(row)
 
         self._input.setEnabled(False)
@@ -203,7 +209,6 @@ class SerialTerminal(QWidget):
         self._input.setStyleSheet(
             f"background:{t['term_bg']}; color:{t['term_fg']};"
             f"border:1px solid {t['border']}; padding:2px;")
-        # Re-create highlighter for new syntax colours
         self._highlighter = LuaHighlighter(self._output.document())
 
     def _on_connected(self, connected: bool):
@@ -218,19 +223,39 @@ class SerialTerminal(QWidget):
 
     def connect_to_port(self, port: str, baud: int = 115200):
         log.debug('Connecting to %s @ %d', port, baud)
-        self.disconnect_port()
+
+        if self._worker:
+            self._worker.stop()
+            self._worker = None
+
+        # Flush any stale data sitting in the serial buffer
+        try:
+            tmp = serial.Serial(port, baud, timeout=0.05)
+            tmp.read(1024)
+            tmp.close()
+        except serial.SerialException:
+            pass
+
         self._worker = SerialWorker(port, baud)
         self._worker.data_received.connect(self._on_data)
         self._worker.connection_lost.connect(self._on_lost)
         self._worker.start()
-        self._append(f'Connected to {port} @ {baud}\n', theme.current()['term_info'])
+        t = theme.current()
+        self._append(f'\n\n - Connected to {port} @ {baud} -\n\n', t['term_fg'],
+                     italic=True, skip_highlight=True)
         self.connected.emit(True)
 
-    def disconnect_port(self):
+    def disconnect_port(self, port: str):
         if self._worker:
             log.debug('Disconnecting serial')
+
+            t = theme.current()
+            self._append(f'\n\n - Disconnected from {port} -\n\n', t['term_fg'],
+                        italic=True, skip_highlight=True)
+
             self._worker.stop()
             self._worker = None
+
         self.connected.emit(False)
 
     def send_raw(self, data: bytes):
@@ -302,12 +327,32 @@ class SerialTerminal(QWidget):
         self._worker = None
         self.connected.emit(False)
 
-    def _append(self, text: str, color: str):
+    def _append(self, text: str, color: str, italic: bool = False,
+                skip_highlight: bool = False):
+        doc = self._output.document()
+
+        # Detach highlighter before inserting skip_highlight text so it
+        # doesn't colour the block before we can mark it.
+        if skip_highlight:
+            self._highlighter.setDocument(None)
+
         cursor = self._output.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         fmt = QTextCharFormat()
         fmt.setForeground(QColor(color))
+        fmt.setFontItalic(italic)
         cursor.setCharFormat(fmt)
         cursor.insertText(text)
+
+        if skip_highlight:
+            # Mark every block we just wrote so the highlighter skips them
+            end_block = cursor.block()
+            block = doc.findBlock(cursor.position() - len(text))
+            while block.isValid() and block.blockNumber() <= end_block.blockNumber():
+                block.setUserData(SkipHighlight())
+                block = block.next()
+            # Re-attach — highlighter will now see SkipHighlight markers
+            self._highlighter.setDocument(doc)
+
         self._output.setTextCursor(cursor)
         self._output.ensureCursorVisible()
