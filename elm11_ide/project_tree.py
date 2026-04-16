@@ -94,6 +94,15 @@ class ProjectTree(QTreeView):
 
     # ── Public API ────────────────────────────────────────────────────────
 
+    @property
+    def selected_dir(self) -> Path | None:
+        """Return the selected directory, or the parent dir if a file is selected."""
+        index = self.currentIndex()
+        if not index.isValid():
+            return None
+        path = self._source_path(index)
+        return path if path.is_dir() else path.parent
+
     def set_root(self, path: Path):
         self._proxy.set_workspace(path)
         # Root the view at the parent so the workspace folder is a visible node.

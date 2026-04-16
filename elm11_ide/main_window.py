@@ -57,6 +57,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1100, 720)
         self.setStyleSheet(DARK)
 
+        self._workspace_root: Path | None = None
+
         # Build central UI first so _terminal etc. exist before menu is wired
         self._setup_central()
         self._setup_toolbar()
@@ -286,8 +288,13 @@ class MainWindow(QMainWindow):
         editor = self._cur()
         if not editor:
             return
+        start_dir = str(
+            self._tree.selected_dir
+            or self._workspace_root
+            or Path.home()
+        )
         path, _ = QFileDialog.getSaveFileName(
-            self, 'Save As', '',
+            self, 'Save As', start_dir,
             'Lua (*.lua);;C source (*.c);;C header (*.h);;All (*)')
         if path:
             editor.save_as(Path(path))
@@ -422,6 +429,7 @@ class MainWindow(QMainWindow):
 
     def _load_workspace(self, path: Path):
         """Switch the tree root to path and persist it in the workspace history."""
+        self._workspace_root = path
         self._tree.set_root(path)
         self.setWindowTitle(f'ELM11 IDE — {path.name}')
 
@@ -462,6 +470,7 @@ class MainWindow(QMainWindow):
             no_ws.setEnabled(False)
 
     def _close_workspace(self):
+        self._workspace_root = None
         self._tree.set_root(Path.home())
         self.setWindowTitle('ELM11 IDE')
 
@@ -498,6 +507,7 @@ class MainWindow(QMainWindow):
         if history:
             p = Path(history[0])
             if p.is_dir():
+                self._workspace_root = p
                 self._tree.set_root(p)
                 self.setWindowTitle(f'ELM11 IDE — {p.name}')
 
