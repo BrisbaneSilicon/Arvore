@@ -37,6 +37,7 @@ class SerialWorker(QThread):
         self._mutex   = QMutex()
         self._tx_queue = bytearray()
         self.tx_delay_ms = 1          # per-byte output delay
+        self._paused = False
 
     def run(self):
         try:
@@ -49,6 +50,11 @@ class SerialWorker(QThread):
             )
             self._running = True
             while self._running:
+                # While paused (e.g. during upload), stay out of the way
+                if self._paused:
+                    self.msleep(50)
+                    continue
+
                 # ── Transmit one queued byte ──────────────────────
                 tx = None
                 with QMutexLocker(self._mutex):
@@ -64,14 +70,16 @@ class SerialWorker(QThread):
 
                 # ── Receive ───────────────────────────────────────
                 try:
+                    if not self._ser or not self._ser.is_open:
+                        self.msleep(50)
+                        continue
                     waiting = self._ser.in_waiting
                     if waiting:
                         self.data_received.emit(self._ser.read(waiting))
                     else:
                         self.msleep(10)
-                except serial.SerialException as exc:
-                    self.connection_lost.emit(str(exc))
-                    break
+                except (serial.SerialException, OSError):
+                    self.msleep(50)
         except serial.SerialException as exc:
             self.connection_lost.emit(str(exc))
         finally:
@@ -86,19 +94,18 @@ class SerialWorker(QThread):
         self._running = False
         self.wait(2000)
 
-    def release_port(self):
-        """Close the serial port without stopping the thread (needed for upload)."""
-        with QMutexLocker(self._mutex):
-            self._close_serial()
+    def pause(self):
+        """Pause the read/write loop so another thread can use the port."""
+        self._paused = True
 
-    def reopen_port(self):
-        """Re-open the port after an upload completes."""
-        with QMutexLocker(self._mutex):
-            if self._ser and not self._ser.is_open:
-                try:
-                    self._ser.open()
-                except serial.SerialException:
-                    pass
+    def resume(self):
+        """Resume the read/write loop."""
+        self._paused = False
+
+    @property
+    def serial_port(self) -> serial.Serial | None:
+        """Direct access to the underlying serial.Serial (use while paused)."""
+        return self._ser
 
     def _close_serial(self):
         if self._ser and self._ser.is_open:

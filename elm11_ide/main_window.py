@@ -17,6 +17,7 @@ from .code_editor import CodeEditor
 from .project_tree import ProjectTree
 from .serial_terminal import SerialTerminal
 from .build_output import BuildOutput
+from .uploader import UploaderWorker
 from .settings import SettingsDialog
 from . import theme
 
@@ -369,45 +370,74 @@ class MainWindow(QMainWindow):
         log.debug('Upload triggered')
         editor = self._cur()
         if not editor or not editor.file_path:
+            QMessageBox.warning(self, 'No File',
+                'Select a file to upload.')
             return
         if editor.document().isModified():
             editor.save()
 
-        uploader = SettingsDialog.uploader_path()
-        if not uploader:
-            QMessageBox.warning(self, 'No Uploader',
-                'Set the path to program_uploader.py in Settings → Lua.')
-            return
-
-        port      = self._port_combo.currentText()
         lua_file  = str(editor.file_path)
         prog_name = editor.file_path.name
 
         worker = self._terminal.get_worker()
-        if worker:
-            # Enter Command Mode, trigger upload, then hand the port to the script
-            worker.send(b'command\n')
-            QTimer.singleShot(150, lambda: self._do_upload_step2(
-                worker, prog_name, uploader, lua_file, port))
+        if not worker or not worker.serial_port:
+            return
 
-    def _do_upload_step2(self, worker, prog_name, uploader, lua_file, port):
+        # Enter Command Mode, then trigger the upload sequence
+        worker.send(b'\ncommand\n')
+        QTimer.singleShot(2000, lambda: self._do_upload_step2(
+            worker, prog_name, lua_file))
+
+    def _do_upload_step2(self, worker, prog_name, lua_file):
         log.debug('Upload step 2: sending upload command for %s', prog_name)
         worker.send(f'upload|program("{prog_name}")\n'.encode())
         QTimer.singleShot(200, lambda: self._do_upload_step3(
-            worker, uploader, lua_file, port))
+            worker, lua_file))
 
-    def _do_upload_step3(self, worker, uploader, lua_file, port):
-        log.debug('Upload step 3: releasing port, launching uploader %s %s %s', uploader, lua_file, port)
-        worker.release_port()
+    def _do_upload_step3(self, worker, lua_file):
+        log.debug('Upload step 3: pausing serial worker, starting uploader')
+        # Pause the serial worker so the uploader has exclusive port access
+        worker.pause()
+
+        self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
-        self._build_out.run_upload(uploader, lua_file, port, SettingsDialog.baud())
 
-    def _on_build_finished(self, exit_code: int):
-        log.debug('Build/upload finished: exit_code=%d', exit_code)
+        self._uploader = UploaderWorker(worker.serial_port, lua_file)
+        self._uploader.progress.connect(self._on_upload_progress)
+        self._uploader.finished_ok.connect(self._on_upload_ok)
+        self._uploader.finished_err.connect(self._on_upload_err)
+        self._uploader.finished.connect(self._on_uploader_thread_done)
+        self._uploader.start()
+
+    def _on_upload_progress(self, msg: str):
+        self._build_out._append(msg, theme.current()['term_fg'])
+
+    def _on_upload_ok(self):
+        log.debug('Upload OK')
+        self._build_out._append('\n--- Upload complete ---\n',
+                                theme.current()['term_success'])
+        self._upload_done()
+
+    def _on_upload_err(self, reason: str):
+        log.debug('Upload Error')
+        self._build_out._append(f'\n--- Upload failed: {reason} ---\n',
+                                theme.current()['term_error'])
+        self._upload_done()
+
+    def _upload_done(self):
+        log.debug('Upload Done')
         worker = self._terminal.get_worker()
         if worker:
-            worker.reopen_port()
+            worker.resume()
         self._bottom.setCurrentWidget(self._terminal)
+
+    def _on_uploader_thread_done(self):
+        """Called when the uploader thread has fully exited run()."""
+        self._uploader = None
+
+    def _on_build_finished(self, exit_code: int):
+        """Handle C build completion (future use)."""
+        log.debug('Build finished: exit_code=%d', exit_code)
 
     def _run_program(self):
         editor = self._cur()
