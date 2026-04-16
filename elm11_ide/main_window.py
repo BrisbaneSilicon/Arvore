@@ -550,6 +550,9 @@ class MainWindow(QMainWindow):
             history.remove(entry)
         s.setValue('workspaces/history', history)
         s.remove(f'workspaces/mode/{entry}')
+        # Close if it's the current workspace
+        if self._workspace_root and str(self._workspace_root) == entry:
+            self._close_workspace()
         self._rebuild_workspaces_menu()
 
     def _clear_workspace_history(self):
@@ -560,6 +563,7 @@ class MainWindow(QMainWindow):
         for entry in history:
             s.remove(f'workspaces/mode/{entry}')
         s.remove('workspaces/history')
+        self._close_workspace()
         self._rebuild_workspaces_menu()
 
     # ── Settings / About ──────────────────────────────────────────────────────
