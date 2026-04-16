@@ -113,11 +113,6 @@ class MainWindow(QMainWindow):
         tb.addWidget(self._connect_btn)
         tb.addSeparator()
 
-        self._mode_label = QLabel(' Lua ')
-        self._mode_label.setToolTip('Workspace language mode (set when workspace is created)')
-        tb.addWidget(self._mode_label)
-        tb.addSeparator()
-
         self._build_btn = QPushButton('Build')
         self._build_btn.setToolTip('Build C project (coming soon)')
         self._build_btn.clicked.connect(self._build)
@@ -191,11 +186,9 @@ class MainWindow(QMainWindow):
     def _setup_statusbar(self):
         sb = self.statusBar()
         self._sb_conn = QLabel('  Not connected')
-        self._sb_lang = QLabel('')
-        self._sb_file = QLabel('')
+        self._sb_mode = QLabel('')
         sb.addWidget(self._sb_conn)
-        sb.addPermanentWidget(self._sb_lang)
-        sb.addPermanentWidget(self._sb_file)
+        sb.addPermanentWidget(self._sb_mode)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -229,8 +222,7 @@ class MainWindow(QMainWindow):
 
     def _set_mode(self, mode: str):
         self._workspace_mode = mode
-        self._mode_label.setText(f' {mode} ')
-        self._sb_lang.setText(f'  {mode}  ')
+        self._sb_mode.setText(f'  {mode}  ')
 
     def _update_device_buttons(self):
         connected = self._terminal.is_connected
@@ -333,11 +325,6 @@ class MainWindow(QMainWindow):
 
     def _on_tab_changed(self, _index: int):
         self._update_device_buttons()
-        editor = self._cur()
-        if editor and editor.file_path:
-            self._sb_file.setText(f'  {editor.file_path}  ')
-        else:
-            self._sb_file.setText('')
 
     # ── Serial connection ─────────────────────────────────────────────────────
 
