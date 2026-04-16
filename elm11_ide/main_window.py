@@ -119,9 +119,9 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         self.addToolBar(tb)
 
-        tb.addAction(self._act('New',  'Ctrl+N', self._new_file))
-        tb.addAction(self._act('Open', 'Ctrl+O', self._open_file))
-        tb.addAction(self._act('Save', 'Ctrl+S', self._save_file))
+        tb.addAction(self._act('New',  None, self._new_file))
+        tb.addAction(self._act('Open', None, self._open_file))
+        tb.addAction(self._act('Save', None, self._save_file))
         tb.addSeparator()
 
         tb.addWidget(QLabel(' Port: '))
