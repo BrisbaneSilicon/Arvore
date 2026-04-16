@@ -272,6 +272,8 @@ class SerialTerminal(QWidget):
                 text = self._buf.decode('utf-8', errors='replace')
                 self._buf = b''
 
+        text = text.replace('\r\n', '\n')
+        text = text.replace('\n\r', '\n')
         for chunk, color in self._ansi.feed(text):
             self._append(chunk, color or TERM_FG)
 
