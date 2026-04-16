@@ -569,7 +569,24 @@ class MainWindow(QMainWindow):
         if s.contains('window/width'):
             saved_w = int(s.value('window/width'))
             saved_h = int(s.value('window/height'))
-            log.debug('Saved window size: %d x %d', saved_w, saved_h)
+            saved_screen = s.value('window/screen', '')
+            log.debug('Saved window: %d x %d  screen: %s', saved_w, saved_h, saved_screen)
+
+            # Find the saved screen and move the window there
+            target = None
+            if saved_screen:
+                for scr in QApplication.screens():
+                    if scr.name() == saved_screen:
+                        target = scr
+                        break
+
+            if target:
+                geom = target.availableGeometry()
+                # Place at center of the target screen
+                x = geom.x() + (geom.width() - saved_w) // 2
+                y = geom.y() + (geom.height() - saved_h) // 2
+                log.debug('Moving to screen %s at (%d, %d)', target.name(), x, y)
+                self.move(x, y)
 
             def _apply():
                 screen = self.screen().availableGeometry()
@@ -609,6 +626,7 @@ class MainWindow(QMainWindow):
         log.debug('Settings file: %s', s.fileName())
         s.setValue('window/width',  w)
         s.setValue('window/height', h)
+        s.setValue('window/screen', self.screen().name())
         s.sync()
         log.debug('Settings synced to disk')
         event.accept()
