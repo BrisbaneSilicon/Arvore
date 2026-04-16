@@ -10,22 +10,7 @@ from PyQt6.QtGui import QFileSystemModel
 from PyQt6.QtCore import Qt, QDir, pyqtSignal, QModelIndex, QSortFilterProxyModel
 from pathlib import Path
 
-TREE_STYLE = """
-QTreeView {
-    background: #252526;
-    color: #cccccc;
-    border: none;
-    font-size: 10pt;
-}
-QTreeView::item:hover    { background: #2a2d2e; }
-QTreeView::item:selected { background: #094771; color: white; }
-QScrollBar:vertical {
-    background: #252526; width: 8px;
-}
-QScrollBar::handle:vertical {
-    background: #555; border-radius: 4px;
-}
-"""
+from . import theme
 
 
 class _WorkspaceProxy(QSortFilterProxyModel):
@@ -91,12 +76,14 @@ class ProjectTree(QTreeView):
         self.customContextMenuRequested.connect(self._context_menu)
         self.activated.connect(self._activated)
 
-        self.setStyleSheet(TREE_STYLE)
-
         # Default to home directory
         self.set_root(Path.home())
+        self.apply_theme()
 
     # ── Public API ────────────────────────────────────────────────────────
+
+    def apply_theme(self):
+        self.setStyleSheet(theme.tree_stylesheet(theme.current()))
 
     @property
     def selected_dir(self) -> Path | None:
@@ -134,10 +121,11 @@ class ProjectTree(QTreeView):
 
     def _context_menu(self, pos):
         index = self.indexAt(pos)
+        t = theme.current()
         menu = QMenu(self)
         menu.setStyleSheet(
-            'QMenu { background:#2d2d2d; color:#cccccc; border:1px solid #555; }'
-            'QMenu::item:selected { background:#094771; }'
+            f'QMenu {{ background:{t["menubar_bg"]}; color:{t["menubar_fg"]}; border:1px solid {t["border"]}; }}'
+            f'QMenu::item:selected {{ background:{t["selection"]}; }}'
         )
 
         if index.isValid():
@@ -184,27 +172,11 @@ class ProjectTree(QTreeView):
 class _NameDialog(QDialog):
     """A simple name-input dialog with a guaranteed minimum width."""
 
-    STYLE = """
-    QDialog  { background:#2d2d2d; color:#cccccc; }
-    QWidget  { background:#2d2d2d; color:#cccccc; }
-    QLabel   { background:transparent; }
-    QLineEdit {
-        background:#1e1e1e; color:#d4d4d4;
-        border:1px solid #555; padding:4px;
-    }
-    QPushButton {
-        background:#3c3c3c; color:#cccccc;
-        border:1px solid #555; padding:4px 14px;
-    }
-    QPushButton:hover    { background:#4c4c4c; }
-    QPushButton:default  { border-color:#007acc; }
-    """
-
     def __init__(self, title: str, label: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumWidth(340)
-        self.setStyleSheet(self.STYLE)
+        self.setStyleSheet(theme.dialog_stylesheet(theme.current()))
 
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(label))

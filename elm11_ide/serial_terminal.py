@@ -12,15 +12,7 @@ import serial
 import serial.tools.list_ports
 
 from .highlighter import LuaHighlighter
-
-# ── Terminal colours ──────────────────────────────────────────────────────────
-TERM_BG        = '#1a1a1a'
-TERM_FG        = '#d4d4d4'
-TERM_INFO      = '#569cd6'   # blue  – connection messages
-TERM_OUTPUT    = '#6ab04c'   # green – REPL return values
-TERM_ERROR     = '#f44747'   # red
-TERM_WARNING   = '#e5c07b'   # amber
-TERM_TIMESTAMP = '#d4a04a'   # amber – boot log timestamps
+from . import theme
 
 # Basic ANSI 3x colour map (foreground)
 _ANSI_FG = {
@@ -163,36 +155,43 @@ class SerialTerminal(QWidget):
         self._output.setReadOnly(True)
         self._output.setFont(font)
         self._output.setMaximumBlockCount(5000)
-        pal = self._output.palette()
-        pal.setColor(QPalette.ColorRole.Base, QColor(TERM_BG))
-        pal.setColor(QPalette.ColorRole.Text, QColor(TERM_FG))
-        self._output.setPalette(pal)
         self._highlighter = LuaHighlighter(self._output.document())
         layout.addWidget(self._output)
 
         # Input row
         row = QHBoxLayout()
         self._prompt = QLabel('$')
-        self._prompt.setStyleSheet(
-            f'color:{TERM_FG}; font-family:Monospace; font-size:10pt; padding:0 4px;')
         self._input = QLineEdit()
         self._input.setFont(font)
-        self._input.setStyleSheet(
-            f'background:{TERM_BG}; color:{TERM_FG};'
-            f'border:1px solid #3c3c3c; padding:2px;')
         self._input.setPlaceholderText('Type Lua here and press Enter…')
         self._input.returnPressed.connect(self._send_input)
         self._input.installEventFilter(self)
 
-        send_btn = QPushButton('Send')
-        send_btn.setFixedWidth(60)
-        send_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        send_btn.clicked.connect(self._send_input)
+        self._send_btn = QPushButton('Send')
+        self._send_btn.setFixedWidth(60)
+        self._send_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._send_btn.clicked.connect(self._send_input)
 
         row.addWidget(self._prompt)
         row.addWidget(self._input)
-        row.addWidget(send_btn)
+        row.addWidget(self._send_btn)
         layout.addLayout(row)
+
+        self.apply_theme()
+
+    def apply_theme(self):
+        t = theme.current()
+        pal = self._output.palette()
+        pal.setColor(QPalette.ColorRole.Base, QColor(t['term_bg']))
+        pal.setColor(QPalette.ColorRole.Text, QColor(t['term_fg']))
+        self._output.setPalette(pal)
+        self._prompt.setStyleSheet(
+            f"color:{t['term_fg']}; font-family:Monospace; font-size:10pt; padding:0 4px;")
+        self._input.setStyleSheet(
+            f"background:{t['term_bg']}; color:{t['term_fg']};"
+            f"border:1px solid {t['border']}; padding:2px;")
+        # Re-create highlighter for new syntax colours
+        self._highlighter = LuaHighlighter(self._output.document())
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -203,7 +202,7 @@ class SerialTerminal(QWidget):
         self._worker.data_received.connect(self._on_data)
         self._worker.connection_lost.connect(self._on_lost)
         self._worker.start()
-        self._append(f'Connected to {port} @ {baud}\n', TERM_INFO)
+        self._append(f'Connected to {port} @ {baud}\n', theme.current()['term_info'])
         self.connected.emit(True)
 
     def disconnect_port(self):
@@ -225,7 +224,7 @@ class SerialTerminal(QWidget):
         return self._worker is not None and self._worker.isRunning()
 
     def append_info(self, text: str):
-        self._append(text, TERM_INFO)
+        self._append(text, theme.current()['term_info'])
 
     def clear(self):
         self._output.clear()
@@ -261,7 +260,7 @@ class SerialTerminal(QWidget):
         self._hist_pos = -1
         self._input.clear()
         self._worker.send((text + '\n').encode('utf-8'))
-        self._append(text + '\n', TERM_FG)
+        self._append(text + '\n', theme.current()['term_fg'])
 
     def _on_data(self, data: bytes):
         self._buf += data
@@ -279,10 +278,10 @@ class SerialTerminal(QWidget):
         text = text.replace('\r\n', '\n')
         text = text.replace('\n\r', '\n')
         for chunk, color in self._ansi.feed(text):
-            self._append(chunk, color or TERM_FG)
+            self._append(chunk, color or theme.current()['term_fg'])
 
     def _on_lost(self, error: str):
-        self._append(f'\nConnection lost: {error}\n', TERM_ERROR)
+        self._append(f'\nConnection lost: {error}\n', theme.current()['term_error'])
         self._worker = None
         self.connected.emit(False)
 

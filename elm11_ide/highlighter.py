@@ -3,17 +3,22 @@ import re
 from PyQt6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont
 from PyQt6.QtCore import QRegularExpression
 
-# ── Colour palette ────────────────────────────────────────────────────────────
-C = {
-    'keyword':     '#569cd6',   # blue
-    'elm11_func':  '#dcdcaa',   # yellow
-    'elm11_const': '#4ec9b0',   # teal
-    'string':      '#ce9178',   # orange
-    'comment':     '#6a9955',   # green
-    'number':      '#b5cea8',   # light green
-    'builtin':     '#c586c0',   # purple
-    'preproc':     '#c586c0',   # purple (C preprocessor)
-}
+from . import theme
+
+
+def _colors() -> dict:
+    """Map short names to current theme's syntax colours."""
+    t = theme.current()
+    return {
+        'keyword':     t['syn_keyword'],
+        'elm11_func':  t['syn_elm11_func'],
+        'elm11_const': t['syn_elm11_const'],
+        'string':      t['syn_string'],
+        'comment':     t['syn_comment'],
+        'number':      t['syn_number'],
+        'builtin':     t['syn_builtin'],
+        'preproc':     t['syn_preproc'],
+    }
 
 # ── Token lists ───────────────────────────────────────────────────────────────
 LUA_KEYWORDS = [
@@ -108,13 +113,13 @@ class LuaHighlighter(QSyntaxHighlighter):
         super().__init__(document)
         self._rules: list[tuple[QRegularExpression, QTextCharFormat]] = []
 
-        kw_fmt     = _fmt(C['keyword'],     bold=True)
-        fn_fmt     = _fmt(C['elm11_func'])
-        const_fmt  = _fmt(C['elm11_const'], bold=True)
-        bi_fmt     = _fmt(C['builtin'])
-        num_fmt    = _fmt(C['number'])
-        str_fmt    = _fmt(C['string'])
-        cmt_fmt    = _fmt(C['comment'],     italic=True)
+        kw_fmt     = _fmt(_colors()['keyword'],     bold=True)
+        fn_fmt     = _fmt(_colors()['elm11_func'])
+        const_fmt  = _fmt(_colors()['elm11_const'], bold=True)
+        bi_fmt     = _fmt(_colors()['builtin'])
+        num_fmt    = _fmt(_colors()['number'])
+        str_fmt    = _fmt(_colors()['string'])
+        cmt_fmt    = _fmt(_colors()['comment'],     italic=True)
 
         for kw in LUA_KEYWORDS:
             self._rules.append(_word_rule(kw, kw_fmt))
@@ -172,11 +177,11 @@ class CHighlighter(QSyntaxHighlighter):
         super().__init__(document)
         self._rules: list[tuple[QRegularExpression, QTextCharFormat]] = []
 
-        kw_fmt  = _fmt(C['keyword'],  bold=True)
-        pp_fmt  = _fmt(C['preproc'])
-        num_fmt = _fmt(C['number'])
-        str_fmt = _fmt(C['string'])
-        cmt_fmt = _fmt(C['comment'],  italic=True)
+        kw_fmt  = _fmt(_colors()['keyword'],  bold=True)
+        pp_fmt  = _fmt(_colors()['preproc'])
+        num_fmt = _fmt(_colors()['number'])
+        str_fmt = _fmt(_colors()['string'])
+        cmt_fmt = _fmt(_colors()['comment'],  italic=True)
 
         # Preprocessor (#include, #define …)
         self._rules.append((QRegularExpression(r'^\s*#\s*\w+'), pp_fmt))

@@ -18,39 +18,7 @@ from .project_tree import ProjectTree
 from .serial_terminal import SerialTerminal
 from .build_output import BuildOutput
 from .settings import SettingsDialog
-
-DARK = """
-QMainWindow, QWidget        { background:#1e1e1e; color:#d4d4d4; }
-QMenuBar                    { background:#2d2d2d; color:#cccccc; }
-QMenuBar::item:selected     { background:#094771; }
-QMenu                       { background:#2d2d2d; color:#cccccc; border:1px solid #555; }
-QMenu::item:selected        { background:#094771; }
-QToolBar                    { background:#2d2d2d; border:none; spacing:4px; padding:3px; }
-QTabWidget::pane            { border:1px solid #3c3c3c; background:#1e1e1e; }
-QTabBar::tab {
-    background:#2d2d2d; color:#888; padding:6px 16px;
-    border:none; border-right:1px solid #1e1e1e;
-}
-QTabBar::tab:selected       { background:#1e1e1e; color:#fff; border-top:2px solid #007acc; }
-QTabBar::tab:hover          { background:#2a2d2e; color:#ccc; }
-QSplitter::handle           { background:#3c3c3c; }
-QComboBox {
-    background:#3c3c3c; color:#d4d4d4;
-    border:1px solid #555; padding:3px 8px; min-width:150px;
-}
-QComboBox::drop-down        { border:none; }
-QComboBox QAbstractItemView { background:#2d2d2d; color:#d4d4d4; selection-background-color:#094771; }
-QPushButton {
-    background:#3c3c3c; color:#d4d4d4;
-    border:1px solid #555; padding:4px 12px;
-}
-QPushButton:hover           { background:#4c4c4c; }
-QPushButton:pressed         { background:#094771; }
-QPushButton:checked         { background:#094771; border-color:#007acc; }
-QPushButton:disabled        { color:#555; border-color:#444; }
-QStatusBar                  { background:#3c3c3c; color:#d4d4d4; font-size:9pt; }
-QLabel                      { background:transparent; }
-"""
+from . import theme
 
 
 class MainWindow(QMainWindow):
@@ -59,7 +27,7 @@ class MainWindow(QMainWindow):
         log.debug('MainWindow init')
         self.setWindowTitle('ELM11 IDE')
         self.setMinimumSize(1100, 720)
-        self.setStyleSheet(DARK)
+        self.setStyleSheet(theme.main_stylesheet(theme.current()))
 
         self._workspace_root: Path | None = None
 
@@ -189,6 +157,13 @@ class MainWindow(QMainWindow):
         em.addSeparator()
         em.addAction(self._act('Select &All', 'Ctrl+A',
                                lambda: self._cur() and self._cur().selectAll()))
+
+        # View
+        vm = mb.addMenu('&View')
+        self._theme_act = QAction('Switch to Light Mode', self)
+        self._theme_act.triggered.connect(self._toggle_theme)
+        self._update_theme_action_text()
+        vm.addAction(self._theme_act)
 
         # Tools
         tm = mb.addMenu('&Tools')
@@ -373,13 +348,16 @@ class MainWindow(QMainWindow):
         log.debug('Connection changed: connected=%s', connected)
         self._connect_btn.setChecked(connected)
         self._connect_btn.setText('Disconnect' if connected else 'Connect')
+        t = theme.current()
         if connected:
             port = self._port_combo.currentText()
             self._sb_conn.setText(f'  Connected: {port} @ {SettingsDialog.baud()}')
-            self.statusBar().setStyleSheet('background:#007acc; color:#fff;')
+            self.statusBar().setStyleSheet(
+                f"background:{t['status_on_bg']}; color:{t['status_on_fg']};")
         else:
             self._sb_conn.setText('  Not connected')
-            self.statusBar().setStyleSheet('background:#3c3c3c; color:#d4d4d4;')
+            self.statusBar().setStyleSheet(
+                f"background:{t['status_bg']}; color:{t['status_fg']};")
         self._update_device_buttons()
 
     # ── Device actions ────────────────────────────────────────────────────────
@@ -450,6 +428,33 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, 'Coming Soon',
             'C build support is coming soon.\n\n'
             'Configure your compiler in Settings → C when it arrives.')
+
+    # ── Theme ─────────────────────────────────────────────────────────────────
+
+    def _toggle_theme(self):
+        new = 'light' if theme.is_dark() else 'dark'
+        theme.set_theme(new)
+        self._apply_theme()
+
+    def _apply_theme(self):
+        t = theme.current()
+        self.setStyleSheet(theme.main_stylesheet(t))
+        self._tree.apply_theme()
+        self._terminal.apply_theme()
+        self._build_out.apply_theme()
+        # Re-theme all open editors
+        for i in range(self._editor_tabs.count()):
+            w = self._editor_tabs.widget(i)
+            if isinstance(w, CodeEditor):
+                w.apply_theme()
+        # Update status bar colour
+        self._on_connection_changed(self._terminal.is_connected)
+        self._update_theme_action_text()
+
+    def _update_theme_action_text(self):
+        if hasattr(self, '_theme_act'):
+            label = 'Switch to Light Mode' if theme.is_dark() else 'Switch to Dark Mode'
+            self._theme_act.setText(label)
 
     # ── Workspaces ────────────────────────────────────────────────────────────
 

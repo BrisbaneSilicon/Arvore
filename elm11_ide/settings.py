@@ -6,26 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QSettings
 
-STYLE = """
-QDialog  { background:#2d2d2d; color:#cccccc; }
-QWidget  { background:#2d2d2d; color:#cccccc; }
-QTabWidget::pane { border:1px solid #3c3c3c; }
-QTabBar::tab {
-    background:#3c3c3c; color:#cccccc;
-    padding:6px 14px; border:none;
-}
-QTabBar::tab:selected { background:#094771; }
-QLineEdit, QSpinBox {
-    background:#1e1e1e; color:#d4d4d4;
-    border:1px solid #555; padding:4px;
-}
-QPushButton {
-    background:#3c3c3c; color:#cccccc;
-    border:1px solid #555; padding:4px 10px;
-}
-QPushButton:hover { background:#4c4c4c; }
-QLabel { background:transparent; }
-"""
+from . import theme
 
 
 class SettingsDialog(QDialog):
@@ -33,7 +14,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle('Settings')
         self.setMinimumWidth(520)
-        self.setStyleSheet(STYLE)
+        self.setStyleSheet(theme.dialog_stylesheet(theme.current()))
         self._s = QSettings()
         self._build_ui()
         self._load()

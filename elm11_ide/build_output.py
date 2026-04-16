@@ -7,12 +7,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPlainTextEdit
 from PyQt6.QtCore import QProcess, pyqtSignal
 from PyQt6.QtGui import QColor, QPalette, QFont, QTextCursor, QTextCharFormat
 
-BG      = '#1a1a1a'
-FG      = '#d4d4d4'
-ERROR   = '#f44747'
-WARNING = '#e5c07b'
-SUCCESS = '#6ab04c'
-INFO    = '#569cd6'
+from . import theme
 
 
 class BuildOutput(QWidget):
@@ -34,23 +29,29 @@ class BuildOutput(QWidget):
         self._output.setReadOnly(True)
         self._output.setFont(font)
         self._output.setMaximumBlockCount(2000)
-        pal = self._output.palette()
-        pal.setColor(QPalette.ColorRole.Base, QColor(BG))
-        pal.setColor(QPalette.ColorRole.Text, QColor(FG))
-        self._output.setPalette(pal)
         layout.addWidget(self._output)
+
+        self.apply_theme()
+
+    def apply_theme(self):
+        t = theme.current()
+        pal = self._output.palette()
+        pal.setColor(QPalette.ColorRole.Base, QColor(t['term_bg']))
+        pal.setColor(QPalette.ColorRole.Text, QColor(t['term_fg']))
+        self._output.setPalette(pal)
 
     # ── Public API ────────────────────────────────────────────────────────
 
     def run_command(self, program: str, args: list[str], cwd: str | None = None):
         log.debug('run_command: %s %s  cwd=%s', program, args, cwd)
         """Start an external command and stream its output here."""
+        t = theme.current()
         if self._process and self._process.state() != QProcess.ProcessState.NotRunning:
-            self._append('A build is already running.\n', WARNING)
+            self._append('A build is already running.\n', t['term_warning'])
             return
 
         self.clear()
-        self._append(f'$ {program} {" ".join(args)}\n', INFO)
+        self._append(f'$ {program} {" ".join(args)}\n', t['term_info'])
 
         self._process = QProcess(self)
         self._process.setProgram(program)
@@ -88,21 +89,23 @@ class BuildOutput(QWidget):
             self._append(line, self._line_color(line, stderr=True))
 
     def _on_finished(self, exit_code: int, _status):
-        color = SUCCESS if exit_code == 0 else ERROR
+        t = theme.current()
+        color = t['term_success'] if exit_code == 0 else t['term_error']
         self._append(f'\n--- {"Done" if exit_code == 0 else "Failed"} '
                      f'(exit {exit_code}) ---\n', color)
         self.build_finished.emit(exit_code)
 
     @staticmethod
     def _line_color(line: str, stderr: bool = False) -> str:
+        t = theme.current()
         ll = line.lower()
         if 'error:' in ll or ': error' in ll:
-            return ERROR
+            return t['term_error']
         if 'warning:' in ll or ': warning' in ll:
-            return WARNING
+            return t['term_warning']
         if stderr:
-            return WARNING
-        return FG
+            return t['term_warning']
+        return t['term_fg']
 
     def _append(self, text: str, color: str):
         cursor = self._output.textCursor()

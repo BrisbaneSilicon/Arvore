@@ -8,13 +8,7 @@ from PyQt6.QtGui import (
 from pathlib import Path
 
 from .highlighter import LuaHighlighter, CHighlighter
-
-BG           = '#1e1e1e'
-LINENUM_BG   = '#252526'
-LINENUM_FG   = '#858585'
-LINENUM_CUR  = '#c6c6c6'
-CURRENT_LINE = '#2a2d2e'
-TEXT_FG      = '#d4d4d4'
+from . import theme
 
 LUA_INDENT_OPENERS  = ('do', 'then', 'else', 'elseif', 'repeat')
 LUA_FUNC_STARTS     = ('function',)
@@ -46,13 +40,10 @@ class CodeEditor(QPlainTextEdit):
         font.setStyleHint(QFont.StyleHint.TypeWriter)
         self.setFont(font)
 
-        pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Base, QColor(BG))
-        pal.setColor(QPalette.ColorRole.Text, QColor(TEXT_FG))
-        self.setPalette(pal)
-
         metrics = QFontMetrics(font)
         self.setTabStopDistance(4 * metrics.horizontalAdvance(' '))
+
+        self.apply_theme()
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
 
         self.blockCountChanged.connect(self._update_lna_width)
@@ -61,6 +52,19 @@ class CodeEditor(QPlainTextEdit):
 
         self._update_lna_width(0)
         self._highlight_current_line()
+
+    def apply_theme(self):
+        """Apply current theme colours to editor and re-create highlighter."""
+        t = theme.current()
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Base, QColor(t['ed_bg']))
+        pal.setColor(QPalette.ColorRole.Text, QColor(t['ed_fg']))
+        self.setPalette(pal)
+        self._highlight_current_line()
+        self._lna.update()
+        # Re-create highlighter so it picks up new syntax colours
+        if self.file_path:
+            self._apply_highlighter(self.file_path)
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -118,7 +122,7 @@ class CodeEditor(QPlainTextEdit):
         extra = []
         if not self.isReadOnly():
             sel = QTextEdit.ExtraSelection()
-            sel.format.setBackground(QColor(CURRENT_LINE))
+            sel.format.setBackground(QColor(theme.current()['ed_curline']))
             sel.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
             sel.cursor = self.textCursor()
             sel.cursor.clearSelection()
@@ -126,8 +130,9 @@ class CodeEditor(QPlainTextEdit):
         self.setExtraSelections(extra)
 
     def _paint_line_numbers(self, event):
+        t = theme.current()
         painter = QPainter(self._lna)
-        painter.fillRect(event.rect(), QColor(LINENUM_BG))
+        painter.fillRect(event.rect(), QColor(t['ed_linenum_bg']))
 
         block        = self.firstVisibleBlock()
         block_num    = block.blockNumber()
@@ -140,7 +145,7 @@ class CodeEditor(QPlainTextEdit):
 
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
-                color = LINENUM_CUR if block_num == current_line else LINENUM_FG
+                color = t['ed_linenum_cur'] if block_num == current_line else t['ed_linenum_fg']
                 painter.setPen(QColor(color))
                 painter.drawText(0, top, lna_width - 4, fm_height,
                                  Qt.AlignmentFlag.AlignRight, str(block_num + 1))
