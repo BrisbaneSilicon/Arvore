@@ -3,7 +3,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QSplitter, QTabWidget, QToolBar,
+    QMainWindow, QApplication, QSplitter, QTabWidget, QToolBar,
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
 )
 from PyQt6.QtCore import Qt, QSettings, QSize, QTimer
@@ -567,10 +567,21 @@ class MainWindow(QMainWindow):
     def _restore_geometry(self):
         s = QSettings()
         if s.contains('window/width'):
-            w = int(s.value('window/width'))
-            h = int(s.value('window/height'))
-            log.debug('Restoring window size: %d x %d', w, h)
-            QTimer.singleShot(0, lambda: self.resize(w, h))
+            saved_w = int(s.value('window/width'))
+            saved_h = int(s.value('window/height'))
+            log.debug('Saved window size: %d x %d', saved_w, saved_h)
+
+            def _apply():
+                screen = self.screen().availableGeometry()
+                max_w = int(screen.width() * 0.95)
+                max_h = int(screen.height() * 0.95)
+                w = min(saved_w, max_w)
+                h = min(saved_h, max_h)
+                log.debug('Applying window size: %d x %d  (max: %d x %d, screen: %s)',
+                          w, h, max_w, max_h, self.screen().name())
+                self.resize(w, h)
+
+            QTimer.singleShot(200, _apply)
         else:
             log.debug('No saved window size found')
 
@@ -588,11 +599,13 @@ class MainWindow(QMainWindow):
                 break
         self._terminal.disconnect_port()
         s = QSettings()
-        screen = QApplication.primaryScreen().availableGeometry()
-        w = min(self.width(), screen.width() - 50)
-        h = min(self.height(), screen.height() - 50)
-        log.debug('Saving window size: %d x %d  (screen available: %d x %d)',
-                  w, h, screen.width(), screen.height())
+        screen = self.screen().availableGeometry()
+        max_w = int(screen.width() * 0.95)
+        max_h = int(screen.height() * 0.95)
+        w = min(self.width(), max_w)
+        h = min(self.height(), max_h)
+        log.debug('Saving window size: %d x %d  (max: %d x %d, screen: %s)',
+                  w, h, max_w, max_h, self.screen().name())
         log.debug('Settings file: %s', s.fileName())
         s.setValue('window/width',  w)
         s.setValue('window/height', h)
