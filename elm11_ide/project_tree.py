@@ -1,5 +1,8 @@
 """Project / file-system tree panel."""
-from PyQt6.QtWidgets import QTreeView, QMenu
+from PyQt6.QtWidgets import (
+    QTreeView, QMenu, QMessageBox,
+    QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox,
+)
 from PyQt6.QtGui import QFileSystemModel
 from PyQt6.QtCore import Qt, QDir, pyqtSignal, QModelIndex
 from pathlib import Path
@@ -78,4 +81,71 @@ class ProjectTree(QTreeView):
         if path.is_file():
             menu.addAction('Open').triggered.connect(
                 lambda: self.file_activated.emit(path))
+        if path.is_dir():
+            menu.addAction('New Directory').triggered.connect(
+                lambda: self._create_subfolder(path))
         menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _create_subfolder(self, parent: Path):
+        dlg = _NameDialog('New Directory', 'Directory name:', self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        name = dlg.value()
+        if not name:
+            return
+        name = name.strip()
+        new_dir = parent / name
+        try:
+            new_dir.mkdir(parents=False, exist_ok=False)
+            # Expand the parent so the new folder is immediately visible
+            self.expand(self._model.index(str(parent)))
+        except FileExistsError:
+            QMessageBox.warning(self, 'Already Exists',
+                f'"{name}" already exists in {parent.name}/')
+        except OSError as exc:
+            QMessageBox.critical(self, 'Error',
+                f'Could not create folder:\n{exc}')
+
+
+class _NameDialog(QDialog):
+    """A simple name-input dialog with a guaranteed minimum width."""
+
+    STYLE = """
+    QDialog  { background:#2d2d2d; color:#cccccc; }
+    QWidget  { background:#2d2d2d; color:#cccccc; }
+    QLabel   { background:transparent; }
+    QLineEdit {
+        background:#1e1e1e; color:#d4d4d4;
+        border:1px solid #555; padding:4px;
+    }
+    QPushButton {
+        background:#3c3c3c; color:#cccccc;
+        border:1px solid #555; padding:4px 14px;
+    }
+    QPushButton:hover    { background:#4c4c4c; }
+    QPushButton:default  { border-color:#007acc; }
+    """
+
+    def __init__(self, title: str, label: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumWidth(340)
+        self.setStyleSheet(self.STYLE)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(label))
+        self._edit = QLineEdit()
+        layout.addWidget(self._edit)
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel)
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+        self._edit.setFocus()
+        self._edit.returnPressed.connect(self.accept)
+
+    def value(self) -> str:
+        return self._edit.text().strip()
