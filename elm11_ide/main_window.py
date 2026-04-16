@@ -441,6 +441,7 @@ class MainWindow(QMainWindow):
     def _rebuild_workspaces_menu(self):
         self._ws_menu.clear()
         self._ws_menu.addAction(self._act('Open Workspace…', 'Ctrl+Shift+O', self._open_folder))
+        self._ws_menu.addAction(self._act('Close Workspace',  None,           self._close_workspace))
         self._ws_menu.addSeparator()
 
         s = QSettings()
@@ -459,6 +460,10 @@ class MainWindow(QMainWindow):
         else:
             no_ws = self._ws_menu.addAction('(no recent workspaces)')
             no_ws.setEnabled(False)
+
+    def _close_workspace(self):
+        self._tree.set_root(Path.home())
+        self.setWindowTitle('ELM11 IDE')
 
     def _show_workspace_tooltip(self, action: QAction):
         full_path = action.data()
