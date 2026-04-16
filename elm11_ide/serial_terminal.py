@@ -35,6 +35,8 @@ class SerialWorker(QThread):
         self._ser: serial.Serial | None = None
         self._running = False
         self._mutex   = QMutex()
+        self._tx_queue = bytearray()
+        self.tx_delay_ms = 1          # per-byte output delay
 
     def run(self):
         try:
@@ -47,6 +49,20 @@ class SerialWorker(QThread):
             )
             self._running = True
             while self._running:
+                # ── Transmit one queued byte ──────────────────────
+                tx = None
+                with QMutexLocker(self._mutex):
+                    if self._tx_queue and self._ser and self._ser.is_open:
+                        tx = bytes([self._tx_queue.pop(0)])
+                if tx is not None:
+                    try:
+                        self._ser.write(tx)
+                    except serial.SerialException:
+                        pass
+                    self.msleep(self.tx_delay_ms)
+                    continue  # drain tx queue before polling rx
+
+                # ── Receive ───────────────────────────────────────
                 try:
                     waiting = self._ser.in_waiting
                     if waiting:
@@ -62,12 +78,9 @@ class SerialWorker(QThread):
             self._close_serial()
 
     def send(self, data: bytes):
+        """Queue data for byte-by-byte transmission (non-blocking)."""
         with QMutexLocker(self._mutex):
-            if self._ser and self._ser.is_open:
-                try:
-                    self._ser.write(data)
-                except serial.SerialException:
-                    pass
+            self._tx_queue.extend(data)
 
     def stop(self):
         self._running = False
