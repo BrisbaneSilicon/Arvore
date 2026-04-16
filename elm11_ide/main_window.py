@@ -463,9 +463,22 @@ class MainWindow(QMainWindow):
         if history:
             for entry in history:
                 p = Path(entry)
-                action = self._ws_menu.addAction(p.name)
-                action.setData(entry)
-                action.triggered.connect(lambda checked, _p=p: self._load_workspace(_p))
+                sub = self._ws_menu.addMenu(p.name)
+                sub.setToolTipsVisible(True)
+                sub.setTitle(p.name)
+
+                open_act = sub.addAction('Open')
+                open_act.setData(entry)
+                open_act.triggered.connect(lambda checked, _p=p: self._load_workspace(_p))
+
+                remove_act = sub.addAction('Delete')
+                remove_act.triggered.connect(lambda checked, _e=entry: self._remove_workspace(_e))
+
+                # Show full path as tooltip on the submenu title item
+                sub.hovered.connect(self._show_workspace_tooltip)
+                title_act = sub.menuAction()
+                title_act.setData(entry)
+
             self._ws_menu.hovered.connect(self._show_workspace_tooltip)
             self._ws_menu.addSeparator()
             self._ws_menu.addAction(self._act('Delete All Workspaces', None, self._clear_workspace_history))
@@ -484,6 +497,15 @@ class MainWindow(QMainWindow):
             QToolTip.showText(QCursor.pos(), full_path)
         else:
             QToolTip.hideText()
+
+    def _remove_workspace(self, entry: str):
+        s = QSettings()
+        raw = s.value('workspaces/history', [])
+        history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
+        if entry in history:
+            history.remove(entry)
+        s.setValue('workspaces/history', history)
+        self._rebuild_workspaces_menu()
 
     def _clear_workspace_history(self):
         QSettings().remove('workspaces/history')
