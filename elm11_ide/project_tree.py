@@ -21,8 +21,6 @@ QScrollBar::handle:vertical {
 }
 """
 
-SUPPORTED = ['*.lua', '*.c', '*.h', '*.txt', '*.md', '*.json', '*.toml']
-
 
 class ProjectTree(QTreeView):
     file_activated = pyqtSignal(Path)
@@ -34,8 +32,8 @@ class ProjectTree(QTreeView):
         self._model.setFilter(
             QDir.Filter.NoDotAndDotDot | QDir.Filter.Files | QDir.Filter.Dirs
         )
-        self._model.setNameFilters(SUPPORTED)
-        self._model.setNameFilterDisables(False)
+        # Show all files — no name filtering
+        self._model.setRootPath('')
         self.setModel(self._model)
 
         # Hide size / type / date columns — name only
@@ -51,10 +49,13 @@ class ProjectTree(QTreeView):
 
         self.setStyleSheet(TREE_STYLE)
 
+        # Default to home directory
+        self.set_root(Path.home())
+
     # ── Public API ────────────────────────────────────────────────────────
 
     def set_root(self, path: Path):
-        root_index = self._model.setRootPath(str(path))
+        root_index = self._model.index(str(path))
         self.setRootIndex(root_index)
 
     # ── Internal ─────────────────────────────────────────────────────────
