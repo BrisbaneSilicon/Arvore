@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFileSystemModel
 from PyQt6.QtCore import Qt, QDir, pyqtSignal, QModelIndex, QSortFilterProxyModel
 from pathlib import Path
+import shutil
 
 from . import theme
 
@@ -85,6 +86,15 @@ class ProjectTree(QTreeView):
     def apply_theme(self):
         self.setStyleSheet(theme.tree_stylesheet(theme.current()))
 
+    def _refresh_parent(self, parent: Path):
+        """Force the model to rescan a directory after rename/delete."""
+        idx = self._model.index(str(parent))
+        if idx.isValid():
+            # Toggling the root path forces QFileSystemModel to re-read
+            old_root = self._model.rootPath()
+            self._model.setRootPath('')
+            self._model.setRootPath(old_root)
+
     @property
     def selected_dir(self) -> Path | None:
         """Return the selected directory, or the parent dir if a file is selected."""
@@ -141,6 +151,11 @@ class ProjectTree(QTreeView):
                 menu.addSeparator()
                 menu.addAction('New Workspace').triggered.connect(
                     lambda: self._set_workspace(path))
+            menu.addSeparator()
+            menu.addAction('Rename…').triggered.connect(
+                lambda: self._rename_item(path))
+            menu.addAction('Delete').triggered.connect(
+                lambda: self._delete_item(path))
 
         menu.exec(self.viewport().mapToGlobal(pos))
 
@@ -168,6 +183,50 @@ class ProjectTree(QTreeView):
             QMessageBox.critical(self, 'Error',
                 f'Could not create folder:\n{exc}')
 
+    def _rename_item(self, path: Path):
+        kind = 'directory' if path.is_dir() else 'file'
+        dlg = _NameDialog(f'Rename {kind}', f'New name for  {path.name}:', self)
+        dlg._edit.setText(path.name)
+        dlg._edit.selectAll()
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        new_name = dlg.value()
+        if not new_name or new_name == path.name:
+            return
+        new_path = path.parent / new_name
+        try:
+            path.rename(new_path)
+            self._refresh_parent(path.parent)
+        except FileExistsError:
+            QMessageBox.warning(self, 'Already Exists',
+                f'"{new_name}" already exists.')
+        except OSError as exc:
+            QMessageBox.critical(self, 'Error',
+                f'Could not rename:\n{exc}')
+
+    def _delete_item(self, path: Path):
+        kind = 'directory' if path.is_dir() else 'file'
+        msg = QMessageBox(self)
+        msg.setWindowTitle(f'Delete {kind}')
+        msg.setText(f'Permanently delete  {path.name}?')
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+        msg.setStyleSheet(theme.dialog_stylesheet(theme.current()))
+        msg.setMinimumWidth(450)
+        if msg.exec() != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            parent = path.parent
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+            self._refresh_parent(parent)
+        except OSError as exc:
+            QMessageBox.critical(self, 'Error',
+                f'Could not delete:\n{exc}')
+
 
 class _NameDialog(QDialog):
     """A simple name-input dialog with a guaranteed minimum width."""
@@ -175,7 +234,7 @@ class _NameDialog(QDialog):
     def __init__(self, title: str, label: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setMinimumWidth(340)
+        self.setMinimumWidth(450)
         self.setStyleSheet(theme.dialog_stylesheet(theme.current()))
 
         layout = QVBoxLayout(self)
