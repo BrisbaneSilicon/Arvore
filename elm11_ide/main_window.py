@@ -186,10 +186,8 @@ class MainWindow(QMainWindow):
     def _setup_statusbar(self):
         sb = self.statusBar()
         self._sb_conn = QLabel('  Not connected')
-        self._sb_mode = QLabel('')
-        self._sb_mode.setVisible(False)
         sb.addWidget(self._sb_conn)
-        sb.addPermanentWidget(self._sb_mode)
+        self._sb_mode = None
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -223,6 +221,9 @@ class MainWindow(QMainWindow):
 
     def _set_mode(self, mode: str):
         self._workspace_mode = mode
+        if self._sb_mode is None:
+            self._sb_mode = QLabel()
+            self.statusBar().addPermanentWidget(self._sb_mode)
         self._sb_mode.setText(f'  {mode}  ')
         self._sb_mode.setVisible(True)
 
@@ -531,7 +532,8 @@ class MainWindow(QMainWindow):
         self._workspace_root = None
         self._tree.set_root(Path.home())
         self.setWindowTitle('ELM11 IDE')
-        self._sb_mode.setVisible(False)
+        if self._sb_mode:
+            self._sb_mode.setVisible(False)
 
     def _show_workspace_tooltip(self, action: QAction):
         full_path = action.data()
