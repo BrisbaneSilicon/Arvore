@@ -4,7 +4,8 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
 )
 from PyQt6.QtCore import Qt, QSettings, QSize, QTimer
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtGui import QAction, QKeySequence, QCursor
+from PyQt6.QtWidgets import QToolTip
 import serial.tools.list_ports
 from pathlib import Path
 import sys
@@ -449,14 +450,22 @@ class MainWindow(QMainWindow):
         if history:
             for entry in history:
                 p = Path(entry)
-                action = self._ws_menu.addAction(str(p))
-                action.setToolTip(entry)
+                action = self._ws_menu.addAction(p.name)
+                action.setData(entry)
                 action.triggered.connect(lambda checked, _p=p: self._load_workspace(_p))
+            self._ws_menu.hovered.connect(self._show_workspace_tooltip)
             self._ws_menu.addSeparator()
             self._ws_menu.addAction(self._act('Delete All Workspaces', None, self._clear_workspace_history))
         else:
             no_ws = self._ws_menu.addAction('(no recent workspaces)')
             no_ws.setEnabled(False)
+
+    def _show_workspace_tooltip(self, action: QAction):
+        full_path = action.data()
+        if full_path:
+            QToolTip.showText(QCursor.pos(), full_path)
+        else:
+            QToolTip.hideText()
 
     def _clear_workspace_history(self):
         QSettings().remove('workspaces/history')
