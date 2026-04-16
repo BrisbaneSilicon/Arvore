@@ -11,6 +11,8 @@ from PyQt6.QtGui import QColor, QPalette, QFont, QTextCursor, QTextCharFormat
 import serial
 import serial.tools.list_ports
 
+from .highlighter import LuaHighlighter
+
 # ── Terminal colours ──────────────────────────────────────────────────────────
 TERM_BG        = '#1a1a1a'
 TERM_FG        = '#d4d4d4'
@@ -165,6 +167,7 @@ class SerialTerminal(QWidget):
         pal.setColor(QPalette.ColorRole.Base, QColor(TERM_BG))
         pal.setColor(QPalette.ColorRole.Text, QColor(TERM_FG))
         self._output.setPalette(pal)
+        self._highlighter = LuaHighlighter(self._output.document())
         layout.addWidget(self._output)
 
         # Input row
@@ -183,6 +186,7 @@ class SerialTerminal(QWidget):
 
         send_btn = QPushButton('Send')
         send_btn.setFixedWidth(60)
+        send_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         send_btn.clicked.connect(self._send_input)
 
         row.addWidget(self._prompt)

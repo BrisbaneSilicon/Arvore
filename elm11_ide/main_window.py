@@ -48,7 +48,7 @@ QPushButton:hover           { background:#4c4c4c; }
 QPushButton:pressed         { background:#094771; }
 QPushButton:checked         { background:#094771; border-color:#007acc; }
 QPushButton:disabled        { color:#555; border-color:#444; }
-QStatusBar                  { background:#007acc; color:#fff; font-size:9pt; }
+QStatusBar                  { background:#3c3c3c; color:#d4d4d4; font-size:9pt; }
 QLabel                      { background:transparent; }
 """
 
