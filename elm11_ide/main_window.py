@@ -78,8 +78,9 @@ class MainWindow(QMainWindow):
         # Left: project tree
         self._tree = ProjectTree()
         self._tree.file_activated.connect(self._open_path)
-        self._tree.setFixedWidth(200)
+        self._tree.setMinimumWidth(120)
         outer.addWidget(self._tree)
+        outer.setChildrenCollapsible(False)
 
         # Right: editor on top, bottom panel below
         right = QSplitter(Qt.Orientation.Vertical)
@@ -99,6 +100,7 @@ class MainWindow(QMainWindow):
         self._bottom.addTab(self._terminal, 'Serial Terminal')
         self._bottom.addTab(self._build_out, 'Build Output')
         right.addWidget(self._bottom)
+        right.setChildrenCollapsible(False)
 
         outer.setSizes([200, 900])
         right.setSizes([520, 200])
