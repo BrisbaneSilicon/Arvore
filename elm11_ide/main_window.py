@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
         self._tree = ProjectTree()
         self._tree.file_activated.connect(self._open_path)
         self._tree.workspace_loaded.connect(self._load_workspace)
+        self._tree.new_file_requested.connect(self._new_file)
         self._tree.setMinimumWidth(120)
         outer.addWidget(self._tree)
         outer.setChildrenCollapsible(False)

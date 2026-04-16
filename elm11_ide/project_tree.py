@@ -61,6 +61,7 @@ class _WorkspaceProxy(QSortFilterProxyModel):
 class ProjectTree(QTreeView):
     file_activated   = pyqtSignal(Path)
     workspace_loaded = pyqtSignal(Path)
+    new_file_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -139,6 +140,8 @@ class ProjectTree(QTreeView):
                 menu.addAction('Open').triggered.connect(
                     lambda: self.file_activated.emit(path))
             if path.is_dir():
+                menu.addAction('New File').triggered.connect(
+                    lambda: (self.setCurrentIndex(index), self.new_file_requested.emit()))
                 menu.addAction('New Directory').triggered.connect(
                     lambda: self._create_subfolder(path))
                 menu.addSeparator()
