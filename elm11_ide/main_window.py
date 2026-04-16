@@ -220,9 +220,8 @@ class MainWindow(QMainWindow):
         connected = self._terminal.is_connected
         editor    = self._cur()
         is_lua    = editor is not None and editor.is_lua
-        uploader  = SettingsDialog.uploader_path()
-        self._upload_btn.setEnabled(connected and is_lua and bool(uploader))
-        self._run_btn.setEnabled(connected and is_lua)
+        self._upload_btn.setEnabled(connected)
+        self._run_btn.setEnabled(connected)
         # Build stays disabled until C toolchain support arrives
         self._build_btn.setEnabled(False)
 
