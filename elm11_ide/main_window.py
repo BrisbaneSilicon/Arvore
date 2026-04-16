@@ -360,6 +360,7 @@ class MainWindow(QMainWindow):
             self._sb_conn.setText('  Not connected')
             self.statusBar().setStyleSheet(
                 f"background:{t['status_bg']}; color:{t['status_fg']};")
+        self._port_combo.setEnabled(not connected)
         self._update_device_buttons()
 
     # ── Device actions ────────────────────────────────────────────────────────
