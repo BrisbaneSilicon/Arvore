@@ -384,19 +384,53 @@ class MainWindow(QMainWindow):
             return
 
         # Enter Command Mode, then trigger the upload sequence
-        worker.send(b'\ncommand\n')
+        worker.send(b'\ncmd\n')
         QTimer.singleShot(2000, lambda: self._do_upload_step2(
             worker, prog_name, lua_file))
 
     def _do_upload_step2(self, worker, prog_name, lua_file):
         log.debug('Upload step 2: sending upload command for %s', prog_name)
+        # Start capturing serial data to detect "Program already exists"
+        self._upload_capture = b''
+        worker.data_received.connect(self._capture_upload_response)
         worker.send(f'upload|program("{prog_name}")\n'.encode())
-        QTimer.singleShot(200, lambda: self._do_upload_step3(
-            worker, lua_file))
+        QTimer.singleShot(500, lambda: self._do_upload_step3(
+            worker, prog_name, lua_file))
 
-    def _do_upload_step3(self, worker, lua_file):
-        log.debug('Upload step 3: pausing serial worker, starting uploader')
-        # Pause the serial worker so the uploader has exclusive port access
+    def _capture_upload_response(self, data: bytes):
+        """Temporarily buffer serial data to check for overwrite prompt."""
+        self._upload_capture += data
+
+    def _do_upload_step3(self, worker, prog_name, lua_file):
+        log.debug('Upload step 3: checking for overwrite prompt')
+        # Stop capturing
+        try:
+            worker.data_received.disconnect(self._capture_upload_response)
+        except TypeError:
+            pass
+
+        captured = self._upload_capture.decode('utf-8', errors='replace')
+        self._upload_capture = b''
+        log.debug('Upload capture: %r', captured)
+
+        if 'already exists' in captured.lower():
+            reply = QMessageBox.question(
+                self, 'Program Already Exists',
+                f'"{prog_name}" already exists on the ELM11.\n\n'
+                'Overwrite it?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                worker.send(b'y')
+                QTimer.singleShot(300, lambda: self._do_upload_start(
+                    worker, lua_file))
+            else:
+                worker.send(b'n')
+            return
+
+        self._do_upload_start(worker, lua_file)
+
+    def _do_upload_start(self, worker, lua_file):
+        log.debug('Upload step 4: pausing serial worker, starting uploader')
         worker.pause()
 
         self._build_out.clear()
@@ -429,6 +463,7 @@ class MainWindow(QMainWindow):
         worker = self._terminal.get_worker()
         if worker:
             worker.resume()
+            worker.send(b'exit\n')
         self._bottom.setCurrentWidget(self._terminal)
 
     def _on_uploader_thread_done(self):
@@ -446,8 +481,8 @@ class MainWindow(QMainWindow):
         prog_name = editor.file_path.name
         worker = self._terminal.get_worker()
         if worker:
-            worker.send(b'command\n')
-            QTimer.singleShot(150, lambda: worker.send(
+            worker.send(b'\ncmd\n')
+            QTimer.singleShot(2000, lambda: worker.send(
                 f'run|program("{prog_name}")\n'.encode()))
         self._bottom.setCurrentWidget(self._terminal)
 
