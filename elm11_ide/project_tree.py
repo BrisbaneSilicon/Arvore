@@ -110,9 +110,10 @@ class ProjectTree(QTreeView):
         parent_path = path.parent if path.parent != path else path
         parent_source = self._model.index(str(parent_path))
         self.setRootIndex(self._proxy.mapFromSource(parent_source))
-        # Auto-expand the workspace folder
+        # Auto-expand and select the workspace folder
         ws_proxy = self._proxy.mapFromSource(self._model.index(str(path)))
         self.expand(ws_proxy)
+        self.setCurrentIndex(ws_proxy)
 
     # ── Internal ─────────────────────────────────────────────────────────
 
