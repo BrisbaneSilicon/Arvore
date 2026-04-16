@@ -453,7 +453,7 @@ class MainWindow(QMainWindow):
                 action.setToolTip(entry)
                 action.triggered.connect(lambda checked, _p=p: self._load_workspace(_p))
             self._ws_menu.addSeparator()
-            self._ws_menu.addAction(self._act('Clear History', None, self._clear_workspace_history))
+            self._ws_menu.addAction(self._act('Delete All Workspaces', None, self._clear_workspace_history))
         else:
             no_ws = self._ws_menu.addAction('(no recent workspaces)')
             no_ws.setEnabled(False)
