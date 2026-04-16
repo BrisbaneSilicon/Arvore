@@ -258,7 +258,10 @@ class MainWindow(QMainWindow):
     def _open_folder(self):
         path = QFileDialog.getExistingDirectory(self, 'Open Folder')
         if path:
-            self._load_workspace(Path(path))
+            p = Path(path)
+            self._workspace_root = None
+            self._tree.set_root(p)
+            self.setWindowTitle('ELM11 IDE')
 
     def _open_path(self, path: Path):
         # Avoid duplicate tabs
