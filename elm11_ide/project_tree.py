@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox,
 )
 from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import Qt, QDir, pyqtSignal, QModelIndex
+from PyQt6.QtCore import Qt, QDir, pyqtSignal, QModelIndex, QSortFilterProxyModel
 from pathlib import Path
 
 TREE_STYLE = """
@@ -25,8 +25,42 @@ QScrollBar::handle:vertical {
 """
 
 
+class _WorkspaceProxy(QSortFilterProxyModel):
+    """Show only the workspace folder and its contents; hide siblings at every level."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._workspace: Path | None = None
+
+    def set_workspace(self, path: Path):
+        self._workspace = path
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
+        if self._workspace is None:
+            return True
+
+        idx = self.sourceModel().index(source_row, 0, source_parent)
+        item_path = self.sourceModel().filePath(idx)
+        if not item_path:
+            return True          # path not yet loaded — don't hide prematurely
+
+        item = Path(item_path)
+        ws   = self._workspace
+
+        # Accept: workspace itself, or anything inside it
+        if item == ws or item.is_relative_to(ws):
+            return True
+        # Accept: ancestors of the workspace (needed so the root index is reachable)
+        if ws.is_relative_to(item):
+            return True
+        # Reject everything else (siblings and their subtrees)
+        return False
+
+
 class ProjectTree(QTreeView):
-    file_activated = pyqtSignal(Path)
+    file_activated   = pyqtSignal(Path)
+    workspace_loaded = pyqtSignal(Path)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -35,9 +69,12 @@ class ProjectTree(QTreeView):
         self._model.setFilter(
             QDir.Filter.NoDotAndDotDot | QDir.Filter.Files | QDir.Filter.Dirs
         )
-        # Show all files — no name filtering
         self._model.setRootPath('')
-        self.setModel(self._model)
+
+        self._proxy = _WorkspaceProxy(self)
+        self._proxy.setSourceModel(self._model)
+        self._proxy.setDynamicSortFilter(True)
+        self.setModel(self._proxy)
 
         # Hide size / type / date columns — name only
         for col in range(1, 4):
@@ -58,33 +95,51 @@ class ProjectTree(QTreeView):
     # ── Public API ────────────────────────────────────────────────────────
 
     def set_root(self, path: Path):
-        root_index = self._model.index(str(path))
-        self.setRootIndex(root_index)
+        self._proxy.set_workspace(path)
+        # Root the view at the parent so the workspace folder is a visible node.
+        # When path is already the filesystem root (parent == self), stay there.
+        parent_path = path.parent if path.parent != path else path
+        parent_source = self._model.index(str(parent_path))
+        self.setRootIndex(self._proxy.mapFromSource(parent_source))
+        # Auto-expand the workspace folder
+        ws_proxy = self._proxy.mapFromSource(self._model.index(str(path)))
+        self.expand(ws_proxy)
 
     # ── Internal ─────────────────────────────────────────────────────────
 
+    def _source_path(self, proxy_index: QModelIndex) -> Path:
+        return Path(self._model.filePath(self._proxy.mapToSource(proxy_index)))
+
     def _activated(self, index: QModelIndex):
-        path = Path(self._model.filePath(index))
+        path = self._source_path(index)
         if path.is_file():
             self.file_activated.emit(path)
 
     def _context_menu(self, pos):
         index = self.indexAt(pos)
-        if not index.isValid():
-            return
-        path = Path(self._model.filePath(index))
         menu = QMenu(self)
         menu.setStyleSheet(
             'QMenu { background:#2d2d2d; color:#cccccc; border:1px solid #555; }'
             'QMenu::item:selected { background:#094771; }'
         )
-        if path.is_file():
-            menu.addAction('Open').triggered.connect(
-                lambda: self.file_activated.emit(path))
-        if path.is_dir():
-            menu.addAction('New Directory').triggered.connect(
-                lambda: self._create_subfolder(path))
+
+        if index.isValid():
+            path = self._source_path(index)
+            if path.is_file():
+                menu.addAction('Open').triggered.connect(
+                    lambda: self.file_activated.emit(path))
+            if path.is_dir():
+                menu.addAction('New Directory').triggered.connect(
+                    lambda: self._create_subfolder(path))
+                menu.addSeparator()
+                menu.addAction('Load Workspace').triggered.connect(
+                    lambda: self._set_workspace(path))
+
         menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _set_workspace(self, path: Path):
+        self.set_root(path)
+        self.workspace_loaded.emit(path)
 
     def _create_subfolder(self, parent: Path):
         dlg = _NameDialog('New Directory', 'Directory name:', self)
@@ -98,7 +153,7 @@ class ProjectTree(QTreeView):
         try:
             new_dir.mkdir(parents=False, exist_ok=False)
             # Expand the parent so the new folder is immediately visible
-            self.expand(self._model.index(str(parent)))
+            self.expand(self._proxy.mapFromSource(self._model.index(str(parent))))
         except FileExistsError:
             QMessageBox.warning(self, 'Already Exists',
                 f'"{name}" already exists in {parent.name}/')

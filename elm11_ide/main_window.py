@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         # Left: project tree
         self._tree = ProjectTree()
         self._tree.file_activated.connect(self._open_path)
+        self._tree.workspace_loaded.connect(self._load_workspace)
         self._tree.setMinimumWidth(120)
         outer.addWidget(self._tree)
         outer.setChildrenCollapsible(False)
@@ -155,7 +156,7 @@ class MainWindow(QMainWindow):
         fm = mb.addMenu('&File')
         fm.addAction(self._act('&New File',       'Ctrl+N',       self._new_file))
         fm.addAction(self._act('&Open File…',     'Ctrl+O',       self._open_file))
-        fm.addAction(self._act('Open &Folder…',   'Ctrl+Shift+O', self._open_folder))
+        fm.addAction(self._act('Open &Folder…',   None, self._open_folder))
         fm.addSeparator()
         fm.addAction(self._act('&Save',           'Ctrl+S',       self._save_file))
         fm.addAction(self._act('Save &As…',       'Ctrl+Shift+S', self._save_file_as))
@@ -180,6 +181,10 @@ class MainWindow(QMainWindow):
         tm.addSeparator()
         tm.addAction(self._act('Clear &Terminal', None,      self._terminal.clear))
         tm.addAction(self._act('Clear &Build Output', None,  self._build_out.clear))
+
+        # Workspaces
+        self._ws_menu = mb.addMenu('&Workspaces')
+        self._rebuild_workspaces_menu()
 
         # Help
         hm = mb.addMenu('&Help')
@@ -248,9 +253,7 @@ class MainWindow(QMainWindow):
     def _open_folder(self):
         path = QFileDialog.getExistingDirectory(self, 'Open Folder')
         if path:
-            p = Path(path)
-            self._tree.set_root(p)
-            self.setWindowTitle(f'ELM11 IDE — {p.name}')
+            self._load_workspace(Path(path))
 
     def _open_path(self, path: Path):
         # Avoid duplicate tabs
@@ -412,6 +415,51 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, 'Coming Soon',
             'C build support is coming soon.\n\n'
             'Configure your compiler in Settings → C when it arrives.')
+
+    # ── Workspaces ────────────────────────────────────────────────────────────
+
+    def _load_workspace(self, path: Path):
+        """Switch the tree root to path and persist it in the workspace history."""
+        self._tree.set_root(path)
+        self.setWindowTitle(f'ELM11 IDE — {path.name}')
+
+        s = QSettings()
+        raw = s.value('workspaces/history', [])
+        # QSettings may return a string instead of list when there's only one entry
+        history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
+        entry = str(path)
+        if entry in history:
+            history.remove(entry)
+        history.insert(0, entry)
+        history = history[:10]          # keep the 10 most recent
+        s.setValue('workspaces/history', history)
+
+        self._rebuild_workspaces_menu()
+
+    def _rebuild_workspaces_menu(self):
+        self._ws_menu.clear()
+        self._ws_menu.addAction(self._act('Open Workspace…', 'Ctrl+Shift+O', self._open_folder))
+        self._ws_menu.addSeparator()
+
+        s = QSettings()
+        raw = s.value('workspaces/history', [])
+        history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
+
+        if history:
+            for entry in history:
+                p = Path(entry)
+                action = self._ws_menu.addAction(str(p))
+                action.setToolTip(entry)
+                action.triggered.connect(lambda checked, _p=p: self._load_workspace(_p))
+            self._ws_menu.addSeparator()
+            self._ws_menu.addAction(self._act('Clear History', None, self._clear_workspace_history))
+        else:
+            no_ws = self._ws_menu.addAction('(no recent workspaces)')
+            no_ws.setEnabled(False)
+
+    def _clear_workspace_history(self):
+        QSettings().remove('workspaces/history')
+        self._rebuild_workspaces_menu()
 
     # ── Settings / About ──────────────────────────────────────────────────────
 
