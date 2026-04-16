@@ -173,7 +173,6 @@ class SerialTerminal(QWidget):
 
         # Input row
         row = QHBoxLayout()
-        self._prompt = QLabel('$')
         self._input = QLineEdit()
         self._input.setFont(font)
         self._input.setPlaceholderText('Type Lua here and press Enter…')
@@ -185,10 +184,13 @@ class SerialTerminal(QWidget):
         self._send_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._send_btn.clicked.connect(self._send_input)
 
-        row.addWidget(self._prompt)
         row.addWidget(self._input)
         row.addWidget(self._send_btn)
         layout.addLayout(row)
+
+        self._input.setEnabled(False)
+        self._send_btn.setEnabled(False)
+        self.connected.connect(self._on_connected)
 
         self.apply_theme()
 
@@ -198,13 +200,19 @@ class SerialTerminal(QWidget):
         pal.setColor(QPalette.ColorRole.Base, QColor(t['term_bg']))
         pal.setColor(QPalette.ColorRole.Text, QColor(t['term_fg']))
         self._output.setPalette(pal)
-        self._prompt.setStyleSheet(
-            f"color:{t['term_fg']}; font-family:Monospace; font-size:10pt; padding:0 4px;")
         self._input.setStyleSheet(
             f"background:{t['term_bg']}; color:{t['term_fg']};"
             f"border:1px solid {t['border']}; padding:2px;")
         # Re-create highlighter for new syntax colours
         self._highlighter = LuaHighlighter(self._output.document())
+
+    def _on_connected(self, connected: bool):
+        self._input.setEnabled(connected)
+        self._send_btn.setEnabled(connected)
+        if connected:
+            self._input.setFocus()
+        else:
+            self._input.clear()
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -235,9 +243,6 @@ class SerialTerminal(QWidget):
     @property
     def is_connected(self) -> bool:
         return self._worker is not None and self._worker.isRunning()
-
-    def append_info(self, text: str):
-        self._append(text, theme.current()['term_info'])
 
     def clear(self):
         self._output.clear()
@@ -273,7 +278,6 @@ class SerialTerminal(QWidget):
         self._hist_pos = -1
         self._input.clear()
         self._worker.send((text + '\n').encode('utf-8'))
-        self._append(text + '\n', theme.current()['term_fg'])
 
     def _on_data(self, data: bytes):
         self._buf += data
@@ -294,7 +298,7 @@ class SerialTerminal(QWidget):
             self._append(chunk, color or theme.current()['term_fg'])
 
     def _on_lost(self, error: str):
-        self._append(f'\nConnection lost: {error}\n', theme.current()['term_error'])
+        log.warning('Connection lost: %s', error)
         self._worker = None
         self.connected.emit(False)
 

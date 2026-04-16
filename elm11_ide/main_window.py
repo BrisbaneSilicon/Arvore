@@ -380,8 +380,6 @@ class MainWindow(QMainWindow):
         lua_file  = str(editor.file_path)
         prog_name = editor.file_path.name
 
-        self._terminal.append_info(f'\n--- Uploading {prog_name} ---\n')
-
         worker = self._terminal.get_worker()
         if worker:
             # Enter Command Mode, trigger upload, then hand the port to the script
@@ -407,10 +405,6 @@ class MainWindow(QMainWindow):
         if worker:
             worker.reopen_port()
         self._bottom.setCurrentWidget(self._terminal)
-        if exit_code == 0:
-            self._terminal.append_info('--- Upload complete ---\n')
-        else:
-            self._terminal.append_info('--- Upload failed — check Build Output ---\n')
 
     def _run_program(self):
         editor = self._cur()
