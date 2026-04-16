@@ -132,7 +132,7 @@ class ProjectTree(QTreeView):
                 menu.addAction('New Directory').triggered.connect(
                     lambda: self._create_subfolder(path))
                 menu.addSeparator()
-                menu.addAction('Load Workspace').triggered.connect(
+                menu.addAction('New Workspace').triggered.connect(
                     lambda: self._set_workspace(path))
 
         menu.exec(self.viewport().mapToGlobal(pos))

@@ -62,6 +62,7 @@ class MainWindow(QMainWindow):
         self._setup_menu()
         self._setup_statusbar()
         self._restore_geometry()
+        self._restore_workspace()
 
         # Auto-refresh serial port list
         self._port_timer = QTimer(self)
@@ -475,6 +476,16 @@ class MainWindow(QMainWindow):
             'brisbanesilicon.com.au')
 
     # ── Window state ──────────────────────────────────────────────────────────
+
+    def _restore_workspace(self):
+        s = QSettings()
+        raw = s.value('workspaces/history', [])
+        history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
+        if history:
+            p = Path(history[0])
+            if p.is_dir():
+                self._tree.set_root(p)
+                self.setWindowTitle(f'ELM11 IDE — {p.name}')
 
     def _restore_geometry(self):
         s = QSettings()
