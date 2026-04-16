@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(theme.main_stylesheet(theme.current()))
 
         self._workspace_root: Path | None = None
+        self._workspace_mode: str = 'Lua'
 
         # Build central UI first so _terminal etc. exist before menu is wired
         log.debug('Setting up central UI')
@@ -110,6 +111,11 @@ class MainWindow(QMainWindow):
         self._connect_btn.setCheckable(True)
         self._connect_btn.clicked.connect(self._toggle_connect)
         tb.addWidget(self._connect_btn)
+        tb.addSeparator()
+
+        self._mode_label = QLabel(' Lua ')
+        self._mode_label.setToolTip('Workspace language mode (set when workspace is created)')
+        tb.addWidget(self._mode_label)
         tb.addSeparator()
 
         self._build_btn = QPushButton('Build')
@@ -216,10 +222,18 @@ class MainWindow(QMainWindow):
             self._port_combo.setCurrentText(current)
         self._port_combo.blockSignals(False)
 
+    @property
+    def workspace_mode(self) -> str:
+        """Current language mode: 'Lua' or 'C'."""
+        return self._workspace_mode
+
+    def _set_mode(self, mode: str):
+        self._workspace_mode = mode
+        self._mode_label.setText(f' {mode} ')
+        self._sb_lang.setText(f'  {mode}  ')
+
     def _update_device_buttons(self):
         connected = self._terminal.is_connected
-        editor    = self._cur()
-        is_lua    = editor is not None and editor.is_lua
         self._upload_btn.setEnabled(connected)
         self._run_btn.setEnabled(connected)
         # Build stays disabled until C toolchain support arrives
@@ -321,11 +335,8 @@ class MainWindow(QMainWindow):
         self._update_device_buttons()
         editor = self._cur()
         if editor and editor.file_path:
-            lang = 'Lua' if editor.is_lua else 'C' if editor.is_c else ''
-            self._sb_lang.setText(f'  {lang}  ')
             self._sb_file.setText(f'  {editor.file_path}  ')
         else:
-            self._sb_lang.setText('')
             self._sb_file.setText('')
 
     # ── Serial connection ─────────────────────────────────────────────────────
@@ -472,6 +483,23 @@ class MainWindow(QMainWindow):
         history = history[:10]          # keep the 10 most recent
         s.setValue('workspaces/history', history)
 
+        # Restore or choose mode for this workspace
+        mode_key = f'workspaces/mode/{path}'
+        saved_mode = s.value(mode_key, None)
+        if saved_mode is None:
+            # New workspace — ask the user to pick a language mode
+            items = ['Lua', 'C']
+            from PyQt6.QtWidgets import QInputDialog
+            mode, ok = QInputDialog.getItem(
+                self, 'Workspace Language',
+                f'Select language mode for  {path.name}:',
+                items, 0, False)
+            if not ok:
+                mode = 'Lua'
+            s.setValue(mode_key, mode)
+            saved_mode = mode
+        self._set_mode(saved_mode)
+
         self._rebuild_workspaces_menu()
 
     def _rebuild_workspaces_menu(self):
@@ -562,6 +590,8 @@ class MainWindow(QMainWindow):
                 self._workspace_root = p
                 self._tree.set_root(p)
                 self.setWindowTitle(f'ELM11 IDE — {p.name}')
+                saved_mode = s.value(f'workspaces/mode/{p}', 'Lua')
+                self._set_mode(saved_mode)
             else:
                 log.debug('Workspace dir no longer exists: %s', p)
         else:
