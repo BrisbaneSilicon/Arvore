@@ -8,6 +8,7 @@ from PyQt6.QtGui import (
 from pathlib import Path
 
 from .highlighter import LuaHighlighter, CHighlighter
+from .settings import SettingsDialog
 from . import theme
 
 LUA_INDENT_OPENERS  = ('do', 'then', 'else', 'elseif', 'repeat')
@@ -36,12 +37,7 @@ class CodeEditor(QPlainTextEdit):
 
         self._lna = _LineNumberArea(self)
 
-        font = QFont('Monospace', 11)
-        font.setStyleHint(QFont.StyleHint.TypeWriter)
-        self.setFont(font)
-
-        metrics = QFontMetrics(font)
-        self.setTabStopDistance(4 * metrics.horizontalAdvance(' '))
+        self._apply_font()
 
         self.apply_theme()
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
@@ -53,8 +49,17 @@ class CodeEditor(QPlainTextEdit):
         self._update_lna_width(0)
         self._highlight_current_line()
 
+    def _apply_font(self):
+        """Read font settings and apply to the editor."""
+        font = QFont(SettingsDialog.editor_font_family(),
+                     SettingsDialog.editor_font_size())
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+        self.setFont(font)
+        self.setTabStopDistance(4 * QFontMetrics(font).horizontalAdvance(' '))
+
     def apply_theme(self):
-        """Apply current theme colours to editor and re-create highlighter."""
+        """Apply current theme colours and font to editor."""
+        self._apply_font()
         t = theme.current()
         pal = self.palette()
         pal.setColor(QPalette.ColorRole.Base, QColor(t['ed_bg']))

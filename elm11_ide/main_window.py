@@ -641,6 +641,11 @@ class MainWindow(QMainWindow):
     def _open_settings(self):
         if SettingsDialog(self).exec():
             self._update_device_buttons()
+            # Re-apply font to all open editors
+            for i in range(self._editor_tabs.count()):
+                w = self._editor_tabs.widget(i)
+                if isinstance(w, CodeEditor):
+                    w.apply_theme()
 
     def _about(self):
         QMessageBox.about(self, 'ELM11 IDE',

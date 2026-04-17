@@ -2,9 +2,10 @@
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QPushButton, QFileDialog, QFormLayout,
-    QSpinBox, QDialogButtonBox,
+    QSpinBox, QDialogButtonBox, QComboBox,
 )
 from PyQt6.QtCore import QSettings
+from PyQt6.QtGui import QFont, QFontDatabase, QFontInfo, QFontMetrics
 
 from . import theme
 
@@ -23,6 +24,17 @@ class SettingsDialog(QDialog):
         root = QVBoxLayout(self)
         tabs = QTabWidget()
         root.addWidget(tabs)
+
+        # ── Editor ────────────────────────────────────────────────────
+        editor_w = QWidget()
+        f = QFormLayout(editor_w)
+        self._font_combo = QComboBox()
+        self._font_combo.addItems(self._monospaced_fonts())
+        f.addRow('Font:', self._font_combo)
+        self._font_size = QSpinBox()
+        self._font_size.setRange(6, 48)
+        f.addRow('Font size:', self._font_size)
+        tabs.addTab(editor_w, 'Editor')
 
         # ── Serial ────────────────────────────────────────────────────
         serial_w = QWidget()
@@ -85,6 +97,18 @@ class SettingsDialog(QDialog):
         btns.rejected.connect(self.reject)
         root.addWidget(btns)
 
+    _mono_cache: list[str] | None = None
+
+    @classmethod
+    def _monospaced_fonts(cls) -> list[str]:
+        """Return sorted list of monospaced font families available on the system."""
+        if cls._mono_cache is None:
+            cls._mono_cache = sorted(
+                f for f in QFontDatabase.families()
+                if QFontDatabase.isFixedPitch(f)
+            )
+        return cls._mono_cache
+
     def _browse_uploader(self):
         path, _ = QFileDialog.getOpenFileName(
             self, 'Select program_uploader.py', '', 'Python files (*.py)')
@@ -92,10 +116,17 @@ class SettingsDialog(QDialog):
             self._uploader.setText(path)
 
     def _load(self):
+        saved_font = self._s.value('editor/font_family', 'Ubuntu Mono')
+        idx = self._font_combo.findText(saved_font)
+        if idx >= 0:
+            self._font_combo.setCurrentIndex(idx)
+        self._font_size.setValue(int(self._s.value('editor/font_size', 13)))
         self._baud.setValue(int(self._s.value('serial/baud', 115200)))
         self._uploader.setText(self._s.value('lua/uploader_path', ''))
 
     def _save(self):
+        self._s.setValue('editor/font_family',   self._font_combo.currentText())
+        self._s.setValue('editor/font_size',     self._font_size.value())
         self._s.setValue('serial/baud',          self._baud.value())
         self._s.setValue('lua/uploader_path',     self._uploader.text())
         self._s.setValue('c/compiler_path',       self._compiler.text())
@@ -103,6 +134,14 @@ class SettingsDialog(QDialog):
         self._s.setValue('c/flash_tool',          self._flash_tool.text())
 
     # ── Static helpers used by MainWindow ─────────────────────────────
+    @staticmethod
+    def editor_font_family() -> str:
+        return QSettings().value('editor/font_family', 'Ubuntu Mono')
+
+    @staticmethod
+    def editor_font_size() -> int:
+        return int(QSettings().value('editor/font_size', 13))
+
     @staticmethod
     def baud() -> int:
         return int(QSettings().value('serial/baud', 115200))
