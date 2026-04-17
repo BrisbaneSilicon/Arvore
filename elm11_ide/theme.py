@@ -3,41 +3,41 @@ from PyQt6.QtCore import QSettings
 
 DARK = {
     'name': 'dark',
-    # Main chrome
-    'window_bg': '#1e1e1e', 'window_fg': '#d4d4d4',
-    'menubar_bg': '#2d2d2d', 'menubar_fg': '#cccccc',
-    'toolbar_bg': '#2d2d2d',
-    'selection':  '#094771',
-    'tab_bg': '#2d2d2d', 'tab_fg': '#888',
-    'tab_sel_bg': '#1e1e1e', 'tab_sel_fg': '#fff',
-    'tab_accent': '#007acc',
-    'splitter':   '#3c3c3c',
-    'combo_bg': '#3c3c3c', 'combo_fg': '#d4d4d4',
-    'btn_bg': '#3c3c3c', 'btn_fg': '#d4d4d4',
-    'btn_hover': '#4c4c4c', 'btn_pressed': '#094771',
+    # Main chrome — Afterglow palette
+    'window_bg': '#2e2e2e', 'window_fg': '#d6d6d6',
+    'menubar_bg': '#262626', 'menubar_fg': '#d6d6d6',
+    'toolbar_bg': '#262626',
+    'selection':  '#5a647e',
+    'tab_bg': '#262626', 'tab_fg': '#797979',
+    'tab_sel_bg': '#2e2e2e', 'tab_sel_fg': '#d6d6d6',
+    'tab_accent': '#cc7833',
+    'splitter':   '#404040',
+    'combo_bg': '#393939', 'combo_fg': '#d6d6d6',
+    'btn_bg': '#393939', 'btn_fg': '#d6d6d6',
+    'btn_hover': '#484848', 'btn_pressed': '#5a647e',
     'btn_disabled_fg': '#555',
-    'border': '#555',
-    'status_bg': '#3c3c3c', 'status_fg': '#d4d4d4',
-    'status_on_bg': '#007acc', 'status_on_fg': '#fff',
+    'border': '#404040',
+    'status_bg': '#262626', 'status_fg': '#d6d6d6',
+    'status_on_bg': '#cc7833', 'status_on_fg': '#fff',
     # Editor
-    'ed_bg': '#1e1e1e', 'ed_fg': '#d4d4d4',
-    'ed_linenum_bg': '#252526', 'ed_linenum_fg': '#858585', 'ed_linenum_cur': '#c6c6c6',
-    'ed_curline': '#2a2d2e',
+    'ed_bg': '#2e2e2e', 'ed_fg': '#d6d6d6',
+    'ed_linenum_bg': '#262626', 'ed_linenum_fg': '#797979', 'ed_linenum_cur': '#d6d6d6',
+    'ed_curline': '#333435',
     # Terminal / build
-    'term_bg': '#1a1a1a', 'term_fg': '#d4d4d4',
-    'term_info': '#569cd6', 'term_error': '#f44747',
-    'term_warning': '#e5c07b', 'term_success': '#6ab04c',
+    'term_bg': '#262626', 'term_fg': '#d6d6d6',
+    'term_info': '#6d9cbe', 'term_error': '#c45330',
+    'term_warning': '#e5b567', 'term_success': '#b4c973',
     # Tree
-    'tree_bg': '#252526', 'tree_fg': '#cccccc',
-    'tree_hover': '#2a2d2e', 'tree_sel': '#094771',
+    'tree_bg': '#262626', 'tree_fg': '#d6d6d6',
+    'tree_hover': '#333435', 'tree_sel': '#5a647e',
     # Dialogs
-    'dlg_bg': '#2d2d2d', 'dlg_fg': '#cccccc',
-    'dlg_input_bg': '#1e1e1e', 'dlg_input_fg': '#d4d4d4',
-    # Syntax
-    'syn_keyword': '#569cd6', 'syn_builtin': '#c586c0',
-    'syn_elm11_func': '#dcdcaa', 'syn_elm11_const': '#4ec9b0',
-    'syn_string': '#ce9178', 'syn_comment': '#6a9955',
-    'syn_number': '#b5cea8', 'syn_preproc': '#c586c0',
+    'dlg_bg': '#2e2e2e', 'dlg_fg': '#d6d6d6',
+    'dlg_input_bg': '#262626', 'dlg_input_fg': '#d6d6d6',
+    # Syntax — Afterglow / idlefingers derived
+    'syn_keyword': '#cc7833', 'syn_builtin': '#c45837',
+    'syn_elm11_func': '#ffc66d', 'syn_elm11_const': '#6d9cbe',
+    'syn_string': '#b4c973', 'syn_comment': '#797979',
+    'syn_number': '#b4c973', 'syn_preproc': '#a1617a',
 }
 
 LIGHT = {
@@ -79,6 +79,91 @@ LIGHT = {
     'syn_number': '#098658', 'syn_preproc': '#af00db',
 }
 
+SOLARIZED_DARK = {
+    'name': 'solarized_dark',
+    # Main chrome — Solarized base03/base02
+    'window_bg': '#002b36', 'window_fg': '#839496',
+    'menubar_bg': '#073642', 'menubar_fg': '#93a1a1',
+    'toolbar_bg': '#073642',
+    'selection':  '#073642',
+    'tab_bg': '#073642', 'tab_fg': '#586e75',
+    'tab_sel_bg': '#002b36', 'tab_sel_fg': '#93a1a1',
+    'tab_accent': '#268bd2',
+    'splitter':   '#073642',
+    'combo_bg': '#073642', 'combo_fg': '#839496',
+    'btn_bg': '#073642', 'btn_fg': '#839496',
+    'btn_hover': '#0a4050', 'btn_pressed': '#073642',
+    'btn_disabled_fg': '#586e75',
+    'border': '#073642',
+    'status_bg': '#073642', 'status_fg': '#839496',
+    'status_on_bg': '#268bd2', 'status_on_fg': '#fdf6e3',
+    # Editor
+    'ed_bg': '#002b36', 'ed_fg': '#839496',
+    'ed_linenum_bg': '#073642', 'ed_linenum_fg': '#586e75', 'ed_linenum_cur': '#93a1a1',
+    'ed_curline': '#073642',
+    # Terminal / build
+    'term_bg': '#002b36', 'term_fg': '#839496',
+    'term_info': '#268bd2', 'term_error': '#dc322f',
+    'term_warning': '#b58900', 'term_success': '#859900',
+    # Tree
+    'tree_bg': '#073642', 'tree_fg': '#839496',
+    'tree_hover': '#0a4050', 'tree_sel': '#073642',
+    # Dialogs
+    'dlg_bg': '#073642', 'dlg_fg': '#839496',
+    'dlg_input_bg': '#002b36', 'dlg_input_fg': '#839496',
+    # Syntax — Solarized accents
+    'syn_keyword': '#859900', 'syn_builtin': '#6c71c4',
+    'syn_elm11_func': '#268bd2', 'syn_elm11_const': '#2aa198',
+    'syn_string': '#2aa198', 'syn_comment': '#586e75',
+    'syn_number': '#d33682', 'syn_preproc': '#cb4b16',
+}
+
+SOLARIZED_LIGHT = {
+    'name': 'solarized_light',
+    # Main chrome — Solarized base3/base2
+    'window_bg': '#fdf6e3', 'window_fg': '#657b83',
+    'menubar_bg': '#eee8d5', 'menubar_fg': '#586e75',
+    'toolbar_bg': '#eee8d5',
+    'selection':  '#eee8d5',
+    'tab_bg': '#eee8d5', 'tab_fg': '#93a1a1',
+    'tab_sel_bg': '#fdf6e3', 'tab_sel_fg': '#586e75',
+    'tab_accent': '#268bd2',
+    'splitter':   '#eee8d5',
+    'combo_bg': '#eee8d5', 'combo_fg': '#657b83',
+    'btn_bg': '#eee8d5', 'btn_fg': '#657b83',
+    'btn_hover': '#e6dfca', 'btn_pressed': '#eee8d5',
+    'btn_disabled_fg': '#93a1a1',
+    'border': '#eee8d5',
+    'status_bg': '#eee8d5', 'status_fg': '#657b83',
+    'status_on_bg': '#268bd2', 'status_on_fg': '#fdf6e3',
+    # Editor
+    'ed_bg': '#fdf6e3', 'ed_fg': '#657b83',
+    'ed_linenum_bg': '#eee8d5', 'ed_linenum_fg': '#93a1a1', 'ed_linenum_cur': '#586e75',
+    'ed_curline': '#eee8d5',
+    # Terminal / build
+    'term_bg': '#fdf6e3', 'term_fg': '#657b83',
+    'term_info': '#268bd2', 'term_error': '#dc322f',
+    'term_warning': '#b58900', 'term_success': '#859900',
+    # Tree
+    'tree_bg': '#eee8d5', 'tree_fg': '#657b83',
+    'tree_hover': '#e6dfca', 'tree_sel': '#eee8d5',
+    # Dialogs
+    'dlg_bg': '#eee8d5', 'dlg_fg': '#657b83',
+    'dlg_input_bg': '#fdf6e3', 'dlg_input_fg': '#657b83',
+    # Syntax — Solarized accents (same as dark)
+    'syn_keyword': '#859900', 'syn_builtin': '#6c71c4',
+    'syn_elm11_func': '#268bd2', 'syn_elm11_const': '#2aa198',
+    'syn_string': '#2aa198', 'syn_comment': '#93a1a1',
+    'syn_number': '#d33682', 'syn_preproc': '#cb4b16',
+}
+
+THEMES = {
+    'dark':             DARK,
+    'light':            LIGHT,
+    'solarized_dark':   SOLARIZED_DARK,
+    'solarized_light':  SOLARIZED_LIGHT,
+}
+
 _current: dict | None = None
 
 
@@ -86,18 +171,28 @@ def current() -> dict:
     global _current
     if _current is None:
         name = QSettings().value('ui/theme', 'dark')
-        _current = LIGHT if name == 'light' else DARK
+        _current = THEMES.get(name, DARK)
     return _current
 
 
 def set_theme(name: str):
     global _current
-    _current = LIGHT if name == 'light' else DARK
+    _current = THEMES.get(name, DARK)
     QSettings().setValue('ui/theme', name)
 
 
 def is_dark() -> bool:
-    return current()['name'] == 'dark'
+    return current()['name'] in ('dark', 'solarized_dark')
+
+
+def theme_names() -> list[str]:
+    """Return display names for all available themes."""
+    return ['Afterglow (Dark)', 'Light', 'Solarized Dark', 'Solarized Light']
+
+
+def theme_ids() -> list[str]:
+    """Return internal IDs matching theme_names() order."""
+    return ['dark', 'light', 'solarized_dark', 'solarized_light']
 
 
 # ── Stylesheet builders (called with current()) ──────────────────────────────

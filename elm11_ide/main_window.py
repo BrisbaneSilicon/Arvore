@@ -164,10 +164,8 @@ class MainWindow(QMainWindow):
 
         # View
         vm = mb.addMenu('&View')
-        self._theme_act = QAction('Switch to Light Mode', self)
-        self._theme_act.triggered.connect(self._toggle_theme)
-        self._update_theme_action_text()
-        vm.addAction(self._theme_act)
+        self._theme_menu = vm.addMenu('Theme')
+        self._rebuild_theme_menu()
 
         # Tools
         tm = mb.addMenu('&Tools')
@@ -497,9 +495,19 @@ class MainWindow(QMainWindow):
 
     # ── Theme ─────────────────────────────────────────────────────────────────
 
-    def _toggle_theme(self):
-        new = 'light' if theme.is_dark() else 'dark'
-        theme.set_theme(new)
+    def _rebuild_theme_menu(self):
+        self._theme_menu.clear()
+        names = theme.theme_names()
+        ids   = theme.theme_ids()
+        cur   = theme.current()['name']
+        for name, tid in zip(names, ids):
+            act = self._theme_menu.addAction(name)
+            act.setCheckable(True)
+            act.setChecked(tid == cur)
+            act.triggered.connect(lambda checked, t=tid: self._switch_theme(t))
+
+    def _switch_theme(self, name: str):
+        theme.set_theme(name)
         self._apply_theme()
 
     def _apply_theme(self):
@@ -509,19 +517,12 @@ class MainWindow(QMainWindow):
         self._terminal.apply_theme()
         self._upload_out.apply_theme()
         self._build_out.apply_theme()
-        # Re-theme all open editors
         for i in range(self._editor_tabs.count()):
             w = self._editor_tabs.widget(i)
             if isinstance(w, CodeEditor):
                 w.apply_theme()
-        # Update status bar colour
         self._on_connection_changed(self._terminal.is_connected)
-        self._update_theme_action_text()
-
-    def _update_theme_action_text(self):
-        if hasattr(self, '_theme_act'):
-            label = 'Switch to Light Mode' if theme.is_dark() else 'Switch to Dark Mode'
-            self._theme_act.setText(label)
+        self._rebuild_theme_menu()
 
     # ── Workspaces ────────────────────────────────────────────────────────────
 
