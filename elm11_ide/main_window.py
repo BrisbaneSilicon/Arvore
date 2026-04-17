@@ -481,13 +481,13 @@ class MainWindow(QMainWindow):
     def _run_program(self):
         editor = self._cur()
         if not editor or not editor.file_path:
+            QMessageBox.warning(self, 'No File',
+                'Select a file to run.')
             return
         prog_name = editor.file_path.name
         worker = self._terminal.get_worker()
         if worker:
-            worker.send(b'\ncmd\n')
-            QTimer.singleShot(2000, lambda: worker.send(
-                f'run|program("{prog_name}")\n'.encode()))
+            worker.send(f'run_program("{prog_name}")\n'.encode())
         self._bottom.setCurrentWidget(self._terminal)
 
     def _build(self):
