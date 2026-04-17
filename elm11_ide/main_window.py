@@ -372,7 +372,7 @@ class MainWindow(QMainWindow):
         editor = self._cur()
         if not editor or not editor.file_path:
             QMessageBox.warning(self, 'No File',
-                'Open a file to begin the upload process.')
+                'Open a file to begin the Upload process.')
             return
         if editor.document().isModified():
             editor.save()
@@ -480,7 +480,7 @@ class MainWindow(QMainWindow):
         editor = self._cur()
         if not editor or not editor.file_path:
             QMessageBox.warning(self, 'No File',
-                'Select a file to run.')
+                'Open a file to begin the Run process.')
             return
         prog_name = editor.file_path.name
         worker = self._terminal.get_worker()
