@@ -147,9 +147,9 @@ class _AnsiStripper:
                         break
                     params = text[i + 2:j]
                     terminator = text[j]
-                    # \e[6n — cursor position query → reply with 512;512
+                    # \e[6n — cursor position query → reply with panel size
                     if terminator == 'n' and params == '6' and self._reply:
-                        self._reply(b'\x1b[512;512R')
+                        self._reply()
                     i = j + 1
                     continue
                 else:
@@ -168,7 +168,7 @@ class SerialTerminal(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker: SerialWorker | None = None
-        self._ansi   = _AnsiStripper(reply_cb=self._send_raw_bytes)
+        self._ansi   = _AnsiStripper(reply_cb=self._reply_cursor_position)
         self._buf    = b''          # partial-UTF-8 accumulator
         self._history: list[str] = []
         self._hist_pos = -1
@@ -282,11 +282,17 @@ class SerialTerminal(QWidget):
         if self._worker:
             self._worker.send(data)
 
-    def _send_raw_bytes(self, data: bytes):
-        """Callback for _AnsiStripper to reply to terminal queries."""
+    def _reply_cursor_position(self):
+        """Reply to \\e[6n with the terminal panel size in character cells."""
+        viewport = self._output.viewport()
+        fm = self._output.fontMetrics()
+        cols = max(1, viewport.width() // fm.averageCharWidth())
+        rows = max(1, viewport.height() // fm.height())
+        log.debug('Cursor position query → %d rows, %d cols', rows, cols)
+        response = f'\x1b[{rows};{cols}R'.encode()
         if self._worker and self._worker.serial_port and self._worker.serial_port.is_open:
             try:
-                self._worker.serial_port.write(data)
+                self._worker.serial_port.write(response)
             except Exception:
                 pass
 
