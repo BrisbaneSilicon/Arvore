@@ -374,7 +374,7 @@ class MainWindow(QMainWindow):
         editor = self._cur()
         if not editor or not editor.file_path:
             QMessageBox.warning(self, 'No File',
-                'Select a file to upload.')
+                'Open a file to begin the upload process.')
             return
         if editor.document().isModified():
             editor.save()
