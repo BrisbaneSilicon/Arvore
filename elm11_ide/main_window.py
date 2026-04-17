@@ -81,9 +81,11 @@ class MainWindow(QMainWindow):
         self._bottom = QTabWidget()
         self._terminal = SerialTerminal()
         self._terminal.connected.connect(self._on_connection_changed)
+        self._upload_out = BuildOutput()
         self._build_out = BuildOutput()
         self._build_out.build_finished.connect(self._on_build_finished)
         self._bottom.addTab(self._terminal, 'Serial Terminal')
+        self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
         right.addWidget(self._bottom)
         right.setChildrenCollapsible(False)
@@ -172,6 +174,7 @@ class MainWindow(QMainWindow):
         tm.addAction(self._act('&Settings…',      'Ctrl+,', self._open_settings))
         tm.addSeparator()
         tm.addAction(self._act('Clear &Terminal', None,      self._terminal.clear))
+        tm.addAction(self._act('Clear &Upload Status', None, self._upload_out.clear))
         tm.addAction(self._act('Clear &Build Output', None,  self._build_out.clear))
 
         # Workspaces
@@ -383,9 +386,14 @@ class MainWindow(QMainWindow):
         if not worker or not worker.serial_port:
             return
 
+        # Switch to Upload Status tab immediately
+        self._upload_out._append('\n--- Upload Begin ---\n\n', theme.current()['term_fg'])
+        self._upload_out._append('Enter COMMAND mode...\n', theme.current()['term_fg'])
+        self._bottom.setCurrentWidget(self._upload_out)
+
         # Enter Command Mode, then trigger the upload sequence
         worker.send(b'\ncmd\n')
-        QTimer.singleShot(2000, lambda: self._do_upload_step2(
+        QTimer.singleShot(500, lambda: self._do_upload_step2(
             worker, prog_name, lua_file))
 
     def _do_upload_step2(self, worker, prog_name, lua_file):
@@ -433,9 +441,6 @@ class MainWindow(QMainWindow):
         log.debug('Upload step 4: pausing serial worker, starting uploader')
         worker.pause()
 
-        self._build_out.clear()
-        self._bottom.setCurrentWidget(self._build_out)
-
         self._uploader = UploaderWorker(worker.serial_port, lua_file)
         self._uploader.progress.connect(self._on_upload_progress)
         self._uploader.finished_ok.connect(self._on_upload_ok)
@@ -444,18 +449,18 @@ class MainWindow(QMainWindow):
         self._uploader.start()
 
     def _on_upload_progress(self, msg: str):
-        self._build_out._append(msg, theme.current()['term_fg'])
+        self._upload_out._append(msg, theme.current()['term_fg'])
 
     def _on_upload_ok(self):
         log.debug('Upload OK')
-        self._build_out._append('\n--- Upload complete ---\n',
-                                theme.current()['term_success'])
+        self._upload_out._append('\n--- Upload Complete ---\n',
+                                 theme.current()['term_success'])
         self._upload_done()
 
     def _on_upload_err(self, reason: str):
         log.debug('Upload Error')
-        self._build_out._append(f'\n--- Upload failed: {reason} ---\n',
-                                theme.current()['term_error'])
+        self._upload_out._append(f'\n--- Upload Failed: {reason} ---\n',
+                                  theme.current()['term_error'])
         self._upload_done()
 
     def _upload_done(self):
@@ -464,7 +469,6 @@ class MainWindow(QMainWindow):
         if worker:
             worker.resume()
             worker.send(b'exit\n')
-        self._bottom.setCurrentWidget(self._terminal)
 
     def _on_uploader_thread_done(self):
         """Called when the uploader thread has fully exited run()."""
@@ -503,6 +507,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(theme.main_stylesheet(t))
         self._tree.apply_theme()
         self._terminal.apply_theme()
+        self._upload_out.apply_theme()
         self._build_out.apply_theme()
         # Re-theme all open editors
         for i in range(self._editor_tabs.count()):
