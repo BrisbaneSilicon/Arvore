@@ -14,13 +14,6 @@ import serial.tools.list_ports
 from . import theme
 from .highlighter import LuaHighlighter, SkipHighlight
 
-# Basic ANSI 3x colour map (foreground)
-_ANSI_FG = {
-    30: '#1a1a1a', 31: '#f44747', 32: '#6ab04c', 33: '#e5c07b',
-    34: '#569cd6', 35: '#c586c0', 36: '#4ec9b0', 37: '#d4d4d4',
-    90: '#555555', 91: '#f97583', 92: '#85e89d', 93: '#ffea7f',
-    94: '#79b8ff', 95: '#b392f0', 96: '#39d5d5', 97: '#ffffff',
-}
 
 
 # ── Serial worker (background QThread) ───────────────────────────────────────
@@ -116,36 +109,56 @@ class SerialWorker(QThread):
 
 
 # ── ANSI escape-code parser ───────────────────────────────────────────────────
-class _AnsiParser:
-    def __init__(self):
-        self._color: str | None = None
+# Terminal letters that end a CSI sequence (ESC [ ... <letter>)
+_CSI_TERMINATORS = set('ABCDHJKfmnsu')
 
-    def feed(self, text: str) -> list[tuple[str, str | None]]:
-        """Return list of (chunk, colour_hex | None)."""
-        chunks: list[tuple[str, str | None]] = []
+
+class _AnsiStripper:
+    """Strip all ANSI CSI escape sequences, responding to queries as needed.
+
+    Buffers partial escape sequences between calls to feed().
+    """
+
+    def __init__(self, reply_cb=None):
+        self._reply = reply_cb  # callable(bytes) to send data back
+        self._pending = ''      # incomplete escape sequence carried over
+
+    def feed(self, text: str) -> str:
+        """Return text with all CSI sequences removed."""
+        text = self._pending + text
+        self._pending = ''
+        out = []
         i = 0
-        while i < len(text):
-            if text[i] == '\x1b' and i + 1 < len(text) and text[i + 1] == '[':
-                end = text.find('m', i + 2)
-                if end != -1:
-                    try:
-                        code = int(text[i + 2:end]) if text[i + 2:end] else 0
-                        self._color = None if code == 0 else _ANSI_FG.get(code, self._color)
-                    except ValueError:
-                        pass
-                    i = end + 1
+        n = len(text)
+        while i < n:
+            if text[i] == '\x1b':
+                # Not enough chars to know if this is CSI yet
+                if i + 1 >= n:
+                    self._pending = text[i:]
+                    break
+                if text[i + 1] == '[':
+                    # Scan for terminator
+                    j = i + 2
+                    while j < n and text[j] not in _CSI_TERMINATORS:
+                        j += 1
+                    if j >= n:
+                        # Sequence is incomplete — save for next call
+                        self._pending = text[i:]
+                        break
+                    params = text[i + 2:j]
+                    terminator = text[j]
+                    # \e[6n — cursor position query → reply with 512;512
+                    if terminator == 'n' and params == '6' and self._reply:
+                        self._reply(b'\x1b[512;512R')
+                    i = j + 1
                     continue
-            chunks.append((text[i], self._color))
+                else:
+                    # ESC followed by something other than [ — skip ESC + next char
+                    i += 2
+                    continue
+            out.append(text[i])
             i += 1
-
-        # Merge consecutive same-colour runs
-        merged: list[list] = []
-        for ch, col in chunks:
-            if merged and merged[-1][1] == col:
-                merged[-1][0] += ch
-            else:
-                merged.append([ch, col])
-        return [(t, c) for t, c in merged]
+        return ''.join(out)
 
 
 # ── Terminal widget ───────────────────────────────────────────────────────────
@@ -155,7 +168,7 @@ class SerialTerminal(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker: SerialWorker | None = None
-        self._ansi   = _AnsiParser()
+        self._ansi   = _AnsiStripper(reply_cb=self._send_raw_bytes)
         self._buf    = b''          # partial-UTF-8 accumulator
         self._history: list[str] = []
         self._hist_pos = -1
@@ -269,6 +282,14 @@ class SerialTerminal(QWidget):
         if self._worker:
             self._worker.send(data)
 
+    def _send_raw_bytes(self, data: bytes):
+        """Callback for _AnsiStripper to reply to terminal queries."""
+        if self._worker and self._worker.serial_port and self._worker.serial_port.is_open:
+            try:
+                self._worker.serial_port.write(data)
+            except Exception:
+                pass
+
     def get_worker(self) -> SerialWorker | None:
         return self._worker
 
@@ -312,6 +333,12 @@ class SerialTerminal(QWidget):
         self._worker.send((text + '\n').encode('utf-8'))
 
     def _on_data(self, data: bytes):
+        if log.isEnabledFor(logging.DEBUG):
+            for b in data:
+                if 0x20 <= b < 0x7f:
+                    log.debug('RX: %02x  %r', b, chr(b))
+                else:
+                    log.debug('RX: %02x', b)
         self._buf += data
         try:
             text = self._buf.decode('utf-8')
@@ -326,8 +353,9 @@ class SerialTerminal(QWidget):
 
         text = text.replace('\r\n', '\n')
         text = text.replace('\n\r', '\n')
-        for chunk, color in self._ansi.feed(text):
-            self._append(chunk, color or theme.current()['term_fg'])
+        clean = self._ansi.feed(text)
+        if clean:
+            self._append(clean, theme.current()['term_fg'])
 
     def _on_lost(self, error: str):
         log.warning('Connection lost: %s', error)
