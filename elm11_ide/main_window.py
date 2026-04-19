@@ -134,6 +134,12 @@ class MainWindow(QMainWindow):
         self._run_btn.setEnabled(False)
         tb.addWidget(self._run_btn)
 
+        self._stop_btn = QPushButton('Stop')
+        self._stop_btn.setToolTip('Stop the currently running program')
+        self._stop_btn.clicked.connect(self._stop_program)
+        self._stop_btn.setEnabled(False)
+        tb.addWidget(self._stop_btn)
+
     # ── Menu ──────────────────────────────────────────────────────────────────
 
     def _setup_menu(self):
@@ -233,6 +239,7 @@ class MainWindow(QMainWindow):
         connected = self._terminal.is_connected
         self._upload_btn.setEnabled(connected)
         self._run_btn.setEnabled(connected)
+        self._stop_btn.setEnabled(connected)
         # Build stays disabled until C toolchain support arrives
         self._build_btn.setEnabled(False)
 
@@ -486,6 +493,12 @@ class MainWindow(QMainWindow):
         worker = self._terminal.get_worker()
         if worker:
             worker.send(f'run_program("{prog_name}")\n'.encode())
+        self._bottom.setCurrentWidget(self._terminal)
+
+    def _stop_program(self):
+        worker = self._terminal.get_worker()
+        if worker:
+            worker.send(b'q\n')
         self._bottom.setCurrentWidget(self._terminal)
 
     def _build(self):
