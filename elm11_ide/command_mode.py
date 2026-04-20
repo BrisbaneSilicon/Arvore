@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QStyle, QStyleOptionTab, QStylePainter, QTabBar,
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QHeaderView,
     QAbstractItemView, QStackedWidget, QGraphicsOpacityEffect,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QPen
@@ -762,7 +763,6 @@ class CommandModePanel(QWidget):
         list_tabs.setUsesScrollButtons(False)
 
         no_arg = [
-            ('I/O Capabilities',      'list|io_capabilities'),
             ('I/O Type Config',       'list|io_type_cfg'),
             ('I/O Baud Config',       'list|io_baud_cfg'),
             ('I/O PWM Config',        'list|io_pwm_cfg'),
@@ -777,6 +777,7 @@ class CommandModePanel(QWidget):
             ('Boot Prompt Format',    'list|start_on_boot_prompt_format'),
             ('REPL History',          'list|repl_history'),
             ('CMD History',           'list|cmd_history'),
+            ('I/O Capabilities',      'list|io_capabilities'),
         ]
         for label, cmd in no_arg:
             view_cls = _LIST_VIEW_CLASSES.get(cmd, _RawOutputView)
@@ -1155,11 +1156,29 @@ class CommandModePanel(QWidget):
         page = QWidget()
         v = QVBoxLayout(page)
         btn = QPushButton('Delete ALL Programs')
-        btn.clicked.connect(lambda: self._send('delete|all_programs'))
+        btn.clicked.connect(self._confirm_delete_all_programs)
         v.addWidget(btn)
         v.addStretch(1)
         self._track_buttons.append(btn)
         return page
+
+    def _confirm_delete_all_programs(self):
+        """Pop up a y/n confirmation, then send the command followed by the
+        corresponding response to the device's own confirmation prompt."""
+        if not self._active or not self._worker:
+            return
+        reply = QMessageBox.question(
+            self, 'Delete All Programs',
+            'Are you sure you want to delete ALL programs from the device?\n\n'
+            'This cannot be undone.',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        self._send('delete|all_programs')
+        answer = b'y\n' if reply == QMessageBox.StandardButton.Yes else b'n\n'
+        # Give the device a moment to prompt before sending y/n.
+        QTimer.singleShot(
+            400,
+            lambda a=answer: self._worker.send(a) if self._worker else None)
 
     def _group_load(self) -> QWidget:
         self._track_buttons = getattr(self, '_track_buttons', [])
@@ -1311,12 +1330,17 @@ class CommandModePanel(QWidget):
         self._active = True
         self._set_controls_enabled(True)
         self.active_changed.emit(True)
-        # After command mode is ready, silently fetch the program list so
-        # every program-name dropdown is populated, then fire the currently
-        # selected list tab's command.
-        QTimer.singleShot(600, lambda: self._refresh_programs(
-            on_done=lambda: self._on_list_tab_changed(
-                self._list_tabs.currentIndex())))
+        # Once cmd mode is settled, fire the currently-selected list tab
+        # (so the panel shows data quickly), then — after giving its
+        # response time to arrive — silently fetch the program list so
+        # every program-name dropdown is populated.
+        QTimer.singleShot(600, self._post_activation_sequence)
+
+    def _post_activation_sequence(self):
+        if not self._active:
+            return
+        self._on_list_tab_changed(self._list_tabs.currentIndex())
+        QTimer.singleShot(1000, self._refresh_programs)
 
     def _send_cmd_enter(self):
         if self._active and self._worker:
