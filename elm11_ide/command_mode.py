@@ -6,15 +6,21 @@ response stream for display.
 """
 from __future__ import annotations
 
+import re
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout,
     QPushButton, QLineEdit, QComboBox, QSpinBox, QLabel, QTabWidget,
     QScrollArea, QStyle, QStyleOptionTab, QStylePainter, QTabBar,
+    QPlainTextEdit, QTableWidget, QTableWidgetItem, QHeaderView,
+    QAbstractItemView,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QPen
 
+
 from . import theme
+from .serial_terminal import _AnsiStripper
 
 
 class _VerticalTabBar(QTabBar):
@@ -74,6 +80,145 @@ _BAUD_RATES = [
 ]
 
 
+class _ListOutputView(QWidget):
+    """Base widget that accepts captured text chunks for a list command."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._buffer: str = ''
+
+    def clear_output(self):
+        self._buffer = ''
+
+    def append_output(self, text: str):
+        self._buffer += text
+
+
+class _RawOutputView(_ListOutputView):
+    """Fallback: just show the raw text response."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._text = QPlainTextEdit()
+        self._text.setReadOnly(True)
+        self._text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        layout.addWidget(self._text)
+
+    def clear_output(self):
+        super().clear_output()
+        self._text.clear()
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        cursor = self._text.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        cursor.insertText(text)
+        self._text.setTextCursor(cursor)
+
+
+class _ProgramsView(_ListOutputView):
+    """Parse `list|programs` output into a numbered table."""
+
+    _LINE_RE = re.compile(r'^\s*Program\s+(\d+)\.\s*:\s*(\S.*?)\s*$', re.MULTILINE)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._table = QTableWidget(0, 2)
+        self._table.setHorizontalHeaderLabels(['#', 'Program'])
+        self._table.verticalHeader().setVisible(False)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        h = self._table.horizontalHeader()
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._table)
+
+    def clear_output(self):
+        super().clear_output()
+        self._table.setRowCount(0)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        self._refresh()
+
+    def _refresh(self):
+        matches = list(self._LINE_RE.finditer(self._buffer))
+        self._table.setRowCount(len(matches))
+        for row, m in enumerate(matches):
+            num_item  = QTableWidgetItem(m.group(1))
+            num_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self._table.setItem(row, 0, num_item)
+            self._table.setItem(row, 1, QTableWidgetItem(m.group(2)))
+
+
+_IO_TYPE_COLORS = {
+    'NONE':     '#808080',
+    'GPIO_OUT': '#cc7833',
+    'GPIO_IN':  '#cc7833',
+    'PWM':      '#ffc66d',
+    'UART_OUT': '#6d9cbe',
+    'UART_IN':  '#6d9cbe',
+    'SPI_OUT':  '#a1617a',
+    'SPI_IN':   '#a1617a',
+    'I2C':      '#b4c973',
+}
+
+
+class _IoTypeCfgView(_ListOutputView):
+    """Parse `list|io_type_cfg` output into a pin → type table."""
+
+    _LINE_RE = re.compile(r'^\s*PIN(\d+)\s*:\s*(\S+)\s*$', re.MULTILINE)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._table = QTableWidget(0, 2)
+        self._table.setHorizontalHeaderLabels(['PIN', 'Type'])
+        self._table.verticalHeader().setVisible(False)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        h = self._table.horizontalHeader()
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._table)
+
+    def clear_output(self):
+        super().clear_output()
+        self._table.setRowCount(0)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        self._refresh()
+
+    def _refresh(self):
+        matches = list(self._LINE_RE.finditer(self._buffer))
+        self._table.setRowCount(len(matches))
+        for row, m in enumerate(matches):
+            pin_item = QTableWidgetItem(f'PIN{m.group(1)}')
+            pin_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self._table.setItem(row, 0, pin_item)
+
+            type_name = m.group(2)
+            type_item = QTableWidgetItem(type_name)
+            colour = _IO_TYPE_COLORS.get(type_name)
+            if colour:
+                type_item.setForeground(QColor(colour))
+            self._table.setItem(row, 1, type_item)
+
+
+_LIST_VIEW_CLASSES: dict[str, type[_ListOutputView]] = {
+    'list|programs':    _ProgramsView,
+    'list|io_type_cfg': _IoTypeCfgView,
+}
+
+
 class CommandModePanel(QWidget):
     """Sidebar panel for entering and driving ELM11 command mode."""
 
@@ -84,6 +229,10 @@ class CommandModePanel(QWidget):
         self._terminal = None
         self._worker   = None
         self._active   = False
+        self._current_output_view: _ListOutputView | None = None
+        # Buffered ANSI stripper — handles partial escape sequences split
+        # across serial chunks so they don't leak into parser views.
+        self._stripper = _AnsiStripper(reply_cb=None)
         self._build_ui()
         self._set_controls_enabled(False)
 
@@ -201,22 +350,20 @@ class CommandModePanel(QWidget):
             ('XBar Config',           'list|xbar_cfg'),
             ('User Comms Config',     'list|user_comms_cfg'),
             ('Clock Frequency',       'list|clk_freq'),
-            ('Program Count',         'list|program_count'),
             ('Programs',              'list|programs'),
             ('Boot Program',          'list|start_on_boot_program'),
             ('REPL History',          'list|repl_history'),
             ('CMD History',           'list|cmd_history'),
         ]
         for label, cmd in no_arg:
+            view_cls = _LIST_VIEW_CLASSES.get(cmd, _RawOutputView)
+            view = view_cls()
             page = QWidget()
             v = QVBoxLayout(page)
-            v.addStretch(1)
-            lbl = QLabel(f'Selecting this tab sends:\n\n{cmd}')
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setWordWrap(True)
-            v.addWidget(lbl)
-            v.addStretch(1)
+            v.setContentsMargins(4, 4, 4, 4)
+            v.addWidget(view, 1)
             page.setProperty('list_command', cmd)
+            page._output_view = view
             list_tabs.addTab(page, label)
 
         # Parametrised: program code / bytecode — no auto-send; user supplies a
@@ -252,7 +399,16 @@ class CommandModePanel(QWidget):
         if index < 0:
             return
         page = self._list_tabs.widget(index)
-        cmd = page.property('list_command') if page else None
+        if not page:
+            return
+        view = getattr(page, '_output_view', None)
+        if view is not None:
+            view.clear_output()
+        self._current_output_view = view
+        # Drop any partial escape-sequence state carried over from the
+        # previous tab's capture.
+        self._stripper._pending = ''
+        cmd = page.property('list_command')
         if cmd:
             self._send(cmd)
 
@@ -464,6 +620,8 @@ class CommandModePanel(QWidget):
     def _activate(self):
         if not self._worker:
             return
+        # Tap the serial stream so we can route responses to per-tab views.
+        self._worker.data_received.connect(self._on_response_data)
         # Stop any running program first. The ELM11 needs a brief moment to
         # process the user-interrupt before it's ready to accept `cmd`.
         self._worker.send(b'q\n')
@@ -471,19 +629,41 @@ class CommandModePanel(QWidget):
         self._active = True
         self._set_controls_enabled(True)
         self.active_changed.emit(True)
+        # After command mode is ready, trigger the current list tab's command
+        # so its view populates without requiring a click.
+        QTimer.singleShot(600, lambda: self._on_list_tab_changed(
+            self._list_tabs.currentIndex()))
 
     def _send_cmd_enter(self):
         if self._active and self._worker:
             self._worker.send(b'cmd\n')
 
     def _deactivate(self, send_exit: bool):
-        if self._worker and send_exit:
-            self._worker.send(b'exit\n')
+        if self._worker:
+            try:
+                self._worker.data_received.disconnect(self._on_response_data)
+            except TypeError:
+                pass
+            if send_exit:
+                self._worker.send(b'exit\n')
         was_active = self._active
         self._active = False
+        self._current_output_view = None
         self._set_controls_enabled(False)
         if was_active:
             self.active_changed.emit(False)
+
+    def _on_response_data(self, data: bytes):
+        """Route serial bytes into the currently-selected list output view."""
+        if not self._current_output_view:
+            return
+        try:
+            text = data.decode('utf-8', errors='replace')
+        except Exception:
+            return
+        clean = self._stripper.feed(text)
+        if clean:
+            self._current_output_view.append_output(clean)
 
     def _send(self, cmd: str):
         if not self._active or not self._worker:
