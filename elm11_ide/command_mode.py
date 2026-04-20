@@ -1199,7 +1199,7 @@ class CommandModePanel(QWidget):
         form = QFormLayout(page)
         self._run_prog = self._make_program_combo()
         btn = QPushButton('Run Program')
-        btn.clicked.connect(lambda: self._send(
+        btn.clicked.connect(lambda: self._run_and_exit(
             f'run|program("{self._run_prog.currentText().strip()}")'))
         form.addRow('Program:', self._run_prog)
         form.addRow(btn)
@@ -1210,11 +1210,21 @@ class CommandModePanel(QWidget):
         page = QWidget()
         v = QVBoxLayout(page)
         btn = QPushButton('Reboot Core')
-        btn.clicked.connect(lambda: self._send('run|reboot'))
+        btn.clicked.connect(lambda: self._run_and_exit('run|reboot'))
         v.addWidget(btn)
         v.addStretch(1)
         self._track_buttons.append(btn)
         return page
+
+    def _run_and_exit(self, cmd: str):
+        """Send a command-mode command that causes the device to auto-return
+        to REPL (e.g. `run|program`, `run|reboot`), and deactivate our
+        local command-mode state so the UI stays in sync."""
+        self._send(cmd)
+        # The device auto-returns to REPL after these, so we skip sending
+        # our own `exit` — the run command is already queued behind the
+        # worker's tx pipeline.
+        self._deactivate(send_exit=False)
 
     def _group_cycle(self) -> QWidget:
         self._track_buttons = getattr(self, '_track_buttons', [])
