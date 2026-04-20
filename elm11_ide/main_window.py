@@ -5,6 +5,7 @@ log = logging.getLogger(__name__)
 from PyQt6.QtWidgets import (
     QMainWindow, QApplication, QSplitter, QTabWidget, QToolBar,
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
+    QWidget, QSizePolicy,
 )
 from PyQt6.QtCore import Qt, QSettings, QSize, QTimer
 from PyQt6.QtGui import QAction, QKeySequence, QCursor
@@ -20,6 +21,7 @@ from .build_output import BuildOutput
 from .uploader import UploaderWorker
 from .settings import SettingsDialog
 from .docs_panel import DocsPanel
+from .command_mode import CommandModePanel
 from . import theme
 
 
@@ -50,6 +52,8 @@ class MainWindow(QMainWindow):
 
         if QSettings().value('ui/docs_visible', False, type=bool):
             self._docs_toggle.setChecked(True)
+        if QSettings().value('ui/cmd_mode_visible', False, type=bool):
+            self._cmd_toggle.setChecked(True)
 
         # Auto-refresh serial port list
         self._port_timer = QTimer(self)
@@ -95,14 +99,22 @@ class MainWindow(QMainWindow):
         centre.addWidget(self._bottom)
         centre.setChildrenCollapsible(False)
 
-        # Right: toggleable documentation panel
+        # Middle-right: toggleable command-mode panel (left of docs)
+        self._cmd_mode = CommandModePanel()
+        self._cmd_mode.set_terminal(self._terminal)
+        self._cmd_mode.active_changed.connect(self._on_cmd_mode_active_changed)
+        self._cmd_mode.setMinimumWidth(280)
+        self._cmd_mode.setVisible(False)
+        self._outer.addWidget(self._cmd_mode)
+
+        # Right-most: toggleable documentation panel
         self._docs = DocsPanel()
         self._docs.open_example.connect(self._open_example)
         self._docs.setMinimumWidth(240)
         self._docs.setVisible(False)
         self._outer.addWidget(self._docs)
 
-        self._outer.setSizes([200, 900, 0])
+        self._outer.setSizes([200, 900, 0, 0])
         centre.setSizes([520, 200])
 
     # ── Toolbar ───────────────────────────────────────────────────────────────
@@ -152,6 +164,23 @@ class MainWindow(QMainWindow):
         self._stop_btn.setEnabled(False)
         tb.addWidget(self._stop_btn)
 
+        self._cmd_btn = QPushButton('Command Mode')
+        self._cmd_btn.setCheckable(True)
+        self._cmd_btn.setToolTip('Toggle ELM11 Command Mode')
+        self._cmd_btn.setEnabled(False)
+        self._cmd_btn.toggled.connect(self._on_cmd_btn_toggled)
+        tb.addWidget(self._cmd_btn)
+
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding,
+                             QSizePolicy.Policy.Preferred)
+        spacer.setStyleSheet('background: transparent;')
+        tb.addWidget(spacer)
+
+        self._cmd_status = QLabel('')
+        self._cmd_status.setStyleSheet('padding-right:8px;')
+        tb.addWidget(self._cmd_status)
+
     # ── Menu ──────────────────────────────────────────────────────────────────
 
     def _setup_menu(self):
@@ -185,9 +214,14 @@ class MainWindow(QMainWindow):
         self._theme_menu = vm.addMenu('Theme')
         self._rebuild_theme_menu()
         vm.addSeparator()
+        self._cmd_toggle = QAction('&Command Mode Panel', self)
+        self._cmd_toggle.setCheckable(True)
+        self._cmd_toggle.setShortcut(QKeySequence('F1'))
+        self._cmd_toggle.toggled.connect(self._toggle_cmd_mode)
+        vm.addAction(self._cmd_toggle)
         self._docs_toggle = QAction('&Documentation Panel', self)
         self._docs_toggle.setCheckable(True)
-        self._docs_toggle.setShortcut(QKeySequence('F1'))
+        self._docs_toggle.setShortcut(QKeySequence('F2'))
         self._docs_toggle.toggled.connect(self._toggle_docs)
         vm.addAction(self._docs_toggle)
 
@@ -255,11 +289,32 @@ class MainWindow(QMainWindow):
 
     def _update_device_buttons(self):
         connected = self._terminal.is_connected
-        self._upload_btn.setEnabled(connected)
-        self._run_btn.setEnabled(connected)
-        self._stop_btn.setEnabled(connected)
+        cmd_active = getattr(self, '_cmd_mode', None) and self._cmd_mode.is_active
+        usable = connected and not cmd_active
+        self._upload_btn.setEnabled(usable)
+        self._run_btn.setEnabled(usable)
+        self._stop_btn.setEnabled(usable)
+        self._cmd_btn.setEnabled(connected)
+        if not connected:
+            self._cmd_status.setText('')
+        elif cmd_active:
+            self._cmd_status.setText('COMMAND MODE')
+        else:
+            self._cmd_status.setText('REPL')
         # Build stays disabled until C toolchain support arrives
         self._build_btn.setEnabled(False)
+
+    def _on_cmd_btn_toggled(self, checked: bool):
+        self._cmd_mode.set_active(checked)
+
+    def _on_cmd_mode_active_changed(self, active: bool):
+        # Keep the toolbar button in sync if activation changed via other paths
+        # (e.g. auto-deactivate on serial disconnect).
+        if self._cmd_btn.isChecked() != active:
+            self._cmd_btn.blockSignals(True)
+            self._cmd_btn.setChecked(active)
+            self._cmd_btn.blockSignals(False)
+        self._update_device_buttons()
 
     # ── File operations ───────────────────────────────────────────────────────
 
@@ -550,20 +605,32 @@ class MainWindow(QMainWindow):
             worker.send(b'q\n')
         self._bottom.setCurrentWidget(self._terminal)
 
-    def _toggle_docs(self, checked: bool):
+    def _toggle_outer_pane(self, idx: int, checked: bool,
+                           min_w: int, setting_key: str):
         sizes = self._outer.sizes()
+        widget = self._outer.widget(idx)
         if checked:
-            self._docs.setVisible(True)
-            if len(sizes) == 3 and sizes[2] == 0:
-                docs_w = max(320, sum(sizes) // 3)
-                centre = max(300, sizes[1] - docs_w)
-                self._outer.setSizes([sizes[0], centre, docs_w])
+            widget.setVisible(True)
+            if sizes[idx] == 0:
+                pane_w = max(min_w, sum(sizes) // 3)
+                centre = max(300, sizes[1] - pane_w)
+                sizes[1] = centre
+                sizes[idx] = pane_w
+                self._outer.setSizes(sizes)
         else:
-            docs_w = sizes[2] if len(sizes) == 3 else 0
-            self._docs.setVisible(False)
-            if docs_w > 0:
-                self._outer.setSizes([sizes[0], sizes[1] + docs_w, 0])
-        QSettings().setValue('ui/docs_visible', checked)
+            pane_w = sizes[idx]
+            widget.setVisible(False)
+            if pane_w > 0:
+                sizes[1] += pane_w
+                sizes[idx] = 0
+                self._outer.setSizes(sizes)
+        QSettings().setValue(setting_key, checked)
+
+    def _toggle_docs(self, checked: bool):
+        self._toggle_outer_pane(3, checked, 320, 'ui/docs_visible')
+
+    def _toggle_cmd_mode(self, checked: bool):
+        self._toggle_outer_pane(2, checked, 340, 'ui/cmd_mode_visible')
 
     def _open_example(self, filename: str, code: str):
         """Open an embLua example program in a new editor tab."""
@@ -607,6 +674,7 @@ class MainWindow(QMainWindow):
         self._upload_out.apply_theme()
         self._build_out.apply_theme()
         self._docs.apply_theme()
+        self._cmd_mode.apply_theme()
         for i in range(self._editor_tabs.count()):
             w = self._editor_tabs.widget(i)
             if isinstance(w, CodeEditor):
@@ -817,6 +885,7 @@ class MainWindow(QMainWindow):
                     return
                 break
 
+        self._cmd_mode.shutdown()
         port = self._port_combo.currentText()
         if port:
             self._terminal.disconnect_port(port)
