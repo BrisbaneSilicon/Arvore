@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QComboBox, QSpinBox, QLabel, QTabWidget,
     QScrollArea, QStyle, QStyleOptionTab, QStylePainter, QTabBar,
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QHeaderView,
-    QAbstractItemView,
+    QAbstractItemView, QStackedWidget,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QPen
@@ -118,6 +118,66 @@ class _RawOutputView(_ListOutputView):
         self._text.setTextCursor(cursor)
 
 
+class _ProgramSourceView(_ListOutputView):
+    """Show the response to `list|program_code` / `list|program_bytecode`.
+
+    Switches to a prominent error label if the device reports that the
+    program couldn't be printed (e.g. because it doesn't exist).
+    """
+
+    _ERROR_RE = re.compile(
+        r'Error[^\n]*?(?:failed\s+to\s+print\s+program'
+        r'|unable\s+to\s+load\s+program)[^\n]*',
+        re.IGNORECASE)
+    # Lines where the device echoes the command we just sent.
+    _ECHO_RE = re.compile(
+        r'^[ \t]*list\|program_(?:code|bytecode)\([^\n]*\n?',
+        re.MULTILINE | re.IGNORECASE)
+
+    def __init__(self, parent=None, *, highlight_lua: bool = False):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._stack = QStackedWidget()
+        self._text = QPlainTextEdit()
+        self._text.setReadOnly(True)
+        self._text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        if highlight_lua:
+            from .highlighter import LuaHighlighter
+            self._highlighter = LuaHighlighter(self._text.document())
+        self._stack.addWidget(self._text)
+
+        self._error = QLabel()
+        self._error.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._error.setWordWrap(True)
+        self._error.setStyleSheet('color: #c45330; font-weight: bold;')
+        self._stack.addWidget(self._error)
+
+        layout.addWidget(self._stack)
+
+    def clear_output(self):
+        super().clear_output()
+        self._text.clear()
+        self._error.clear()
+        self._stack.setCurrentWidget(self._text)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        m = self._ERROR_RE.search(self._buffer)
+        if m:
+            self._error.setText(m.group(0).strip())
+            self._stack.setCurrentWidget(self._error)
+            return
+        # Normal case — replace the editor content with the accumulated
+        # buffer (minus echoed command lines and any leading whitespace)
+        # so incremental arrivals stay in order.
+        display = self._ECHO_RE.sub('', self._buffer).lstrip()
+        self._text.setPlainText(display)
+        self._text.moveCursor(self._text.textCursor().MoveOperation.End)
+        self._stack.setCurrentWidget(self._text)
+
+
 class _ProgramsView(_ListOutputView):
     """Parse `list|programs` output into a numbered table."""
 
@@ -169,17 +229,21 @@ _IO_TYPE_COLORS = {
 }
 
 
-class _IoTypeCfgView(_ListOutputView):
-    """Parse `list|io_type_cfg` output into a pin → type table."""
+class _PinValueView(_ListOutputView):
+    """Generic `PIN<n> : <value>` table renderer; subclasses tweak labels/colours."""
 
-    _LINE_RE = re.compile(r'^\s*PIN(\d+)\s*:\s*(\S+)\s*$', re.MULTILINE)
+    _LINE_RE = re.compile(r'^\s*PIN(\d+)\s*:\s*(\S.*?)\s*$', re.MULTILINE)
+
+    # Subclasses override.
+    _VALUE_HEADER:  str                = 'Value'
+    _VALUE_COLOURS: dict[str, str]     = {}
 
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._table = QTableWidget(0, 2)
-        self._table.setHorizontalHeaderLabels(['PIN', 'Type'])
+        self._table.setHorizontalHeaderLabels(['PIN', self._VALUE_HEADER])
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -205,12 +269,29 @@ class _IoTypeCfgView(_ListOutputView):
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self._table.setItem(row, 0, pin_item)
 
-            type_name = m.group(2)
-            type_item = QTableWidgetItem(type_name)
-            colour = _IO_TYPE_COLORS.get(type_name)
+            val = m.group(2).strip()
+            val_item = QTableWidgetItem(val)
+            colour = self._VALUE_COLOURS.get(val)
             if colour:
-                type_item.setForeground(QColor(colour))
-            self._table.setItem(row, 1, type_item)
+                val_item.setForeground(QColor(colour))
+            self._table.setItem(row, 1, val_item)
+
+
+class _IoTypeCfgView(_PinValueView):
+    _VALUE_HEADER  = 'Type'
+    _VALUE_COLOURS = _IO_TYPE_COLORS
+
+
+class _IoBaudCfgView(_PinValueView):
+    _VALUE_HEADER = 'Baud'
+
+
+class _IoPwmCfgView(_PinValueView):
+    _VALUE_HEADER = 'PWM Freq'
+
+
+class _IoSpiCfgView(_PinValueView):
+    _VALUE_HEADER = 'SPI Freq'
 
 
 class _IoCapsView(_ListOutputView):
@@ -272,11 +353,288 @@ class _IoCapsView(_ListOutputView):
                 self._table.setItem(row, 2 + len(self._CAP_COLS), item)
 
 
+class _KeyValueView(_ListOutputView):
+    """Parse `<key>: <value>` lines into a name/value table.
+
+    Used for `list|timer_cfg`, `list|watchdog_cfg`, etc. Values matching a
+    known status token (enabled / disabled / yes / no) are colour-coded.
+    """
+
+    _LINE_RE = re.compile(r'^\s*(\S.*?)\s*:\s*(\S.*?)\s*$', re.MULTILINE)
+
+    _KEY_HEADER:   str = 'Name'
+    _VALUE_HEADER: str = 'Value'
+    _VALUE_COLOURS: dict[str, str] = {
+        'enabled':      '#b4c973',
+        'disabled':     '#808080',
+        'yes':          '#b4c973',
+        'no':           '#808080',
+        'unconfigured': '#808080',
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._table = QTableWidget(0, 2)
+        self._table.setHorizontalHeaderLabels([self._KEY_HEADER, self._VALUE_HEADER])
+        self._table.verticalHeader().setVisible(False)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._table)
+
+    def clear_output(self):
+        super().clear_output()
+        self._table.setRowCount(0)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        self._refresh()
+
+    def _refresh(self):
+        matches = list(self._LINE_RE.finditer(self._buffer))
+        self._table.setRowCount(len(matches))
+        for row, m in enumerate(matches):
+            self._table.setItem(row, 0, QTableWidgetItem(m.group(1).strip()))
+            val = m.group(2).strip()
+            item = QTableWidgetItem(val)
+            colour = self._VALUE_COLOURS.get(val.lower())
+            if colour:
+                item.setForeground(QColor(colour))
+            self._table.setItem(row, 1, item)
+
+
+class _XbarCfgView(_ListOutputView):
+    """Parse `list|xbar_cfg` output — two sub-tables (XBAR LOCK, XBAR DATA),
+    each with core columns and named rows."""
+
+    _SECTION_RE = re.compile(r'^\s*(XBAR\s+LOCK|XBAR\s+DATA)\s*$', re.MULTILINE)
+    _HEADER_RE  = re.compile(r'^\s+\|(.*)\|\s*$')
+    _ROW_RE     = re.compile(r'^\s*(\S.*?)\s*\|(.*)\|\s*$')
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(6)
+
+        self._lock_label = QLabel('XBAR LOCK')
+        self._lock_table = self._make_table()
+        self._data_label = QLabel('XBAR DATA')
+        self._data_table = self._make_table()
+
+        layout.addWidget(self._lock_label)
+        layout.addWidget(self._lock_table, 1)
+        layout.addWidget(self._data_label)
+        layout.addWidget(self._data_table, 1)
+
+    @staticmethod
+    def _make_table() -> QTableWidget:
+        t = QTableWidget(0, 0)
+        t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        t.verticalHeader().setVisible(True)
+        return t
+
+    def clear_output(self):
+        super().clear_output()
+        for t in (self._lock_table, self._data_table):
+            t.clear()
+            t.setRowCount(0)
+            t.setColumnCount(0)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        self._refresh()
+
+    def _refresh(self):
+        sections = self._split_sections(self._buffer.splitlines())
+        if 'XBAR LOCK' in sections:
+            self._populate(self._lock_table, sections['XBAR LOCK'])
+        if 'XBAR DATA' in sections:
+            self._populate(self._data_table, sections['XBAR DATA'])
+
+    @classmethod
+    def _split_sections(cls, lines: list[str]) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = {}
+        current: str | None = None
+        buf: list[str] = []
+        for line in lines:
+            m = cls._SECTION_RE.match(line)
+            if m:
+                if current is not None:
+                    result[current] = buf
+                current = m.group(1).strip()
+                buf = []
+            elif current is not None:
+                buf.append(line)
+        if current is not None:
+            result[current] = buf
+        return result
+
+    @classmethod
+    def _populate(cls, table: QTableWidget, lines: list[str]):
+        headers: list[str] = []
+        rows: list[tuple[str, list[str]]] = []
+        for line in lines:
+            if not line.strip():
+                continue
+            if not headers:
+                m = cls._HEADER_RE.match(line)
+                if m:
+                    headers = [c.strip() for c in m.group(1).split('|')]
+                continue
+            m = cls._ROW_RE.match(line)
+            if m:
+                label = m.group(1).strip()
+                values = [c.strip() for c in m.group(2).split('|')]
+                rows.append((label, values))
+
+        table.clear()
+        table.setColumnCount(len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.setRowCount(len(rows))
+        table.setVerticalHeaderLabels([label for label, _ in rows])
+        for r, (_, values) in enumerate(rows):
+            for c in range(len(headers)):
+                val = values[c] if c < len(values) else ''
+                item = QTableWidgetItem(val)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                table.setItem(r, c, item)
+
+
+class _ClockFreqView(_ListOutputView):
+    """Display `list|clk_freq` as a single prominent value."""
+
+    _RE = re.compile(r'(\d+)\s*[Mm][Hh][Zz]')
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.addStretch(1)
+        self._value = QLabel('—')
+        self._value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        font = self._value.font()
+        font.setPointSize(max(font.pointSize() * 2, 28))
+        font.setBold(True)
+        self._value.setFont(font)
+        layout.addWidget(self._value)
+        caption = QLabel('Clock Frequency')
+        caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(caption)
+        layout.addStretch(1)
+
+    def clear_output(self):
+        super().clear_output()
+        self._value.setText('—')
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        m = self._RE.search(self._buffer)
+        if m:
+            self._value.setText(f'{m.group(1)} MHz')
+
+
+class _BootProgramView(_ListOutputView):
+    """Display `list|start_on_boot_program` — either the program name
+    or "(not configured)" when no start-on-boot program is set."""
+
+    _NONE_RE = re.compile(r'No\s+start-on-boot\s+program\s+configured',
+                          re.IGNORECASE)
+    _PROG_RE = re.compile(r'\b([\w\-.]+\.lua)\b')
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.addStretch(1)
+        self._value = QLabel('—')
+        self._value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        font = self._value.font()
+        font.setPointSize(max(font.pointSize() * 2, 20))
+        font.setBold(True)
+        self._value.setFont(font)
+        layout.addWidget(self._value)
+        caption = QLabel('Start-on-boot Program')
+        caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(caption)
+        layout.addStretch(1)
+
+    def clear_output(self):
+        super().clear_output()
+        self._value.setText('—')
+        self._value.setStyleSheet('')
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        if self._NONE_RE.search(self._buffer):
+            self._value.setText('(not configured)')
+            self._value.setStyleSheet('color: #808080;')
+            return
+        m = self._PROG_RE.search(self._buffer)
+        if m:
+            self._value.setText(m.group(1))
+            self._value.setStyleSheet('')
+
+
 _LIST_VIEW_CLASSES: dict[str, type[_ListOutputView]] = {
-    'list|programs':         _ProgramsView,
-    'list|io_type_cfg':      _IoTypeCfgView,
-    'list|io_capabilities':  _IoCapsView,
+    'list|programs':              _ProgramsView,
+    'list|io_type_cfg':           _IoTypeCfgView,
+    'list|io_baud_cfg':           _IoBaudCfgView,
+    'list|io_pwm_cfg':            _IoPwmCfgView,
+    'list|io_spi_cfg':            _IoSpiCfgView,
+    'list|io_capabilities':       _IoCapsView,
+    'list|timer_cfg':             _KeyValueView,
+    'list|watchdog_cfg':          _KeyValueView,
+    'list|bus_cfg':               _KeyValueView,
+    'list|xbar_cfg':              _XbarCfgView,
+    'list|clk_freq':              _ClockFreqView,
+    'list|start_on_boot_program':        _BootProgramView,
+    'list|start_on_boot_prompt_format':  _KeyValueView,
 }
+
+
+class _HistoryView(_ListOutputView):
+    """Parse `list|repl_history` / `list|cmd_history` — numbered entries."""
+
+    _LINE_RE = re.compile(r'^\s*(\d+)\s*:\s*(.+?)\s*$', re.MULTILINE)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._table = QTableWidget(0, 2)
+        self._table.setHorizontalHeaderLabels(['#', 'Command'])
+        self._table.verticalHeader().setVisible(False)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        h = self._table.horizontalHeader()
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._table)
+
+    def clear_output(self):
+        super().clear_output()
+        self._table.setRowCount(0)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        self._refresh()
+
+    def _refresh(self):
+        matches = list(self._LINE_RE.finditer(self._buffer))
+        self._table.setRowCount(len(matches))
+        for row, m in enumerate(matches):
+            num_item = QTableWidgetItem(m.group(1))
+            num_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self._table.setItem(row, 0, num_item)
+            self._table.setItem(row, 1, QTableWidgetItem(m.group(2)))
+
+
+_LIST_VIEW_CLASSES['list|repl_history'] = _HistoryView
+_LIST_VIEW_CLASSES['list|cmd_history']  = _HistoryView
 
 
 class CommandModePanel(QWidget):
@@ -398,7 +756,6 @@ class CommandModePanel(QWidget):
         list_tabs.setUsesScrollButtons(False)
 
         no_arg = [
-            ('Boot Prompt Format',    'list|start_on_boot_prompt_format'),
             ('I/O Capabilities',      'list|io_capabilities'),
             ('I/O Type Config',       'list|io_type_cfg'),
             ('I/O Baud Config',       'list|io_baud_cfg'),
@@ -408,10 +765,10 @@ class CommandModePanel(QWidget):
             ('Watchdog Config',       'list|watchdog_cfg'),
             ('Bus Config',            'list|bus_cfg'),
             ('XBar Config',           'list|xbar_cfg'),
-            ('User Comms Config',     'list|user_comms_cfg'),
             ('Clock Frequency',       'list|clk_freq'),
             ('Programs',              'list|programs'),
             ('Boot Program',          'list|start_on_boot_program'),
+            ('Boot Prompt Format',    'list|start_on_boot_prompt_format'),
             ('REPL History',          'list|repl_history'),
             ('CMD History',           'list|cmd_history'),
         ]
@@ -426,27 +783,21 @@ class CommandModePanel(QWidget):
             page._output_view = view
             list_tabs.addTab(page, label)
 
-        # Parametrised: program code / bytecode — no auto-send; user supplies a
-        # program name and clicks a button.
-        self._list_prog_name = QLineEdit()
-        self._list_prog_name.setPlaceholderText('program name')
-        code_btn = QPushButton('Send list|program_code')
-        code_btn.clicked.connect(
-            lambda: self._send(f'list|program_code("{self._list_prog_name.text().strip()}")'))
-        bytecode_btn = QPushButton('Send list|program_bytecode')
-        bytecode_btn.clicked.connect(
-            lambda: self._send(f'list|program_bytecode("{self._list_prog_name.text().strip()}")'))
-        self._track_buttons.extend([code_btn, bytecode_btn])
-
-        param_page = QWidget()
-        form = QFormLayout(param_page)
-        form.addRow('Program:', self._list_prog_name)
-        form.addRow(code_btn)
-        form.addRow(bytecode_btn)
-        list_tabs.addTab(param_page, 'Program Code')
+        # Parametrised tabs — user supplies a program name and clicks a button.
+        # (No auto-send on tab change for these, since an empty name produces
+        # nothing useful.)
+        list_tabs.addTab(
+            self._build_program_source_tab('list|program_code'),
+            'Program Code')
+        list_tabs.addTab(
+            self._build_program_source_tab('list|program_bytecode'),
+            'Program Bytecode')
 
         list_tabs.currentChanged.connect(self._on_list_tab_changed)
         self._list_tabs = list_tabs
+        # Reuse the programs view for these two — output is raw program
+        # source / bytecode text, so we register them under `_RawOutputView`
+        # implicitly (no explicit entry needed).
         # Width of the inner vertical tab bar — used by the parent to offset
         # the outer tab bar so their edges line up visually.
         self._list_tab_bar_width = max(
@@ -454,6 +805,46 @@ class CommandModePanel(QWidget):
             for i in range(list_tabs.count())
         )
         return list_tabs
+
+    def _build_program_source_tab(self, command: str) -> QWidget:
+        """Return a tab page with a program-name input + send button, above a
+        source/error output view that shows the device's response."""
+        page = QWidget()
+        v = QVBoxLayout(page)
+        v.setContentsMargins(4, 4, 4, 4)
+
+        row = QHBoxLayout()
+        name_input = QLineEdit()
+        name_input.setPlaceholderText('program name')
+        btn_label = ('Print Program Code' if command == 'list|program_code'
+                     else 'Print Program Bytecode')
+        send_btn = QPushButton(btn_label)
+        send_btn.clicked.connect(lambda: self._send_program_query(
+            command, name_input.text().strip(), page))
+        name_input.returnPressed.connect(send_btn.click)
+        row.addWidget(QLabel('Program:'))
+        row.addWidget(name_input, 1)
+        row.addWidget(send_btn)
+        v.addLayout(row)
+
+        view = _ProgramSourceView(highlight_lua=(command == 'list|program_code'))
+        v.addWidget(view, 1)
+
+        page._output_view = view
+        # These tabs don't have a fixed command (the name varies), so leave
+        # `list_command` unset — the tab-change handler will skip auto-sending.
+        self._track_buttons.append(send_btn)
+        return page
+
+    def _send_program_query(self, command: str, name: str, page: QWidget):
+        if not name:
+            return
+        view = getattr(page, '_output_view', None)
+        if view is not None:
+            view.clear_output()
+        self._current_output_view = view
+        self._stripper._pending = ''
+        self._send(f'{command}("{name}")')
 
     def _on_list_tab_changed(self, index: int):
         if index < 0:
@@ -722,8 +1113,12 @@ class CommandModePanel(QWidget):
         except Exception:
             return
         clean = self._stripper.feed(text)
-        if clean:
-            self._current_output_view.append_output(clean)
+        if not clean:
+            return
+        # Normalise CRLF / stray CR so QPlainTextEdit doesn't render an
+        # extra blank line per serial line.
+        clean = clean.replace('\r\n', '\n').replace('\r', '\n')
+        self._current_output_view.append_output(clean)
 
     def _send(self, cmd: str):
         if not self._active or not self._worker:
