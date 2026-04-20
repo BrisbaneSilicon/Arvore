@@ -688,10 +688,10 @@ class CommandModePanel(QWidget):
         self._tabs.setTabPosition(QTabWidget.TabPosition.North)
         root.addWidget(self._tabs, 1)
 
-        # One tab per command family. The List tab already presents its own
-        # (bottom-positioned) sub-tab bar, so it isn't wrapped in a scroll area.
-        self._tabs.addTab(self._group_list(),                 'List')
-        self._tabs.addTab(self._as_tab(self._group_set()),    'Set')
+        # One tab per command family. List and Set present their own
+        # vertical sub-tab bars, so they aren't wrapped in a scroll area.
+        self._list_tab_idx = self._tabs.addTab(self._group_list(), 'List')
+        self._tabs.addTab(self._group_set(),                  'Set')
         self._tabs.addTab(self._as_tab(self._group_reset()),  'Reset')
         self._tabs.addTab(self._as_tab(self._group_delete()), 'Delete')
         self._tabs.addTab(self._as_tab(self._group_load()),   'Load')
@@ -712,6 +712,10 @@ class CommandModePanel(QWidget):
         raw_layout.addLayout(raw_row)
         raw_layout.addStretch(1)
         self._tabs.addTab(raw, 'Raw')
+
+        # Re-fire the currently-selected list command whenever the user
+        # returns to the List outer tab from any other family.
+        self._tabs.currentChanged.connect(self._on_outer_tab_changed)
 
         # Offset the outer tab bar so its left edge lines up with the right
         # edge of the inner vertical list tab bar. Use a QLabel with the
@@ -846,6 +850,14 @@ class CommandModePanel(QWidget):
         self._stripper._pending = ''
         self._send(f'{command}("{name}")')
 
+    def _on_outer_tab_changed(self, index: int):
+        """If we've landed back on the List tab, refresh its current view."""
+        if index != getattr(self, '_list_tab_idx', -1):
+            return
+        if not self._active:
+            return
+        self._on_list_tab_changed(self._list_tabs.currentIndex())
+
     def _on_list_tab_changed(self, index: int):
         if index < 0:
             return
@@ -864,103 +876,151 @@ class CommandModePanel(QWidget):
             self._send(cmd)
 
     def _group_set(self) -> QWidget:
-        w = QWidget()
-        form = QFormLayout(w)
+        self._track_buttons = getattr(self, '_track_buttons', [])
 
-        # IO Type Config
-        self._set_io_pin = QSpinBox(); self._set_io_pin.setRange(1, 64)
+        set_tabs = QTabWidget()
+        set_tabs.setDocumentMode(True)
+        set_tabs.setTabBar(_VerticalTabBar(set_tabs))
+        set_tabs.setTabPosition(QTabWidget.TabPosition.West)
+        set_tabs.tabBar().setExpanding(False)
+        set_tabs.tabBar().setUsesScrollButtons(False)
+        set_tabs.setUsesScrollButtons(False)
+
+        set_tabs.addTab(self._set_io_type_tab(),     'I/O Type')
+        set_tabs.addTab(self._set_uart_baud_tab(),   'UART Baud')
+        set_tabs.addTab(self._set_pwm_freq_tab(),    'PWM Freq')
+        set_tabs.addTab(self._set_spi_freq_tab(),    'SPI Freq')
+        set_tabs.addTab(self._set_boot_io_tab(),     'Boot I/O Default')
+        set_tabs.addTab(self._set_boot_prompt_tab(), 'Boot Prompt Default')
+        set_tabs.addTab(self._set_boot_program_tab(),'Boot Program')
+
+        return set_tabs
+
+    # ── Per-tab builders (Set) ────────────────────────────────────────────
+
+    @staticmethod
+    def _make_pin_combo() -> QComboBox:
+        """Dropdown with PIN1 through PIN32 — the max supported pin count."""
+        combo = QComboBox()
+        combo.addItems(f'PIN{i}' for i in range(1, 33))
+        return combo
+
+    def _set_io_type_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
+        self._set_io_pin = self._make_pin_combo()
         self._set_io_type = QComboBox(); self._set_io_type.addItems(_IO_TYPES)
         btn = QPushButton('Set I/O Type')
         btn.clicked.connect(lambda: self._send(
-            f'set|io_type_cfg(PIN{self._set_io_pin.value()}, {self._set_io_type.currentText()})'))
-        row = QHBoxLayout()
-        row.addWidget(QLabel('PIN'))
-        row.addWidget(self._set_io_pin)
-        row.addWidget(self._set_io_type)
-        row.addWidget(btn)
-        form.addRow('I/O Type:', self._wrap(row))
+            f'set|io_type_cfg({self._set_io_pin.currentText()}, '
+            f'{self._set_io_type.currentText()})'))
+        form.addRow('PIN:',  self._set_io_pin)
+        form.addRow('Type:', self._set_io_type)
+        form.addRow(btn)
         self._track_buttons.append(btn)
+        return page
 
-        # IO Baud Config
-        self._set_baud_pin = QSpinBox(); self._set_baud_pin.setRange(1, 64)
+    def _set_uart_baud_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
+        self._set_baud_pin = self._make_pin_combo()
         self._set_baud = QComboBox()
         self._set_baud.addItems(str(b) for b in _BAUD_RATES)
         self._set_baud.setCurrentText('115200')
         btn = QPushButton('Set UART Baud')
         btn.clicked.connect(lambda: self._send(
-            f'set|io_baud_cfg(PIN{self._set_baud_pin.value()}, {self._set_baud.currentText()})'))
-        row = QHBoxLayout()
-        row.addWidget(QLabel('PIN'))
-        row.addWidget(self._set_baud_pin)
-        row.addWidget(self._set_baud)
-        row.addWidget(btn)
-        form.addRow('UART Baud:', self._wrap(row))
+            f'set|io_baud_cfg({self._set_baud_pin.currentText()}, '
+            f'{self._set_baud.currentText()})'))
+        form.addRow('PIN:',  self._set_baud_pin)
+        form.addRow('Baud:', self._set_baud)
+        form.addRow(btn)
         self._track_buttons.append(btn)
+        return page
 
-        # PWM Freq
-        self._set_pwm_pin = QSpinBox(); self._set_pwm_pin.setRange(1, 64)
+    def _set_pwm_freq_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
+        self._set_pwm_pin = self._make_pin_combo()
         self._set_pwm_khz = QSpinBox()
         self._set_pwm_khz.setRange(1, 200); self._set_pwm_khz.setValue(10)
-        btn = QPushButton('Set PWM kHz')
+        self._set_pwm_khz.setSuffix(' kHz')
+        btn = QPushButton('Set PWM Frequency')
         btn.clicked.connect(lambda: self._send(
-            f'set|io_pwm_cfg(PIN{self._set_pwm_pin.value()}, {self._set_pwm_khz.value()})'))
-        row = QHBoxLayout()
-        row.addWidget(QLabel('PIN'))
-        row.addWidget(self._set_pwm_pin)
-        row.addWidget(self._set_pwm_khz)
-        row.addWidget(QLabel('kHz'))
-        row.addWidget(btn)
-        form.addRow('PWM Freq:', self._wrap(row))
+            f'set|io_pwm_cfg({self._set_pwm_pin.currentText()}, '
+            f'{self._set_pwm_khz.value()})'))
+        form.addRow('PIN:',   self._set_pwm_pin)
+        form.addRow('Freq:',  self._set_pwm_khz)
+        form.addRow(btn)
         self._track_buttons.append(btn)
+        return page
 
-        # SPI Freq
-        self._set_spi_pin = QSpinBox(); self._set_spi_pin.setRange(1, 64)
+    def _set_spi_freq_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
+        self._set_spi_pin = self._make_pin_combo()
         self._set_spi_khz = QSpinBox()
         self._set_spi_khz.setRange(1, 250); self._set_spi_khz.setValue(10)
-        btn = QPushButton('Set SPI kHz')
+        self._set_spi_khz.setSuffix(' kHz')
+        btn = QPushButton('Set SPI Frequency')
         btn.clicked.connect(lambda: self._send(
-            f'set|io_spi_cfg(PIN{self._set_spi_pin.value()}, {self._set_spi_khz.value()})'))
-        row = QHBoxLayout()
-        row.addWidget(QLabel('PIN'))
-        row.addWidget(self._set_spi_pin)
-        row.addWidget(self._set_spi_khz)
-        row.addWidget(QLabel('kHz'))
-        row.addWidget(btn)
-        form.addRow('SPI Freq:', self._wrap(row))
+            f'set|io_spi_cfg({self._set_spi_pin.currentText()}, '
+            f'{self._set_spi_khz.value()})'))
+        form.addRow('PIN:',  self._set_spi_pin)
+        form.addRow('Freq:', self._set_spi_khz)
+        form.addRow(btn)
         self._track_buttons.append(btn)
+        return page
 
-        # Boot defaults
-        boot_row = QHBoxLayout()
-        b1 = QPushButton('Current I/O → Boot Default')
-        b1.clicked.connect(lambda: self._send('set|start_on_boot_io_type_cfg'))
-        b2 = QPushButton('Current Prompt → Boot Default')
-        b2.clicked.connect(lambda: self._send('set|start_on_boot_prompt_format'))
-        boot_row.addWidget(b1); boot_row.addWidget(b2)
-        form.addRow('Boot Defaults:', self._wrap(boot_row))
-        self._track_buttons.extend([b1, b2])
+    def _set_boot_io_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        info = QLabel('Store the current I/O type configuration as the\n'
+                      'start-on-boot default.')
+        info.setWordWrap(True)
+        v.addWidget(info)
+        btn = QPushButton('Save Current I/O as Boot Default')
+        btn.clicked.connect(lambda: self._send('set|start_on_boot_io_type_cfg'))
+        v.addWidget(btn)
+        v.addStretch(1)
+        self._track_buttons.append(btn)
+        return page
 
-        # Set start-on-boot program
+    def _set_boot_prompt_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        info = QLabel('Store the current prompt format as the\n'
+                      'start-on-boot default.')
+        info.setWordWrap(True)
+        v.addWidget(info)
+        btn = QPushButton('Save Current Prompt as Boot Default')
+        btn.clicked.connect(lambda: self._send('set|start_on_boot_prompt_format'))
+        v.addWidget(btn)
+        v.addStretch(1)
+        self._track_buttons.append(btn)
+        return page
+
+    def _set_boot_program_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
         self._set_boot_prog = QLineEdit()
         self._set_boot_prog.setPlaceholderText('program name')
-        b = QPushButton('Set Boot Program')
-        b.clicked.connect(lambda: self._send(
+        btn = QPushButton('Set Boot Program')
+        btn.clicked.connect(lambda: self._send(
             f'set|start_on_boot_program("{self._set_boot_prog.text().strip()}")'))
-        row = QHBoxLayout()
-        row.addWidget(self._set_boot_prog)
-        row.addWidget(b)
-        form.addRow('Boot Program:', self._wrap(row))
-        self._track_buttons.append(b)
-
-        return w
+        self._set_boot_prog.returnPressed.connect(btn.click)
+        form.addRow('Program:', self._set_boot_prog)
+        form.addRow(btn)
+        self._track_buttons.append(btn)
+        return page
 
     def _group_reset(self) -> QWidget:
         w = QWidget()
         form = QFormLayout(w)
 
-        self._reset_pin = QSpinBox(); self._reset_pin.setRange(1, 64)
+        self._reset_pin = self._make_pin_combo()
         b = QPushButton('Reset I/O Type')
         b.clicked.connect(lambda: self._send(
-            f'reset|io_type_cfg(PIN{self._reset_pin.value()})'))
+            f'reset|io_type_cfg({self._reset_pin.currentText()})'))
         row = QHBoxLayout()
         row.addWidget(QLabel('PIN'))
         row.addWidget(self._reset_pin)
