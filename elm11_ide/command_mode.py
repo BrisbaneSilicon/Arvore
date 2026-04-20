@@ -9,11 +9,59 @@ from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout,
     QPushButton, QLineEdit, QComboBox, QSpinBox, QLabel, QTabWidget,
-    QScrollArea,
+    QScrollArea, QStyle, QStyleOptionTab, QStylePainter, QTabBar,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QColor, QPen
 
 from . import theme
+
+
+class _VerticalTabBar(QTabBar):
+    """QTabBar placed on the side but drawn with horizontal label text."""
+
+    # Extra horizontal margin beyond the measured text, covers tab chrome
+    # padding that the style adds on top when drawing the label.
+    _TEXT_PADDING = 40
+
+    def tabSizeHint(self, index):
+        s = super().tabSizeHint(index)
+        if self.shape() in (QTabBar.Shape.RoundedWest,
+                            QTabBar.Shape.RoundedEast):
+            s.transpose()
+        needed = self.fontMetrics().horizontalAdvance(
+            self.tabText(index)) + self._TEXT_PADDING
+        if s.width() < needed:
+            s.setWidth(needed)
+        return s
+
+    def minimumTabSizeHint(self, index):
+        s = super().minimumTabSizeHint(index)
+        if self.shape() in (QTabBar.Shape.RoundedWest,
+                            QTabBar.Shape.RoundedEast):
+            s.transpose()
+        needed = self.fontMetrics().horizontalAdvance(
+            self.tabText(index)) + self._TEXT_PADDING
+        if s.width() < needed:
+            s.setWidth(needed)
+        return s
+
+    def paintEvent(self, _event):
+        painter = QStylePainter(self)
+        opt = QStyleOptionTab()
+        for i in range(self.count()):
+            self.initStyleOption(opt, i)
+            painter.drawControl(QStyle.ControlElement.CE_TabBarTabShape, opt)
+            # Swap the shape to a north-style one for the label only, so the
+            # text is drawn horizontally instead of being rotated.
+            opt.shape = QTabBar.Shape.RoundedNorth
+            painter.drawControl(QStyle.ControlElement.CE_TabBarTabLabel, opt)
+        # Thin separator lines between adjacent tabs
+        painter.setPen(QPen(QColor('white'), 1))
+        for i in range(self.count() - 1):
+            r = self.tabRect(i)
+            y = r.bottom()
+            painter.drawLine(r.left(), y, r.right(), y)
 
 
 _IO_TYPES = [
@@ -113,8 +161,14 @@ class CommandModePanel(QWidget):
         self._track_buttons = getattr(self, '_track_buttons', [])
 
         list_tabs = QTabWidget()
-        list_tabs.setTabPosition(QTabWidget.TabPosition.South)
-        list_tabs.setUsesScrollButtons(True)
+        list_tabs.setDocumentMode(True)
+        list_tabs.setTabBar(_VerticalTabBar(list_tabs))
+        # Must come *after* setTabBar — otherwise the new tab bar is created
+        # with the default (North) shape.
+        list_tabs.setTabPosition(QTabWidget.TabPosition.West)
+        list_tabs.tabBar().setExpanding(False)
+        list_tabs.tabBar().setUsesScrollButtons(False)
+        list_tabs.setUsesScrollButtons(False)
 
         no_arg = [
             ('I/O Capabilities',      'list|io_capabilities'),
@@ -136,9 +190,19 @@ class CommandModePanel(QWidget):
             ('CMD History',           'list|cmd_history'),
         ]
         for label, cmd in no_arg:
-            list_tabs.addTab(self._make_list_page(cmd), label)
+            page = QWidget()
+            v = QVBoxLayout(page)
+            v.addStretch(1)
+            lbl = QLabel(f'Selecting this tab sends:\n\n{cmd}')
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setWordWrap(True)
+            v.addWidget(lbl)
+            v.addStretch(1)
+            page.setProperty('list_command', cmd)
+            list_tabs.addTab(page, label)
 
-        # Program code / bytecode — parametrised, so no auto-send
+        # Parametrised: program code / bytecode — no auto-send; user supplies a
+        # program name and clicks a button.
         self._list_prog_name = QLineEdit()
         self._list_prog_name.setPlaceholderText('program name')
         code_btn = QPushButton('Send list|program_code')
@@ -159,19 +223,6 @@ class CommandModePanel(QWidget):
         list_tabs.currentChanged.connect(self._on_list_tab_changed)
         self._list_tabs = list_tabs
         return list_tabs
-
-    def _make_list_page(self, command: str) -> QWidget:
-        page = QWidget()
-        v = QVBoxLayout(page)
-        v.addStretch(1)
-        lbl = QLabel(f'Opening this tab sends:\n\n{command}')
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl.setWordWrap(True)
-        v.addWidget(lbl)
-        v.addStretch(1)
-        # Store the command on the widget so the tab-change handler can read it
-        page.setProperty('list_command', command)
-        return page
 
     def _on_list_tab_changed(self, index: int):
         if index < 0:
