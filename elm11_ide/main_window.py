@@ -551,14 +551,18 @@ class MainWindow(QMainWindow):
         self._bottom.setCurrentWidget(self._terminal)
 
     def _toggle_docs(self, checked: bool):
-        self._docs.setVisible(checked)
+        sizes = self._outer.sizes()
         if checked:
-            sizes = self._outer.sizes()
+            self._docs.setVisible(True)
             if len(sizes) == 3 and sizes[2] == 0:
-                total = sum(sizes)
-                docs_w = max(320, total // 3)
+                docs_w = max(320, sum(sizes) // 3)
                 centre = max(300, sizes[1] - docs_w)
                 self._outer.setSizes([sizes[0], centre, docs_w])
+        else:
+            docs_w = sizes[2] if len(sizes) == 3 else 0
+            self._docs.setVisible(False)
+            if docs_w > 0:
+                self._outer.setSizes([sizes[0], sizes[1] + docs_w, 0])
         QSettings().setValue('ui/docs_visible', checked)
 
     def _open_example(self, filename: str, code: str):
