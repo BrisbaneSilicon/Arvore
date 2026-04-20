@@ -19,6 +19,8 @@ DARK = {
     'border': '#404040',
     'status_bg': '#262626', 'status_fg': '#d6d6d6',
     'status_on_bg': '#cc7833', 'status_on_fg': '#fff',
+    # Scrollbars
+    'scroll_bg': '#1f1f1f', 'scroll_handle': '#5a5a5a', 'scroll_handle_hover': '#7a7a7a',
     # Editor
     'ed_bg': '#2e2e2e', 'ed_fg': '#d6d6d6',
     'ed_linenum_bg': '#262626', 'ed_linenum_fg': '#797979', 'ed_linenum_cur': '#d6d6d6',
@@ -58,6 +60,8 @@ LIGHT = {
     'border': '#ccc',
     'status_bg': '#e0e0e0', 'status_fg': '#333',
     'status_on_bg': '#007acc', 'status_on_fg': '#fff',
+    # Scrollbars
+    'scroll_bg': '#e8e8e8', 'scroll_handle': '#a0a0a0', 'scroll_handle_hover': '#707070',
     # Editor
     'ed_bg': '#ffffff', 'ed_fg': '#1e1e1e',
     'ed_linenum_bg': '#f5f5f5', 'ed_linenum_fg': '#999999', 'ed_linenum_cur': '#333333',
@@ -97,6 +101,8 @@ SOLARIZED_DARK = {
     'border': '#073642',
     'status_bg': '#073642', 'status_fg': '#839496',
     'status_on_bg': '#268bd2', 'status_on_fg': '#fdf6e3',
+    # Scrollbars
+    'scroll_bg': '#002b36', 'scroll_handle': '#586e75', 'scroll_handle_hover': '#839496',
     # Editor
     'ed_bg': '#002b36', 'ed_fg': '#839496',
     'ed_linenum_bg': '#073642', 'ed_linenum_fg': '#586e75', 'ed_linenum_cur': '#93a1a1',
@@ -136,6 +142,8 @@ SOLARIZED_LIGHT = {
     'border': '#eee8d5',
     'status_bg': '#eee8d5', 'status_fg': '#657b83',
     'status_on_bg': '#268bd2', 'status_on_fg': '#fdf6e3',
+    # Scrollbars
+    'scroll_bg': '#eee8d5', 'scroll_handle': '#93a1a1', 'scroll_handle_hover': '#586e75',
     # Editor
     'ed_bg': '#fdf6e3', 'ed_fg': '#657b83',
     'ed_linenum_bg': '#eee8d5', 'ed_linenum_fg': '#93a1a1', 'ed_linenum_cur': '#586e75',
@@ -230,6 +238,22 @@ QPushButton:checked         {{ background:{t['btn_pressed']}; border-color:{t['t
 QPushButton:disabled        {{ color:{t['btn_disabled_fg']}; }}
 QStatusBar                  {{ background:{t['status_bg']}; color:{t['status_fg']}; font-size:9pt; }}
 QLabel                      {{ background:transparent; }}
+QScrollBar:vertical {{
+    background:{t['scroll_bg']}; width:12px; margin:0;
+}}
+QScrollBar:horizontal {{
+    background:{t['scroll_bg']}; height:12px; margin:0;
+}}
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+    background:{t['scroll_handle']}; border-radius:5px; min-height:24px; min-width:24px;
+}}
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{
+    background:{t['scroll_handle_hover']};
+}}
+QScrollBar::add-line, QScrollBar::sub-line {{
+    background:none; border:none; height:0; width:0;
+}}
+QScrollBar::add-page, QScrollBar::sub-page {{ background:none; }}
 """
 
 
@@ -241,8 +265,6 @@ QTreeView {{
 }}
 QTreeView::item:hover    {{ background:{t['tree_hover']}; }}
 QTreeView::item:selected {{ background:{t['tree_sel']}; color:{t['tab_sel_fg']}; }}
-QScrollBar:vertical      {{ background:{t['tree_bg']}; width:8px; }}
-QScrollBar::handle:vertical {{ background:{t['border']}; border-radius:4px; }}
 """
 
 
