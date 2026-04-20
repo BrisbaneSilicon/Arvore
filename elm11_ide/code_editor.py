@@ -1,6 +1,8 @@
 """Code editor widget with line numbers and auto-indent."""
+import hashlib
+
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget, QTextEdit
-from PyQt6.QtCore import Qt, QRect, QSize
+from PyQt6.QtCore import Qt, QRect, QSize, QSettings
 from PyQt6.QtGui import (
     QColor, QPainter, QTextFormat, QFont, QFontMetrics,
     QPalette, QKeyEvent, QTextCursor, QTextCharFormat,
@@ -10,6 +12,14 @@ from pathlib import Path
 from .highlighter import LuaHighlighter, CHighlighter
 from .settings import SettingsDialog
 from . import theme
+
+
+def _content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+def _upload_hash_key(path: Path) -> str:
+    return f'uploads/hash/{path}'
 
 LUA_INDENT_OPENERS  = ('do', 'then', 'else', 'elseif', 'repeat')
 LUA_FUNC_STARTS     = ('function',)
@@ -34,6 +44,7 @@ class CodeEditor(QPlainTextEdit):
         super().__init__(parent)
         self.file_path: Path | None = None
         self._highlighter = None
+        self._uploaded_revision: int | None = None
 
         self._lna = _LineNumberArea(self)
 
@@ -79,6 +90,30 @@ class CodeEditor(QPlainTextEdit):
         text = path.read_text(encoding='utf-8', errors='replace')
         self.setPlainText(text)
         self.document().setModified(False)
+
+        stored_hash = QSettings().value(_upload_hash_key(path), '')
+        if stored_hash and stored_hash == _content_hash(text):
+            self._uploaded_revision = self.document().revision()
+        else:
+            self._uploaded_revision = None
+
+    def mark_uploaded(self):
+        """Record the current document state as the last-uploaded state."""
+        self._uploaded_revision = self.document().revision()
+        if self.file_path is not None:
+            QSettings().setValue(
+                _upload_hash_key(self.file_path),
+                _content_hash(self.toPlainText()),
+            )
+
+    @property
+    def is_stale(self) -> bool:
+        """True if the file has never been uploaded, or has been modified since."""
+        if self.file_path is None:
+            return False
+        if self._uploaded_revision is None:
+            return True
+        return self.document().revision() != self._uploaded_revision
 
     def save(self) -> bool:
         if self.file_path is None:

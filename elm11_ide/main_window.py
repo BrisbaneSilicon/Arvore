@@ -13,7 +13,7 @@ import serial.tools.list_ports
 from pathlib import Path
 import sys
 
-from .code_editor import CodeEditor
+from .code_editor import CodeEditor, _content_hash, _upload_hash_key
 from .project_tree import ProjectTree
 from .serial_terminal import SerialTerminal
 from .build_output import BuildOutput
@@ -64,6 +64,7 @@ class MainWindow(QMainWindow):
         self._tree.file_activated.connect(self._open_path)
         self._tree.workspace_loaded.connect(self._load_workspace)
         self._tree.new_file_requested.connect(self._new_file)
+        self._tree.set_status_provider(self._file_status)
         self._tree.setMinimumWidth(120)
         outer.addWidget(self._tree)
         outer.setChildrenCollapsible(False)
@@ -282,6 +283,7 @@ class MainWindow(QMainWindow):
             lambda _: self._refresh_tab_title(editor))
         idx = self._editor_tabs.addTab(editor, path.name)
         self._editor_tabs.setCurrentIndex(idx)
+        self._refresh_tab_title(editor)
         self._update_device_buttons()
 
     def _save_file(self):
@@ -315,15 +317,40 @@ class MainWindow(QMainWindow):
         for i in range(self._editor_tabs.count()):
             if self._editor_tabs.widget(i) is editor:
                 name = editor.file_path.name if editor.file_path else 'untitled'
-                dot  = '● ' if editor.document().isModified() else ''
-                self._editor_tabs.setTabText(i, dot + name)
+                dot   = ' ●' if editor.document().isModified() else ''
+                stale = ' ↑' if editor.is_stale else ''
+                self._editor_tabs.setTabText(i, name + dot + stale)
                 break
+        if editor.file_path:
+            self._tree.refresh_decoration(editor.file_path)
+
+    def _editor_for(self, path: Path) -> CodeEditor | None:
+        for i in range(self._editor_tabs.count()):
+            w = self._editor_tabs.widget(i)
+            if isinstance(w, CodeEditor) and w.file_path == path:
+                return w
+        return None
+
+    def _file_status(self, path: Path) -> tuple[bool, bool]:
+        """Return (dirty, stale) for the given path, used to decorate the tree."""
+        editor = self._editor_for(path)
+        if editor:
+            return (editor.document().isModified(), editor.is_stale)
+        if path.suffix.lower() != '.lua':
+            return (False, False)
+        try:
+            stored = QSettings().value(_upload_hash_key(path), '')
+            text = path.read_text(encoding='utf-8', errors='replace')
+            return (False, stored != _content_hash(text))
+        except OSError:
+            return (False, False)
 
     def _close_tab(self, index: int):
         log.debug('Close tab index=%d  title=%s', index, self._editor_tabs.tabText(index))
         editor = self._editor_tabs.widget(index)
+        closed_path = editor.file_path if isinstance(editor, CodeEditor) else None
         if isinstance(editor, CodeEditor) and editor.document().isModified():
-            name = self._editor_tabs.tabText(index).lstrip('● ')
+            name = self._editor_tabs.tabText(index).rstrip(' ●↑')
             reply = QMessageBox.question(
                 self, 'Unsaved Changes', f'Save changes to {name}?',
                 QMessageBox.StandardButton.Save |
@@ -334,6 +361,7 @@ class MainWindow(QMainWindow):
             elif reply == QMessageBox.StandardButton.Cancel:
                 return
         self._editor_tabs.removeTab(index)
+        self._tree.refresh_decoration(closed_path)
 
     def _on_tab_changed(self, _index: int):
         self._update_device_buttons()
@@ -386,6 +414,7 @@ class MainWindow(QMainWindow):
 
         lua_file  = str(editor.file_path)
         prog_name = editor.file_path.name
+        self._upload_editor = editor
 
         worker = self._terminal.get_worker()
         if not worker or not worker.serial_port:
@@ -460,6 +489,9 @@ class MainWindow(QMainWindow):
         log.debug('Upload OK')
         self._upload_out._append('\n--- Upload Complete ---\n',
                                  theme.current()['term_success'])
+        if self._upload_editor:
+            self._upload_editor.mark_uploaded()
+            self._refresh_tab_title(self._upload_editor)
         self._upload_done()
 
     def _on_upload_err(self, reason: str):

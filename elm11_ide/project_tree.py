@@ -20,10 +20,29 @@ class _WorkspaceProxy(QSortFilterProxyModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._workspace: Path | None = None
+        self._status_provider = None
 
     def set_workspace(self, path: Path):
         self._workspace = path
         self.invalidateFilter()
+
+    def set_status_provider(self, fn):
+        """fn(path: Path) -> tuple[bool, bool]  returns (dirty, stale)."""
+        self._status_provider = fn
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        base = super().data(index, role)
+        if role == Qt.ItemDataRole.DisplayRole and self._status_provider and base:
+            src = self.mapToSource(index)
+            path_str = self.sourceModel().filePath(src)
+            if path_str:
+                p = Path(path_str)
+                if p.is_file():
+                    dirty, stale = self._status_provider(p)
+                    suffix = (' ●' if dirty else '') + (' ↑' if stale else '')
+                    if suffix:
+                        return f'{base}{suffix}'
+        return base
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         if self._workspace is None:
@@ -85,6 +104,22 @@ class ProjectTree(QTreeView):
 
     def apply_theme(self):
         self.setStyleSheet(theme.tree_stylesheet(theme.current()))
+
+    def set_status_provider(self, fn):
+        """Install a callable used to decorate file names with dirty/stale markers."""
+        self._proxy.set_status_provider(fn)
+
+    def refresh_decoration(self, path: Path | None):
+        """Notify the view that the decoration for `path` may have changed."""
+        if not path:
+            return
+        src_idx = self._model.index(str(path))
+        if not src_idx.isValid():
+            return
+        proxy_idx = self._proxy.mapFromSource(src_idx)
+        if proxy_idx.isValid():
+            self._proxy.dataChanged.emit(
+                proxy_idx, proxy_idx, [Qt.ItemDataRole.DisplayRole])
 
     def _refresh_parent(self, parent: Path):
         """Force the model to rescan a directory after rename/delete."""
