@@ -5,31 +5,19 @@
       "name": "CORE<x>",
       "kind": "constant",
       "category": "Constants › Core",
-      "description": "Represents CORE number 'x', For example, in the REPL (or an uploaded program):"
-    },
-    {
-      "name": "$print(\"ValueofCORE3is:\"..CORE3)ValueofCORE3is:3",
-      "kind": "constant",
-      "category": "Constants › Core",
-      "description": ""
+      "description": "Represents CORE number 'x', For example, in the REPL (or an uploaded program):\n\n\n  $$ print(\"Value of CORE3 is: \"..CORE3)\n  Value of CORE3 is: 3"
     },
     {
       "name": "PIN<x>",
       "kind": "constant",
       "category": "Constants › Pin",
-      "description": "Represents I/O PIN number 'x', For example, in the REPL (or an uploaded program):"
-    },
-    {
-      "name": "$print(\"ValueofPIN7is:\"..PIN7)ValueofPIN7is:7",
-      "kind": "constant",
-      "category": "Constants › Pin",
-      "description": ""
+      "description": "Represents I/O PIN number 'x', For example, in the REPL (or an uploaded program):\n\n\n  $$ print(\"Value of PIN7 is: \"..PIN7)\n  Value of PIN7 is: 7"
     },
     {
       "name": "PIN<x>_BITMASK",
       "kind": "constant",
       "category": "Constants › Pin",
-      "description": "Represents I/O PIN number 'x' bitmask. For example, handling interrupts:\n   $ function interrupt(interrupt_vector)\n       if (interrupt_vector & PIN3_BITMASK) ~= 0 then\n           print(\"Interrupt occurred on PIN3!\")\n       end\n   end"
+      "description": "Represents I/O PIN number 'x' bitmask. For example, handling interrupts:\n\n\n  $$ function interrupt(interrupt_vector)\n       if (interrupt_vector & PIN3_BITMASK) ~= 0 then\n           print(\"Interrupt occurred on PIN3!\")\n       end\n   end"
     },
     {
       "name": "LOW",
@@ -47,13 +35,7 @@
       "name": "TOGGLE",
       "kind": "constant",
       "category": "Constants › I/O Level",
-      "description": "Represents an inverse voltage signal level, i.e. high the opposite of low. For example:"
-    },
-    {
-      "name": "$set_gpio(PIN7,TOGGLE)",
-      "kind": "constant",
-      "category": "Constants › I/O Level",
-      "description": ""
+      "description": "Represents an inverse voltage signal level, i.e. high the opposite of low. For example:\n\n\n  $$ set_gpio(PIN7, TOGGLE)"
     },
     {
       "name": "NONE",
@@ -83,7 +65,7 @@
       "name": "UART_OUT",
       "kind": "constant",
       "category": "Constants › I/O Type",
-      "description": "Represents a UART communications protocol, 'Digital I/O' pin type, with direction\noutput."
+      "description": "Represents a UART communications protocol, 'Digital I/O' pin type, with direction output."
     },
     {
       "name": "UART_IN",
@@ -107,13 +89,7 @@
       "name": "I2C",
       "kind": "constant",
       "category": "Constants › I/O Type",
-      "description": "Represents a I2C communications protocol, 'Digital I/O' pin type, with direction input\nand output. For example:"
-    },
-    {
-      "name": "$set_io_config(PIN14,I2C)",
-      "kind": "constant",
-      "category": "Constants › I/O Type",
-      "description": ""
+      "description": "Represents a I2C communications protocol, 'Digital I/O' pin type, with direction input and output. For example:\n\n\n  $$ set_io_config(PIN14, I2C)"
     },
     {
       "name": "GPIO_INTRPT_LOW",
@@ -134,16 +110,10 @@
       "description": "Represents a low to high transition interrupt type on an I/O configured as GPIO_IN."
     },
     {
-      "name": "GPIO_INTRPT_",
+      "name": "GPIO_INTRPT_FALLING_EDGE",
       "kind": "constant",
       "category": "Constants › GPIO Interrupt",
-      "description": "Represents a high to low interrupt type on an I/O configured as GPIO_IN. For example,\nparsing interrupt types:"
-    },
-    {
-      "name": "FALLING_EDGE",
-      "kind": "constant",
-      "category": "Constants › GPIO Interrupt",
-      "description": "$ gpio_interrupt_vector = get_interrupts_on_pin(PIN6)\nif (tgpio_interrupt_vector & GPIO_INTRPT_RISING_EDGE) ~= 0\nthen\n     print(\"Detected rising edge on PIN6!\")\nend"
+      "description": "Represents a high to low interrupt type on an I/O configured as GPIO_IN. For example, parsing interrupt types:\n\n\n  $$ gpio_interrupt_vector = get_interrupts_on_pin(PIN6)\nif (tgpio_interrupt_vector & GPIO_INTRPT_RISING_EDGE) ~= 0\nthen\n     print(\"Detected rising edge on PIN6!\")\nend"
     },
     {
       "name": "UART_RX_INTRPT_DATA_AVAILABLE",
@@ -155,19 +125,13 @@
       "name": "import",
       "kind": "function",
       "category": "Functions › Base Library › Import",
-      "description": "Import function from base library (ARG1: <base library function>).\nImport function from non-base library (ARG1: <library>, ARG2: <library function>).\nFor example:"
-    },
-    {
-      "name": "$import(\"set_io_type_cfg\")",
-      "kind": "function",
-      "category": "Functions › Base Library › Import",
-      "description": ""
+      "description": "Import function from base library (ARG1: <base library function>). Import function from non-base library (ARG1: <library>, ARG2: <library function>). For example:\n\n\n $$ import(\"set_io_type_cfg\")"
     },
     {
       "name": "set_io_type_cfg",
       "kind": "function",
       "category": "Functions › Base Library › I/O Config",
-      "description": "Configure I/O (ARG1: PIN<x>) as type (ARG2: NONE, GPIO_OUT, GPIO_IN, PWM,\nUART_OUT, UART_IN, SPI_OUT, SPI_IN or I2C)."
+      "description": "Configure I/O (ARG1: PIN<x>) as type (ARG2: NONE, GPIO_OUT, GPIO_IN, PWM, UART_OUT, UART_IN, SPI_OUT, SPI_IN or I2C)."
     },
     {
       "name": "reset_io_type_cfg",
@@ -179,61 +143,37 @@
       "name": "reset_all_io_type_cfg",
       "kind": "function",
       "category": "Functions › Base Library › I/O Config",
-      "description": "Reset all I/O to type NONE (no arguments). For example:\n  $ reset_all_io_type_cfg()"
+      "description": "Reset all I/O to type NONE (no arguments). For example:\n\n\n  $$ reset_all_io_type_cfg()"
     },
     {
       "name": "set_gpio",
       "kind": "function",
       "category": "Functions › Base Library › GPIO",
-      "description": "Set I/O (ARG1: PIN<x>), configured as GPIO_OUT, to level (ARG2: LOW, HIGH or\nTOGGLE). For example:"
-    },
-    {
-      "name": "$set_gpio(PIN7,HIGH)",
-      "kind": "function",
-      "category": "Functions › Base Library › GPIO",
-      "description": ""
+      "description": "Set I/O (ARG1: PIN<x>), configured as GPIO_OUT, to level (ARG2: LOW, HIGH or TOGGLE). For example:\n\n\n  $$ set_gpio(PIN7, HIGH)"
     },
     {
       "name": "get_gpio",
       "kind": "function",
       "category": "Functions › Base Library › GPIO",
-      "description": "Get I/O (ARG1: PIN<x>), configured as GPIO_IN, level. For example:"
-    },
-    {
-      "name": "$my_kite=get_gpio(PIN2)$ifmy_kite==HIGHthenprint(\"my_kiteisHIGH!\")$$elseprint(\"my_kiteisnotHIGH!\")endmy_kiteisHIGH!",
-      "kind": "function",
-      "category": "Functions › Base Library › GPIO",
-      "description": ""
+      "description": "Get I/O (ARG1: PIN<x>), configured as GPIO_IN, level. For example:\n\n\n  $$ my_kite = get_gpio(PIN2)\n  $$ if my_kite == HIGH then print(\"My kite is HIGH!\") else print(\"My kite is not HIGH!\")end\n My kite is HIGH!"
     },
     {
       "name": "set_pwm",
       "kind": "function",
       "category": "Functions › Base Library › PWM",
-      "description": "Set I/O (ARG1: PIN<x>), configured as PWM, to duty cycle (ARG2: 0 - PWM_MAX).\nThe value of ‘PWM_MAX’ is 256 (100% duty)."
+      "description": "Set I/O (ARG1: PIN<x>), configured as PWM, to duty cycle (ARG2: 0 - PWM_MAX). The value of 'PWM_MAX' is 256 (100% duty)."
     },
     {
       "name": "spi_tx",
       "kind": "function",
       "category": "Functions › Base Library › SPI",
-      "description": "Same as 'spi_tx_byte'."
-    },
-    {
-      "name": "ThebehaviorinthecasetheARG1I/OPINisconfiguredtohaveanonbyte-multipledatawidth:Ifthedatawidth,X,islessthanonebyte,eachbytethatissenttotheSPImodulewillhavethemost-significant[8-X]bitsdiscarded,theremainderaretransmitted.Ifthedatawidth,X,isgreaterthanonebyte,eachbytethatissenttotheSPImoduleisbuffereduntilabyte-multipleofdataisstored.Thenthemost-significant[Buffered-Bits-X]bitsarediscarded,theremainderaretransmitted.",
-      "kind": "function",
-      "category": "Functions › Base Library › SPI",
-      "description": ""
+      "description": "Same as 'spi_tx_byte'.\n\n\n  The behavior in the case the ARG1 I/O PIN is configured to have a non byte-multiple data width:\n    If the data width, X, is less than one byte, each byte that is sent to the SPI module will have the most-significant [8 - X] bits discarded, the remainder are transmitted.\n    If the data width, X, is greater than one byte, each byte that is sent to the SPI module is buffered until a byte-multiple of data is stored. Then the most-significant [Buffered-Bits - X] bits are discarded, the remainder are transmitted."
     },
     {
       "name": "spi_tx_byte",
       "kind": "function",
       "category": "Functions › Base Library › SPI",
-      "description": "Send 1 byte (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as\nSPI_OUT."
-    },
-    {
-      "name": "ItispossiblethiswillNOTresultinanactualSPItransmission(ifitislessthanthebuildconfigurednumberofbitsperSPItransmission).Seedescriptionof‘spi_tx’.",
-      "kind": "function",
-      "category": "Functions › Base Library › SPI",
-      "description": ""
+      "description": "Send 1 byte (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as SPI_OUT.\n    It is possible this will NOT result in an actual SPI transmission (if it is less than the build configured number of bits per SPI transmission). See description of 'spi_tx'."
     },
     {
       "name": "spi_tx_char",
@@ -245,13 +185,7 @@
       "name": "spi_tx_int",
       "kind": "function",
       "category": "Functions › Base Library › SPI",
-      "description": "Send 4 bytes (ARG2: integer) of data to I/O (ARG1: PIN<x>), configured as\nSPI_OUT."
-    },
-    {
-      "name": "ItispossiblethiswillresultinmultipleSPItransmissions.",
-      "kind": "function",
-      "category": "Functions › Base Library › SPI",
-      "description": ""
+      "description": "Send 4 bytes (ARG2: integer) of data to I/O (ARG1: PIN<x>), configured as SPI_OUT.\n    It is possible this will result in multiple SPI transmissions."
     },
     {
       "name": "spi_rx_byte",
@@ -269,7 +203,7 @@
       "name": "spi_rx_char",
       "kind": "function",
       "category": "Functions › Base Library › SPI",
-      "description": "Receive one character from I/O (ARG1: PIN<x>), configured as SPI_IN. This\nfunction will hang if no SPI data has been received."
+      "description": "Receive one character from I/O (ARG1: PIN<x>), configured as SPI_IN. This function will hang if no SPI data has been received."
     },
     {
       "name": "spi_rx_char_nonblocking",
@@ -281,55 +215,37 @@
       "name": "uart_tx",
       "kind": "function",
       "category": "Functions › Base Library › UART",
-      "description": "Same as 'uart_tx_byte'. For example:"
-    },
-    {
-      "name": "$uart_tx(PIN4,0x30)",
-      "kind": "function",
-      "category": "Functions › Base Library › UART",
-      "description": ""
+      "description": "Same as 'uart_tx_byte'. For example:\n\n\n  $$ uart_tx(PIN4, 0x30)"
     },
     {
       "name": "uart_tx_char",
       "kind": "function",
       "category": "Functions › Base Library › UART",
-      "description": "Send 1 byte (ARG2: string) of data to the I/O (ARG1: PIN<x>), configured as\nUART_OUT."
+      "description": "Send 1 byte (ARG2: string) of data to the I/O (ARG1: PIN<x>), configured as UART_OUT."
     },
     {
       "name": "uart_tx_byte",
       "kind": "function",
       "category": "Functions › Base Library › UART",
-      "description": "Send 1 byte (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as\nUART_OUT."
+      "description": "Send 1 byte (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as UART_OUT."
     },
     {
       "name": "uart_tx_int",
       "kind": "function",
       "category": "Functions › Base Library › UART",
-      "description": "Send 4 bytes (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as\nUART_OUT."
+      "description": "Send 4 bytes (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as UART_OUT."
     },
     {
       "name": "uart_rx_byte",
       "kind": "function",
       "category": "Functions › Base Library › UART",
-      "description": "Receive and return 1 byte (as an integer) of data from the I/O (ARG1: PIN<x>),\nconfigured as UART_IN."
-    },
-    {
-      "name": "ThisfunctionwillblockifthecorrespondingUARTmodulecurrentlyhasnodata,untilabyteofdataisreceived.",
-      "kind": "function",
-      "category": "Functions › Base Library › UART",
-      "description": ""
+      "description": "Receive and return 1 byte (as an integer) of data from the I/O (ARG1: PIN<x>), configured as UART_IN.\n\n\n    This function will block if the corresponding UART module currently has no data, until a byte of data is received."
     },
     {
       "name": "uart_rx_byte_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › UART",
-      "description": "Receive and return 1 byte (as an integer) of data and return 'byte valid' from the I/\nO (ARG1: PIN<x>), configured as UART_IN."
-    },
-    {
-      "name": "Thisfunctionwillnotblock-ifthecorrespondingUART_INmodulecurrentlyhasnodatathen'bytevalid'willbefalse.",
-      "kind": "function",
-      "category": "Functions › Base Library › UART",
-      "description": ""
+      "description": "Receive and return 1 byte (as an integer) of data and return 'byte valid' from the I/\nO (ARG1: PIN<x>), configured as UART_IN\n\n\n    This function will not block - if the corresponding UART_IN module currently has no data then 'byte valid' will be false.."
     },
     {
       "name": "uart_rx_char",
@@ -344,34 +260,34 @@
       "description": "Again, same as 'uart_rx_byte_nonblocking', however the returned UART data will\nbe a character."
     },
     {
-      "name": "i2c_txNotincludedinBetaRelease.",
+      "name": "i2c_tx.",
       "kind": "function",
       "category": "Functions › Base Library › I2C",
-      "description": ""
+      "description": "Not included in Beta Release."
     },
     {
-      "name": "i2c_tx_charNotincludedinBetaRelease.",
+      "name": "i2c_tx_char.",
       "kind": "function",
       "category": "Functions › Base Library › I2C",
-      "description": ""
+      "description": "Not included in Beta Release."
     },
     {
-      "name": "i2c_tx_byteNotincludedinBetaRelease.",
+      "name": "i2c_tx_byte.",
       "kind": "function",
       "category": "Functions › Base Library › I2C",
-      "description": ""
+      "description": "Not included in Beta Release."
     },
     {
-      "name": "i2c_tx_intNotincludedinBetaRelease.",
+      "name": "i2c_tx_int.",
       "kind": "function",
       "category": "Functions › Base Library › I2C",
-      "description": ""
+      "description": "Not included in Beta Release."
     },
     {
-      "name": "i2c_rx_byteNotincludedinBetaRelease.",
+      "name": "i2c_rx_byte.",
       "kind": "function",
       "category": "Functions › Base Library › I2C",
-      "description": ""
+      "description": "Not included in Beta Release."
     },
     {
       "name": "i2c_rx_byte_nonblocking",
@@ -380,10 +296,10 @@
       "description": "Not included in Beta Release."
     },
     {
-      "name": "i2c_rx_charNotincludedinBetaRelease.",
+      "name": "i2c_rx_char.",
       "kind": "function",
       "category": "Functions › Base Library › I2C",
-      "description": ""
+      "description": "Not included in Beta Release."
     },
     {
       "name": "i2c_rx_char_nonblocking",
@@ -395,97 +311,67 @@
       "name": "fpga_write",
       "kind": "function",
       "category": "Functions › Base Library › FPGA Bus",
-      "description": "Write a integer (ARG1: integer) to the FPGA bus. Block until the FPGA bus ‘ready’\nstrobe is asserted."
+      "description": "Write a integer (ARG1: integer) to the FPGA bus. Block until the FPGA bus 'ready' strobe is asserted."
     },
     {
       "name": "fpga_write_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › FPGA Bus",
-      "description": "Attempt to write a integer (ARG1: integer) to the FPGA bus. Doesn’t block, returns\ntrue / false to indicate if the write was successful (i.e. the FPGA bus ‘ready’ strobe\nwas asserted)."
+      "description": "Attempt to write a integer (ARG1: integer) to the FPGA bus. Doesn't block, returns true / false to indicate if the write was successful (i.e. the FPGA bus 'ready' strobe was asserted)."
     },
     {
       "name": "fpga_read",
       "kind": "function",
       "category": "Functions › Base Library › FPGA Bus",
-      "description": "Read a integer from the FPGA bus. Block until the FPGA bus ‘ready’ strobe is\nasserted."
+      "description": "Read a integer from the FPGA bus. Block until the FPGA bus 'ready' strobe is asserted."
     },
     {
       "name": "fpga_read_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › FPGA Bus",
-      "description": "Read a integer from the FPGA bus. Doesn’t block, returns the value read (0 in\ninvalid) and true / false to indicate if the read was successful (i.e. the FPGA bus\n‘ready’ strobe was asserted)."
+      "description": "Read a integer from the FPGA bus. Doesn't block, returns the value read (0 in invalid) and true / false to indicate if the read was successful (i.e. the FPGA bus 'ready' strobe was asserted)."
     },
     {
-      "name": "global_interrupt_",
+      "name": "global_interrupt_enable",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "Global interrupt enable. The 'interrupt' function will trigger if an enabled interrupt\nto occurs (no arguments)."
+      "description": "Global interrupt enable. The 'interrupt' function will trigger if an enabled interrupt occurs (no arguments)."
     },
     {
-      "name": "enable",
+      "name": "global_interrupt_disable",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": ""
-    },
-    {
-      "name": "global_interrupt_",
-      "kind": "function",
-      "category": "Functions › Base Library › Interrupt",
-      "description": "Global interrupt disable. The 'interrupt' function will not trigger even if an enabled\ninterrupt to occurs (no arguments)."
-    },
-    {
-      "name": "disable",
-      "kind": "function",
-      "category": "Functions › Base Library › Interrupt",
-      "description": ""
+      "description": "Global interrupt disable. The 'interrupt' function will not trigger even if an enabled interrupt occurs (no arguments)."
     },
     {
       "name": "repl_interrupt_mode_enable",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "This interrupt mode is enabled by default prior to the execution of each new\natomic (i.e. single or set of multi-line) REPL input. It is disabled by default prior to\nthe execution of a program. Thus only a multi-line REPL input, which calls\n‘repl_interrupt_mode_disable' will proceed with this mode disabled, and only a\nprogram which calls ‘repl_interrupt_mode_enable’ will proceed with this mode\nenabled (from the point at which it is enabled / disabled, of course).\nIf enabled, any individual interrupt source that is enabled and active at the end of\nthe entire REPL input will trigger an interrupt at that point (i.e. just prior to\nreturning to user prompt). This is in addition to the typical interrupt functionality\nof triggering between each line of script (i.e. in the case of a REPL, a multi-line\nREPL input). Also, if the interrupts have been enabled globally (i.e.\n'global_interrupt_enable') this the global interrupt enable will persist across\nindividual, atomic calls to the REPL (i.e. across single-line calls, or separate multi-\nline calls). Otherwise, the global interrupt configuration will be reset to disabled at\nthe beginning of each new input into the REPL (i.e. a single-line or multi-line input\nhas completed, and the user has been prompted to enter new Lua script)."
+      "description": "This interrupt mode is enabled by default prior to the execution of each new atomic (i.e. single or set of multi-line) REPL input. It is disabled by default prior to the execution of a program. Thus only a multi-line REPL input, which calls 'repl_interrupt_mode_disable' will proceed with this mode disabled, and only a program which calls 'repl_interrupt_mode_enable' will proceed with this mode enabled (from the point at which it is enabled / disabled, of course). \nIf enabled, any individual interrupt source that is enabled and active at the end of the entire REPL input will trigger an interrupt at that point (i.e. just prior to returning to user prompt). This is in addition to the typical interrupt functionality of triggering between each line of script (i.e. in the case of a REPL, a multi-line REPL input). Also, if the interrupts have been enabled globally (i.e. 'global_interrupt_enable') this the global interrupt enable will persist across individual, atomic calls to the REPL (i.e. across single-line calls, or separate multi- line calls). Otherwise, the global interrupt configuration will be reset to disabled at the beginning of each new input into the REPL (i.e. a single-line or multi-line input has completed, and the user has been prompted to enter new Lua script)."
     },
     {
       "name": "repl_interrupt_mode_disable",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "See above description."
+      "description": "See description of 'repl_interrupt_mode_enable'."
     },
     {
       "name": "set_interrupt_types_for_pin",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "Enable only specified interrupts by bitmask (ARG2: bit-wise combination of\n<PIN<x> Type>_INTRPT_<type>) for input I/O (ARG1: PIN<x>). For example:"
+      "description": "Enable only specified interrupts by bitmask (ARG2: bit-wise combination of <PIN<x> Type>_INTRPT_<type>) for input I/O (ARG1: PIN<x>). For example:\n\n\n    $$ set_io_config(PIN1, GPIO_IN)\n    $$ set_interrupt_types_for_pin(PIN1, GPIO_INTRPT_LOW|GPIO_INTRPT_RISING_EDGE|GPIO_INTRPT_FALLING_EDGE)"
     },
     {
-      "name": "$set_io_config(PIN1,GPIO_IN)$set_interrupt_types_for_pin(PIN1,GPIO_INTRPT_LOW|GPIO_INTRPT_RISING_EDGE|GPIO_INTRPT_FALLING_EDGE)$print(\"EnabledInterruptTypesof'Low''RisingEdge'and'FallingEdge'forGPIO_INPIN1\")EnabledInterruptTypesof'Low''RisingEdge'and'FallingEdge'forGPIO_INPIN1",
+      "name": "enable_interrupt_types_for_pin",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": ""
+      "description": "Same as 'set_interrupt_types_for_pin' however additionally enable specified interrupts, as well as whatever is already enabled."
     },
     {
-      "name": "enable_interrupt_",
+      "name": "disable_interrupt_types_for_pin",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "Same as 'set_interrupt_types_for_pin' however additionally enable specified\ninterrupts, as well as whatever is already enabled."
-    },
-    {
-      "name": "types_for_pin",
-      "kind": "function",
-      "category": "Functions › Base Library › Interrupt",
-      "description": ""
-    },
-    {
-      "name": "disable_interrupt_",
-      "kind": "function",
-      "category": "Functions › Base Library › Interrupt",
-      "description": "Disable specified interrupts by bitmask (ARG2: bit-wise combination of <PIN<x>\nType>_INTRPT_<type>) for input I/O (ARG1: PIN<x>)."
-    },
-    {
-      "name": "types_for_pin",
-      "kind": "function",
-      "category": "Functions › Base Library › Interrupt",
-      "description": ""
+      "description": "Disable specified interrupts by bitmask (ARG2: bit-wise combination of <PIN<x> Type>_INTRPT_<type>) for input I/O (ARG1: PIN<x>)."
     },
     {
       "name": "get_interrupts_on_pin",
@@ -497,28 +383,22 @@
       "name": "ack_interrupt_types_on_pin",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "Acknowledge specified interrupts by bitmask (ARG2: bit-wise combination of\n<PIN<x> Type>_INTRPT_<type>) for I/O (ARG1: PIN<x>)."
+      "description": "Acknowledge specified interrupts by bitmask (ARG2: bit-wise combination of <PIN<x> Type>_INTRPT_<type>) for I/O (ARG1: PIN<x>)."
     },
     {
       "name": "ack_interrupt_types_on_pins",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "Acknowledge specified interrupts by bitmask (ARG2: bit-wise combination of\n<PIN<x> Type>_INTRPT_<type>) for I/O specified by bitmask (ARG1:\nPIN<x>_BITMASK)."
+      "description": "Acknowledge specified interrupts by bitmask (ARG2: bit-wise combination of <PIN<x> Type>_INTRPT_<type>) for I/O specified by bitmask (ARG1: PIN<x>_BITMASK)."
     },
     {
       "name": "interrupt_handler",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
-      "description": "Users redefine this function with a single argument, 'interrupt_vector', and it will be\ncalled upon an enabled interrupt occurring. When called, the 'interrupt_vector'\nargument will reflect all PIN<x> upon which an interrupt occurred, via the\ncorresponding 'PIN<x>_BITMASK'. For example:"
+      "description": "Users redefine this function with a single argument, 'interrupt_vector', and it will be called upon an enabled interrupt occurring. When called, the 'interrupt_vector' argument will reflect all PIN<x> upon which an interrupt occurred, via the corresponding 'PIN<x>_BITMASK'. For example:"
     },
     {
-      "name": "$set_interrupt_types_for_pin(PIN4,GPIO_INTRPT_LOW|GPIO_INTRPT_RISING_EDGE)$set_interrupt_types_for_pin(PIN6,GPIO_INTRPT_FALLING_EDGE)$global_interrupt_enable()$functioninterrupt_handler(interrupt_vector)if(interrupt_vector&PIN4_BITMASK)~=0thenprint(\"InterruptoccurredonPIN4!\")endif(interrupt_vector&PIN6_BITMASK)~=0thenprint(\"InterruptoccurredonPIN6!\")endend",
-      "kind": "function",
-      "category": "Functions › Base Library › Interrupt",
-      "description": ""
-    },
-    {
-      "name": "interrupt.bind(interrupt_handler)",
+      "name": "$set_interrupt_types_for_pin(PIN4, GPIO_INTRPT_LOW|GPIO_INTRPT_RISING_EDGE)\n\n\n    $$ set_interrupt_types_for_pin(PIN6, GPIO_INTRPT_FALLING_EDGE)\n\n\n    $$ global_interrupt_enable()\n\n\n    $$ functioninterrupt_handler(interrupt_vector) if(interrupt_vector & PIN4_BITMASK) ~= 0 then print(\"Interrupt occurred on PIN4!\") end if(interrupt_vector & PIN6_BITMASK) ~=0 then print(\"Interrupt occurred on PIN6!\") end end\n\n\n    $$ interrupt.bind(interrupt_handler)",
       "kind": "function",
       "category": "Functions › Base Library › Interrupt",
       "description": ""
@@ -575,85 +455,67 @@
       "name": "watchdog_reset",
       "kind": "function",
       "category": "Functions › Base Library › Watchdog",
-      "description": "Reset the hardware watchdog back to its start timer value. See Command\nMode (see page 23) for more information. If the watchdog is not present, calling this\nfunction will have no effect."
+      "description": "Reset the hardware watchdog back to its start timer value. See Command Mode (see page 23) for more information. If the watchdog is not present, calling this function will have no effect."
     },
     {
       "name": "get_watchdog_timer",
       "kind": "function",
       "category": "Functions › Base Library › Watchdog",
-      "description": "Get the current watchdog timer value. See Command Mode (see page 23) for more\ninformation. If the watchdog is not present, calling this function will return zero."
+      "description": "Get the current watchdog timer value. See Command Mode (see page 23) for more information. If the watchdog is not present, calling this function will return zero."
     },
     {
       "name": "pipe_tx_byte",
       "kind": "function",
       "category": "Functions › Base Library › Core Communication",
-      "description": "Send 1 byte (ARG2: integer) of data to CORE (ARG1: PIN<x>), blocking if the\nchannel is currently busy (i.e. the FIFO is full). Attempts to send data to self will\nthrow an error. The xbar data route must be enabled in the build configuration of\nthe XBar, or the function will hang - see Command Mode (see page 23) for more\ninformation. For example:"
-    },
-    {
-      "name": "[#1]$pipe_tx_byte(CORE2,0xde)[#1]$pipe_tx_byte(CORE3,0xad)[#1]$pipe_tx_byte(CORE4,0xbe)[#1]$pipe_tx_byte(CORE1,0xef)stdin:1:badargument#1to'pipe_tx_byte'(invalidcorenumber)stacktraceback:[C]:infunction'pipe_tx_byte'stdin:1:inmainchunk",
-      "kind": "function",
-      "category": "Functions › Base Library › Core Communication",
-      "description": ""
+      "description": "Send 1 byte (ARG2: integer) of data to CORE (ARG1: PIN<x>), blocking if the channel is currently busy (i.e. the FIFO is full). Attempts to send data to self will throw an error. The xbar data route must be enabled in the build configuration of the XBar, or the function will hang - see Command Mode (see page 23) for more information. For example:\n\n\n    [#1] $ pipe_tx_byte(CORE2, 0xde)\n    [#1] $ pipe_tx_byte(CORE3, 0xad)\n    [#1] $ $pipe_tx_byte(CORE4, 0xbe)\n    [#1] $ $pipe_tx_byte(CORE1, 0xef)\n\n\n    stdin:1: bad argument #1 to'pipe_tx_byte' (invalidcorenumber)\n stacktraceback:[C]:in function'pipe_tx_byte'stdin:1:in main chunk"
     },
     {
       "name": "pipe_tx_byte_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › Core Communication",
-      "description": "Attempt to send 1 byte (ARG2: integer) of data to CORE (ARG1: PIN<x>), will not\nblock if the channel is currently busy (i.e. the xbar data FIFO is full). Returns an\ninteger representing the number of bytes sent. The route must be enabled in the\nbuild configuration of the XBar, or the function will hang."
+      "description": "Attempt to send 1 byte (ARG2: integer) of data to CORE (ARG1: PIN<x>), will not block if the channel is currently busy (i.e. the xbar data FIFO is full). Returns an integer representing the number of bytes sent. The route must be enabled in the build configuration of the XBar, or the function will hang."
     },
     {
       "name": "pipe_rx_byte",
       "kind": "function",
       "category": "Functions › Base Library › Core Communication",
-      "description": "Receive 1 byte (ARG2: integer) of data from CORE (ARG1: PIN<x>), blocking if the\nchannel is currently busy (i.e. the FIFO is empty). Attempts to send data to self\nwill throw an error. The xbar data route must be enabled in the build configuration\nof the XBar, or the function will hang."
+      "description": "Receive 1 byte (ARG2: integer) of data from CORE (ARG1: PIN<x>), blocking if the channel is currently busy (i.e. the FIFO is empty). Attempts to send data to self will throw an error. The xbar data route must be enabled in the build configuration of the XBar, or the function will hang."
     },
     {
       "name": "pipe_rx_byte_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › Core Communication",
-      "description": "Attempt to receive 1 byte (ARG2: integer) of data from CORE (ARG1: PIN<x>), will\nnot block if the channel is currently busy (i.e. the xbar data FIFO is full). Returns\nan integer representing the number of bytes received, and the actual byte received\n(zero if none received). The route must be enabled in the build configuration of\nthe XBar, or the function will hang."
+      "description": "Attempt to receive 1 byte (ARG2: integer) of data from CORE (ARG1: PIN<x>), will not block if the channel is currently busy (i.e. the xbar data FIFO is full). Returns an integer representing the number of bytes received, and the actual byte received (zero if none received). The route must be enabled in the build configuration of the XBar, or the function will hang."
     },
     {
       "name": "lock",
       "kind": "function",
       "category": "Functions › Base Library › Core Synchronization",
-      "description": "Lock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will block\nuntil barrier is unlocked by Core<x>."
-    },
-    {
-      "name": "Onpower-on,allxbarbarrierswillbegininthe‘unlocked’state,tothedepthlistedintheXbarconfig(seeCommandMode(seepage23)).",
-      "kind": "function",
-      "category": "Functions › Base Library › Core Synchronization",
-      "description": ""
+      "description": "Lock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will block until barrier is unlocked by Core<x>. On power-on, all xbar barriers will begin in the 'unlocked' state, to the depth listed in the Xbar config."
     },
     {
       "name": "lock_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › Core Synchronization",
-      "description": "Attempt to lock xbar barrier between Core<self> and Core <x> (ARG1: integer).\nWill not block if barrier has not been unlocked by that Core. Returns ‘1' to\nrepresent successful locking of the barrier, '0’ otherwise."
+      "description": "Attempt to lock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will not block if barrier has not been unlocked by that Core. Returns '1' to represent successful locking of the barrier, '0' otherwise."
     },
     {
       "name": "unlock",
       "kind": "function",
       "category": "Functions › Base Library › Core Synchronization",
-      "description": "Unlock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will block\nuntil barrier is locked by Core<x>."
+      "description": "Unlock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will block until barrier is locked by Core<x>."
     },
     {
       "name": "unlock_nonblocking",
       "kind": "function",
       "category": "Functions › Base Library › Core Synchronization",
-      "description": "Attempt to unlock xbar barrier between Core<self> and Core <x> (ARG1: integer).\nWill not block if barrier has not been locked by Core<x>. Returns ‘1' to represent\nsuccessful unlocking of the barrier, '0’ otherwise."
+      "description": "Attempt to unlock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will not block if barrier has not been locked by Core<x>. Returns '1' to represent successful unlocking of the barrier, '0' otherwise."
     },
     {
       "name": "run_program",
       "kind": "function",
       "category": "Functions › Base Library › Program",
-      "description": "Run the program named (ARG1: string). For example:"
-    },
-    {
-      "name": "$cmd/list|programsProgram1.:hello_world.luaProgram2.:the_day_my_bum_went_psycho.luaProgram3.:gpio_example.lua/exit$run_program(\"the_day_my_bum_went_psycho.lua\")ThisisthestoryofthedaymyBumwentPsycho...actuallyforgetit.Programend.",
-      "kind": "function",
-      "category": "Functions › Base Library › Program",
-      "description": ""
+      "description": "Run the program named (ARG1: string). For example:\n\n\n    $$ run_program(\"the_day_my_bum_went_psycho.lua\") This is the story of the day my Bum went Psycho... actually forget it. Program end."
     },
     {
       "name": "reboot",
@@ -665,43 +527,19 @@
       "name": "exit",
       "kind": "function",
       "category": "Functions › Base Library › Power",
-      "description": "Exit the current program or statement (REPL), , irrespective of nested program\nlevel. If provided, returns argument 1, of any type (ARG1: obj)."
-    },
-    {
-      "name": "Bydefault,allfunctionsexcept‘reboot’,‘exit’and‘import’needtobefirstimportedpriortobeingcalled.Thisisbydesign,inordertoreducememoryusage.",
-      "kind": "function",
-      "category": "Functions › Base Library › Power",
-      "description": ""
-    },
-    {
-      "name": "ItispossibletoimporttheentireAPIinasinglecallto‘import(“all”).’",
-      "kind": "function",
-      "category": "Functions › Base Library › Power",
-      "description": ""
+      "description": "Exit the current program or statement (REPL), irrespective of nested program level. If provided, returns argument 1, of any type (ARG1: obj).\n\n\n    NOTE: By default, all functions except 'reboot', 'exit', 'run_program' and 'import' need to be first imported prior to being called. This is by design, in order to reduce memory usage. It is possible to import the entire API in a single call to 'import(\"all\").'"
     },
     {
       "name": "bind",
       "kind": "function",
       "category": "Functions › Interrupt Library",
-      "description": "Bind the interrupt handler (ARG1: function) to the global interrupt source. Is part of\nthe interrupt library, so must be called as such:"
-    },
-    {
-      "name": "$interrupt.bind(interrupt_handler)",
-      "kind": "function",
-      "category": "Functions › Interrupt Library",
-      "description": ""
+      "description": "Bind the interrupt handler (ARG1: function) to the global interrupt source. Is part of the interrupt library, so must be called as such:\n\n\n    $$ interrupt.bind(interrupt_handler)"
     },
     {
       "name": "call",
       "kind": "function",
       "category": "Functions › Interrupt Library",
-      "description": "Explicitly call the interrupt handler that is bound to the global interrupt source. Is\npart of the interrupt library, so must be called as such:"
-    },
-    {
-      "name": "$interrupt.call()",
-      "kind": "function",
-      "category": "Functions › Interrupt Library",
-      "description": ""
+      "description": "Explicitly call the interrupt handler that is bound to the global interrupt source. Is part of the interrupt library, so must be called as such:\n\n\n    $$ interrupt.call()"
     },
     {
       "name": "_VERSION",
@@ -784,56 +622,6 @@
     {
       "title": "prog_err.lua",
       "code": "--[[\n        Demonstrate a programming error.\n\n        NOTE: stray, beginning of line '--' comments improve\n        code readability while still allowing user to copy-paste\n        the entire program into the REPL.\n--]]\n\nif true then\n--\n    local a_string = \"blahblahblah\"\n    local oops_not_allowed = a_string..false\n        -- NOTE: not allowed!!\n--\nend\n"
-    }
-  ],
-  "usage": [
-    {
-      "title": "Toggle GPIO",
-      "body": "The following page provides an example of toggling a GPIO."
-    },
-    {
-      "title": "UART Transmit",
-      "body": "The following page provides an example of transmitting a string via UART."
-    },
-    {
-      "title": "SPI Receive",
-      "body": "The following page provides an example of receiving data via SPI."
-    },
-    {
-      "title": "LED Fade",
-      "body": "The following page provides an example of fading an LED in and out."
-    },
-    {
-      "title": "Fibonacci Sequence Calculation",
-      "body": "The following page provides an example of calculating the Fibonacci Sequence, and performance profiling it."
-    },
-    {
-      "title": "Float Divide and String Concatenation",
-      "body": "The following page provides an example of peforming 100x floating point division, concatenating the result\nwith a string, and printing it."
-    },
-    {
-      "title": "Interrupt",
-      "body": "The following page provides an example of setting up and triggering an interrupt."
-    },
-    {
-      "title": "Inter-Core Communication",
-      "body": "The following page provides an example of transferring data between heterogeneous Cores."
-    },
-    {
-      "title": "Inter-Core Synchronization",
-      "body": "The following page provides an example of synchronizing execution between between heterogeneous Cores."
-    },
-    {
-      "title": "Exit Script/Program",
-      "body": "The following page provides an example of exiting a script or program."
-    },
-    {
-      "title": "Non-volatile I/O Config",
-      "body": "The following page provides an example of setting the current I/O configuration to persist across reboots."
-    },
-    {
-      "title": "Program Upload",
-      "body": "The following page provides an example of uploading and running a program."
     }
   ]
 }
