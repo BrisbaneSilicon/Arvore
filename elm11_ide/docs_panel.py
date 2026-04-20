@@ -13,11 +13,14 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLineEdit, QTreeWidget,
     QTreeWidgetItem, QTextBrowser, QSplitter, QPushButton, QLabel,
+    QPlainTextEdit, QStackedWidget,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QPalette, QColor
 
 from . import theme
 from .settings import SettingsDialog
+from .highlighter import LuaHighlighter
 
 
 _DATA_FILE = Path(__file__).resolve().parent / 'docs_data.json'
@@ -138,9 +141,16 @@ class DocsPanel(QWidget):
         self._tree.currentItemChanged.connect(self._on_select)
         split.addWidget(self._tree)
 
-        self._view = QTextBrowser()
-        self._view.setOpenExternalLinks(False)
-        split.addWidget(self._view)
+        self._stack = QStackedWidget()
+        self._view_html = QTextBrowser()
+        self._view_html.setOpenExternalLinks(False)
+        self._view_code = QPlainTextEdit()
+        self._view_code.setReadOnly(True)
+        self._view_code.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self._code_highlighter = LuaHighlighter(self._view_code.document())
+        self._stack.addWidget(self._view_html)
+        self._stack.addWidget(self._view_code)
+        split.addWidget(self._stack)
         split.setSizes([260, 700])
 
     # ── Population ─────────────────────────────────────────────────────────
@@ -188,20 +198,21 @@ class DocsPanel(QWidget):
         self._current_example = None
         self._open_btn.setEnabled(False)
         if not payload:
-            self._view.setHtml(self._wrap('', t))
+            self._view_html.setHtml(self._wrap('', t))
+            self._stack.setCurrentWidget(self._view_html)
             return
         kind, obj = payload
-        if kind == 'api':
-            body = _render_api_entry(obj, t)
-        elif kind == 'usage':
-            body = _render_usage(obj)
-        elif kind == 'example':
-            body = _render_example(obj)
+        if kind == 'example':
             self._current_example = obj
             self._open_btn.setEnabled(True)
-        else:
-            body = ''
-        self._view.setHtml(self._wrap(body, t))
+            self._view_code.setPlainText(obj.get('code', ''))
+            self._stack.setCurrentWidget(self._view_code)
+            return
+        body = _render_api_entry(obj, t) if kind == 'api' \
+            else _render_usage(obj) if kind == 'usage' \
+            else ''
+        self._view_html.setHtml(self._wrap(body, t))
+        self._stack.setCurrentWidget(self._view_html)
 
     def _wrap(self, body: str, t: dict) -> str:
         return f'<html><head><style>{_page_css(t)}</style></head><body>{body}</body></html>'
@@ -256,14 +267,25 @@ class DocsPanel(QWidget):
         t = theme.current()
         self.setStyleSheet(
             f'QWidget {{ background:{t["window_bg"]}; color:{t["window_fg"]}; }}'
-            f'QTreeWidget, QTextBrowser {{ background:{t["tree_bg"]}; '
-            f'color:{t["tree_fg"]}; border:1px solid {t["border"]}; }}'
+            f'QTreeWidget, QTextBrowser, QPlainTextEdit {{ '
+            f'background:{t["tree_bg"]}; color:{t["tree_fg"]}; '
+            f'border:1px solid {t["border"]}; }}'
             f'QTreeWidget::item:hover    {{ background:{t["tree_hover"]}; }}'
             f'QTreeWidget::item:selected {{ background:{t["tree_sel"]}; }}'
             f'QLineEdit {{ background:{t["dlg_input_bg"]}; '
             f'color:{t["dlg_input_fg"]}; border:1px solid {t["border"]}; '
             f'padding:3px 6px; }}'
         )
+        font = QFont(SettingsDialog.editor_font_family(),
+                     SettingsDialog.editor_font_size())
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+        self._view_code.setFont(font)
+        pal = self._view_code.palette()
+        pal.setColor(QPalette.ColorRole.Base, QColor(t['ed_bg']))
+        pal.setColor(QPalette.ColorRole.Text, QColor(t['ed_fg']))
+        self._view_code.setPalette(pal)
+        # Rebuild highlighter so it picks up new syntax colours
+        self._code_highlighter = LuaHighlighter(self._view_code.document())
         # Re-render current item so the HTML picks up new colours
         cur = self._tree.currentItem()
         if cur:
