@@ -422,10 +422,19 @@ class CommandModePanel(QWidget):
             self._raw_input.clear()
 
     def _set_controls_enabled(self, enabled: bool):
-        for btn in getattr(self, '_track_buttons', []):
-            btn.setEnabled(enabled)
-        self._raw_input.setEnabled(enabled)
-        self._raw_send.setEnabled(enabled)
+        # Disable the whole tab area (tabs + all contents) when command mode
+        # isn't active, so the panel clearly reads as inert.
+        self._tabs.setEnabled(enabled)
+        if enabled:
+            self._tabs.setStyleSheet('')
+        else:
+            t = theme.current()
+            self._tabs.setStyleSheet(
+                f'QTabBar::tab {{ color:{t["btn_disabled_fg"]}; }}'
+                f'QTabBar::tab:selected {{ background:{t["tab_bg"]}; '
+                f'color:{t["btn_disabled_fg"]}; '
+                f'border-top:2px solid {t["border"]}; }}'
+            )
 
     # ── Theme ──────────────────────────────────────────────────────────────
 
@@ -436,3 +445,5 @@ class CommandModePanel(QWidget):
             f'QLineEdit, QSpinBox, QComboBox {{ background:{t["dlg_input_bg"]}; '
             f'color:{t["dlg_input_fg"]}; border:1px solid {t["border"]}; padding:2px 4px; }}'
         )
+        # Re-apply the disabled tab styling if currently inactive
+        self._set_controls_enabled(self._active)
