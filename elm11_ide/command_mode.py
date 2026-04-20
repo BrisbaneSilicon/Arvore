@@ -30,6 +30,10 @@ class _VerticalTabBar(QTabBar):
     # padding that the style adds on top when drawing the label.
     _TEXT_PADDING = 40
 
+    # Optional external floor — used so the Set vertical tab bar can match
+    # the List vertical tab bar in width.
+    min_tab_width: int = 0
+
     def tabSizeHint(self, index):
         s = super().tabSizeHint(index)
         if self.shape() in (QTabBar.Shape.RoundedWest,
@@ -37,8 +41,7 @@ class _VerticalTabBar(QTabBar):
             s.transpose()
         needed = self.fontMetrics().horizontalAdvance(
             self.tabText(index)) + self._TEXT_PADDING
-        if s.width() < needed:
-            s.setWidth(needed)
+        s.setWidth(max(s.width(), needed, self.min_tab_width))
         return s
 
     def minimumTabSizeHint(self, index):
@@ -48,8 +51,7 @@ class _VerticalTabBar(QTabBar):
             s.transpose()
         needed = self.fontMetrics().horizontalAdvance(
             self.tabText(index)) + self._TEXT_PADDING
-        if s.width() < needed:
-            s.setWidth(needed)
+        s.setWidth(max(s.width(), needed, self.min_tab_width))
         return s
 
     def paintEvent(self, _event):
@@ -886,13 +888,15 @@ class CommandModePanel(QWidget):
         set_tabs.tabBar().setUsesScrollButtons(False)
         set_tabs.setUsesScrollButtons(False)
 
-        set_tabs.addTab(self._set_io_type_tab(),     'I/O Type')
-        set_tabs.addTab(self._set_uart_baud_tab(),   'UART Baud')
-        set_tabs.addTab(self._set_pwm_freq_tab(),    'PWM Freq')
-        set_tabs.addTab(self._set_spi_freq_tab(),    'SPI Freq')
-        set_tabs.addTab(self._set_boot_io_tab(),     'Boot I/O Default')
-        set_tabs.addTab(self._set_boot_prompt_tab(), 'Boot Prompt Default')
-        set_tabs.addTab(self._set_boot_program_tab(),'Boot Program')
+        set_tabs.addTab(self._set_io_type_tab(),   'I/O Type')
+        set_tabs.addTab(self._set_uart_baud_tab(), 'UART Baud')
+        set_tabs.addTab(self._set_pwm_freq_tab(),  'PWM Freq')
+        set_tabs.addTab(self._set_spi_freq_tab(),  'SPI Freq')
+        set_tabs.addTab(self._set_boot_tab(),      'Boot')
+
+        # Pin the Set tab bar's minimum tab width to the List tab bar's width
+        # so both panes line up visually.
+        set_tabs.tabBar().min_tab_width = getattr(self, '_list_tab_bar_width', 0)
 
         return set_tabs
 
@@ -971,46 +975,38 @@ class CommandModePanel(QWidget):
         self._track_buttons.append(btn)
         return page
 
-    def _set_boot_io_tab(self) -> QWidget:
+    def _set_boot_tab(self) -> QWidget:
+        """Consolidated boot-related Set commands: set the boot program by
+        name, plus save the current I/O type / prompt format as the
+        on-boot defaults."""
         page = QWidget()
         v = QVBoxLayout(page)
-        info = QLabel('Store the current I/O type configuration as the\n'
-                      'start-on-boot default.')
-        info.setWordWrap(True)
-        v.addWidget(info)
-        btn = QPushButton('Save Current I/O as Boot Default')
-        btn.clicked.connect(lambda: self._send('set|start_on_boot_io_type_cfg'))
-        v.addWidget(btn)
-        v.addStretch(1)
-        self._track_buttons.append(btn)
-        return page
 
-    def _set_boot_prompt_tab(self) -> QWidget:
-        page = QWidget()
-        v = QVBoxLayout(page)
-        info = QLabel('Store the current prompt format as the\n'
-                      'start-on-boot default.')
-        info.setWordWrap(True)
-        v.addWidget(info)
-        btn = QPushButton('Save Current Prompt as Boot Default')
-        btn.clicked.connect(lambda: self._send('set|start_on_boot_prompt_format'))
-        v.addWidget(btn)
-        v.addStretch(1)
-        self._track_buttons.append(btn)
-        return page
-
-    def _set_boot_program_tab(self) -> QWidget:
-        page = QWidget()
-        form = QFormLayout(page)
+        form = QFormLayout()
         self._set_boot_prog = QLineEdit()
         self._set_boot_prog.setPlaceholderText('program name')
-        btn = QPushButton('Set Boot Program')
-        btn.clicked.connect(lambda: self._send(
+        prog_btn = QPushButton('Set Run On-Boot Program')
+        prog_btn.clicked.connect(lambda: self._send(
             f'set|start_on_boot_program("{self._set_boot_prog.text().strip()}")'))
-        self._set_boot_prog.returnPressed.connect(btn.click)
+        self._set_boot_prog.returnPressed.connect(prog_btn.click)
         form.addRow('Program:', self._set_boot_prog)
-        form.addRow(btn)
-        self._track_buttons.append(btn)
+        form.addRow(prog_btn)
+        v.addLayout(form)
+        self._track_buttons.append(prog_btn)
+
+        v.addSpacing(16)
+
+        io_btn = QPushButton('Set Current I/O Type Configuration as On-Boot Default')
+        io_btn.clicked.connect(lambda: self._send('set|start_on_boot_io_type_cfg'))
+        v.addWidget(io_btn)
+        self._track_buttons.append(io_btn)
+
+        prompt_btn = QPushButton('Set Current Prompt as On-Boot Default')
+        prompt_btn.clicked.connect(lambda: self._send('set|start_on_boot_prompt_format'))
+        v.addWidget(prompt_btn)
+        self._track_buttons.append(prompt_btn)
+
+        v.addStretch(1)
         return page
 
     def _group_reset(self) -> QWidget:
