@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QComboBox, QSpinBox, QLabel, QTabWidget,
     QScrollArea, QStyle, QStyleOptionTab, QStylePainter, QTabBar,
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QHeaderView,
-    QAbstractItemView, QStackedWidget,
+    QAbstractItemView, QStackedWidget, QGraphicsOpacityEffect,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QPen
@@ -1137,6 +1137,7 @@ class CommandModePanel(QWidget):
         self._tabs.setEnabled(enabled)
         if enabled:
             self._tabs.setStyleSheet('')
+            self._tabs.setGraphicsEffect(None)
         else:
             t = theme.current()
             self._tabs.setStyleSheet(
@@ -1145,6 +1146,11 @@ class CommandModePanel(QWidget):
                 f'color:{t["btn_disabled_fg"]}; '
                 f'border-top:2px solid {t["border"]}; }}'
             )
+            # Dim the entire tab content so every widget (tables, inputs,
+            # buttons, labels) reads as inactive, not just the tab bar.
+            effect = QGraphicsOpacityEffect(self._tabs)
+            effect.setOpacity(0.45)
+            self._tabs.setGraphicsEffect(effect)
 
     # ── Theme ──────────────────────────────────────────────────────────────
 
