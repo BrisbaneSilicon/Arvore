@@ -213,9 +213,69 @@ class _IoTypeCfgView(_ListOutputView):
             self._table.setItem(row, 1, type_item)
 
 
+class _IoCapsView(_ListOutputView):
+    """Parse `list|io_capabilities` output into a pin capability matrix."""
+
+    _ROW_RE = re.compile(r'^\s*PIN(\d+)\s*\|(.*)$', re.MULTILINE)
+    _CAP_COLS = ['GPIO_OUT', 'GPIO_IN', 'PWM', 'UART_OUT', 'UART_IN',
+                 'SPI_OUT', 'SPI_IN', 'I2C']
+    _EXTRA_COLS = ['SW_INTRPTS', 'HW_BUFFER']
+    _HEADERS = ['PIN'] + _CAP_COLS + _EXTRA_COLS
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._table = QTableWidget(0, len(self._HEADERS))
+        self._table.setHorizontalHeaderLabels(self._HEADERS)
+        self._table.verticalHeader().setVisible(False)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._table)
+
+    def clear_output(self):
+        super().clear_output()
+        self._table.setRowCount(0)
+
+    def append_output(self, text: str):
+        super().append_output(text)
+        self._refresh()
+
+    def _refresh(self):
+        matches = list(self._ROW_RE.finditer(self._buffer))
+        self._table.setRowCount(len(matches))
+        for row, m in enumerate(matches):
+            parts = [p.strip() for p in m.group(2).split('|')]
+            pin_item = QTableWidgetItem(f'PIN{m.group(1)}')
+            pin_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._table.setItem(row, 0, pin_item)
+
+            # 8 capability columns (indices 0-7 in parts)
+            for i in range(len(self._CAP_COLS)):
+                val = parts[i] if i < len(parts) else ''
+                item = QTableWidgetItem('✓' if 'X' in val else '')
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._table.setItem(row, i + 1, item)
+
+            # After the capability block there's a blank cell from the `||`
+            # separator, then SW_INTRPTS and HW_BUFFER.
+            sw_idx, hw_idx = 9, 10
+            if len(parts) > sw_idx:
+                item = QTableWidgetItem('✓' if 'X' in parts[sw_idx] else '')
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._table.setItem(row, 1 + len(self._CAP_COLS), item)
+            if len(parts) > hw_idx:
+                item = QTableWidgetItem(parts[hw_idx])
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._table.setItem(row, 2 + len(self._CAP_COLS), item)
+
+
 _LIST_VIEW_CLASSES: dict[str, type[_ListOutputView]] = {
-    'list|programs':    _ProgramsView,
-    'list|io_type_cfg': _IoTypeCfgView,
+    'list|programs':         _ProgramsView,
+    'list|io_type_cfg':      _IoTypeCfgView,
+    'list|io_capabilities':  _IoCapsView,
 }
 
 
