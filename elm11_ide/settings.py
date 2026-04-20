@@ -1,4 +1,6 @@
 """Settings dialog."""
+import sys
+
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QPushButton, QFileDialog, QFormLayout,
@@ -8,6 +10,15 @@ from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QFont, QFontDatabase, QFontInfo, QFontMetrics
 
 from . import theme
+
+
+def _default_mono_font() -> str:
+    """Pick a sensible built-in monospaced font per platform."""
+    if sys.platform.startswith('win'):
+        return 'Consolas'
+    if sys.platform == 'darwin':
+        return 'Menlo'
+    return 'Ubuntu Mono'
 
 
 class SettingsDialog(QDialog):
@@ -116,7 +127,7 @@ class SettingsDialog(QDialog):
             self._uploader.setText(path)
 
     def _load(self):
-        saved_font = self._s.value('editor/font_family', 'Ubuntu Mono')
+        saved_font = self._s.value('editor/font_family', _default_mono_font())
         idx = self._font_combo.findText(saved_font)
         if idx >= 0:
             self._font_combo.setCurrentIndex(idx)
@@ -136,7 +147,7 @@ class SettingsDialog(QDialog):
     # ── Static helpers used by MainWindow ─────────────────────────────
     @staticmethod
     def editor_font_family() -> str:
-        return QSettings().value('editor/font_family', 'Ubuntu Mono')
+        return QSettings().value('editor/font_family', _default_mono_font())
 
     @staticmethod
     def editor_font_size() -> int:

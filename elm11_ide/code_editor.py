@@ -1,5 +1,6 @@
 """Code editor widget with line numbers and auto-indent."""
 import hashlib
+import os
 
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget, QTextEdit
 from PyQt6.QtCore import Qt, QRect, QSize, QSettings
@@ -19,7 +20,10 @@ def _content_hash(text: str) -> str:
 
 
 def _upload_hash_key(path: Path) -> str:
-    return f'uploads/hash/{path}'
+    # Normalise separators and (on Windows) case so that the same file
+    # referenced via different spellings hits the same QSettings entry.
+    normalised = os.path.normcase(os.path.normpath(str(path)))
+    return f'uploads/hash/{normalised}'
 
 LUA_INDENT_OPENERS  = ('do', 'then', 'else', 'elseif', 'repeat')
 LUA_FUNC_STARTS     = ('function',)
