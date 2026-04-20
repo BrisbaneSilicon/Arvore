@@ -694,26 +694,15 @@ class CommandModePanel(QWidget):
         # vertical sub-tab bars, so they aren't wrapped in a scroll area.
         self._list_tab_idx = self._tabs.addTab(self._group_list(), 'List')
         self._tabs.addTab(self._group_set(),                  'Set')
-        self._tabs.addTab(self._as_tab(self._group_reset()),  'Reset')
-        self._tabs.addTab(self._as_tab(self._group_delete()), 'Delete')
-        self._tabs.addTab(self._as_tab(self._group_load()),   'Load')
-        self._tabs.addTab(self._as_tab(self._group_run()),    'Run')
-        self._tabs.addTab(self._as_tab(self._group_cycle()),  'Cycle')
+        self._tabs.addTab(self._group_reset(),                'Reset')
+        self._tabs.addTab(self._group_delete(),               'Delete')
+        self._tabs.addTab(self._group_load(),                 'Load')
+        self._tabs.addTab(self._group_run(),                  'Run')
+        self._tabs.addTab(self._group_cycle(),                'Cycle')
 
-        # Raw tab (free-form input)
-        raw = QWidget()
-        raw_layout = QVBoxLayout(raw)
-        raw_row = QHBoxLayout()
-        self._raw_input = QLineEdit()
-        self._raw_input.setPlaceholderText('e.g. list|programs')
-        self._raw_input.returnPressed.connect(self._send_raw)
-        raw_row.addWidget(self._raw_input)
-        self._raw_send = QPushButton('Send')
-        self._raw_send.clicked.connect(self._send_raw)
-        raw_row.addWidget(self._raw_send)
-        raw_layout.addLayout(raw_row)
-        raw_layout.addStretch(1)
-        self._tabs.addTab(raw, 'Raw')
+        # Raw tab (free-form input) — wrap in a vertical-tab column for
+        # visual consistency with the other command families.
+        self._tabs.addTab(self._group_raw(),                  'Raw')
 
         # Re-fire the currently-selected list command whenever the user
         # returns to the List outer tab from any other family.
@@ -1010,95 +999,211 @@ class CommandModePanel(QWidget):
         return page
 
     def _group_reset(self) -> QWidget:
-        w = QWidget()
-        form = QFormLayout(w)
+        self._track_buttons = getattr(self, '_track_buttons', [])
 
+        reset_tabs = QTabWidget()
+        reset_tabs.setDocumentMode(True)
+        reset_tabs.setTabBar(_VerticalTabBar(reset_tabs))
+        reset_tabs.setTabPosition(QTabWidget.TabPosition.West)
+        reset_tabs.tabBar().setExpanding(False)
+        reset_tabs.tabBar().setUsesScrollButtons(False)
+        reset_tabs.setUsesScrollButtons(False)
+
+        reset_tabs.addTab(self._reset_io_tab(),   'Reset I/O')
+        reset_tabs.addTab(self._reset_boot_tab(), 'Boot')
+
+        reset_tabs.tabBar().min_tab_width = getattr(self, '_list_tab_bar_width', 0)
+        return reset_tabs
+
+    def _reset_io_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+
+        form = QFormLayout()
         self._reset_pin = self._make_pin_combo()
-        b = QPushButton('Reset I/O Type')
-        b.clicked.connect(lambda: self._send(
+        pin_btn = QPushButton('Reset I/O Type for Pin')
+        pin_btn.clicked.connect(lambda: self._send(
             f'reset|io_type_cfg({self._reset_pin.currentText()})'))
-        row = QHBoxLayout()
-        row.addWidget(QLabel('PIN'))
-        row.addWidget(self._reset_pin)
-        row.addWidget(b)
-        form.addRow('I/O Type:', self._wrap(row))
-        self._track_buttons.append(b)
+        form.addRow('PIN:', self._reset_pin)
+        form.addRow(pin_btn)
+        v.addLayout(form)
+        self._track_buttons.append(pin_btn)
 
+        v.addSpacing(16)
+
+        all_btn = QPushButton('Reset All I/O Types')
+        all_btn.clicked.connect(lambda: self._send('reset|all_io_type_cfg'))
+        v.addWidget(all_btn)
+        self._track_buttons.append(all_btn)
+
+        v.addStretch(1)
+        return page
+
+    def _reset_boot_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
         for label, cmd in [
-            ('Reset All I/O Types',      'reset|all_io_type_cfg'),
             ('Reset Boot Prompt Format', 'reset|start_on_boot_prompt_format'),
             ('Reset Boot I/O Config',    'reset|start_on_boot_io_type_cfg'),
             ('Reset Boot Program',       'reset|start_on_boot_program'),
         ]:
             btn = QPushButton(label)
             btn.clicked.connect(lambda _=False, c=cmd: self._send(c))
-            form.addRow(btn)
+            v.addWidget(btn)
             self._track_buttons.append(btn)
-        return w
+        v.addStretch(1)
+        return page
+
+    def _make_vertical_tabs(self) -> QTabWidget:
+        """Set up a vertical QTabWidget styled consistently with the other
+        command-family panels (horizontal label text, no scroll buttons,
+        min tab width pinned to the List pane's width)."""
+        tabs = QTabWidget()
+        tabs.setDocumentMode(True)
+        tabs.setTabBar(_VerticalTabBar(tabs))
+        tabs.setTabPosition(QTabWidget.TabPosition.West)
+        tabs.tabBar().setExpanding(False)
+        tabs.tabBar().setUsesScrollButtons(False)
+        tabs.setUsesScrollButtons(False)
+        tabs.tabBar().min_tab_width = getattr(self, '_list_tab_bar_width', 0)
+        return tabs
 
     def _group_delete(self) -> QWidget:
-        w = QWidget()
-        form = QFormLayout(w)
+        self._track_buttons = getattr(self, '_track_buttons', [])
+        tabs = self._make_vertical_tabs()
+        tabs.addTab(self._delete_program_tab(), 'Program')
+        tabs.addTab(self._delete_all_tab(),     'All Programs')
+        return tabs
 
+    def _delete_program_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
         self._del_prog = QLineEdit()
         self._del_prog.setPlaceholderText('program name')
-        b = QPushButton('Delete Program')
-        b.clicked.connect(lambda: self._send(
+        btn = QPushButton('Delete Program')
+        btn.clicked.connect(lambda: self._send(
             f'delete|program("{self._del_prog.text().strip()}")'))
-        row = QHBoxLayout()
-        row.addWidget(self._del_prog)
-        row.addWidget(b)
-        form.addRow('Program:', self._wrap(row))
-        self._track_buttons.append(b)
+        self._del_prog.returnPressed.connect(btn.click)
+        form.addRow('Program:', self._del_prog)
+        form.addRow(btn)
+        self._track_buttons.append(btn)
+        return page
 
-        b2 = QPushButton('Delete ALL Programs')
-        b2.clicked.connect(lambda: self._send('delete|all_programs'))
-        form.addRow(b2)
-        self._track_buttons.append(b2)
-        return w
+    def _delete_all_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        btn = QPushButton('Delete ALL Programs')
+        btn.clicked.connect(lambda: self._send('delete|all_programs'))
+        v.addWidget(btn)
+        v.addStretch(1)
+        self._track_buttons.append(btn)
+        return page
 
     def _group_load(self) -> QWidget:
-        w = QWidget()
-        v = QVBoxLayout(w)
-        b = QPushButton('Load Boot I/O Config')
-        b.clicked.connect(lambda: self._send('load|start_on_boot_io_type_cfg'))
-        v.addWidget(b)
+        self._track_buttons = getattr(self, '_track_buttons', [])
+        tabs = self._make_vertical_tabs()
+        tabs.addTab(self._load_boot_io_tab(), 'Boot I/O')
+        return tabs
+
+    def _load_boot_io_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        btn = QPushButton('Load Boot I/O Config')
+        btn.clicked.connect(lambda: self._send('load|start_on_boot_io_type_cfg'))
+        v.addWidget(btn)
         v.addStretch(1)
-        self._track_buttons.append(b)
-        return w
+        self._track_buttons.append(btn)
+        return page
 
     def _group_run(self) -> QWidget:
-        w = QWidget()
-        form = QFormLayout(w)
+        self._track_buttons = getattr(self, '_track_buttons', [])
 
+        run_tabs = QTabWidget()
+        run_tabs.setDocumentMode(True)
+        run_tabs.setTabBar(_VerticalTabBar(run_tabs))
+        run_tabs.setTabPosition(QTabWidget.TabPosition.West)
+        run_tabs.tabBar().setExpanding(False)
+        run_tabs.tabBar().setUsesScrollButtons(False)
+        run_tabs.setUsesScrollButtons(False)
+
+        run_tabs.addTab(self._run_program_tab(), 'Run Program')
+        run_tabs.addTab(self._run_reboot_tab(),  'Reboot')
+
+        run_tabs.tabBar().min_tab_width = getattr(self, '_list_tab_bar_width', 0)
+        return run_tabs
+
+    def _run_program_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
         self._run_prog = QLineEdit()
         self._run_prog.setPlaceholderText('program name')
-        b = QPushButton('Run Program')
-        b.clicked.connect(lambda: self._send(
+        btn = QPushButton('Run Program')
+        btn.clicked.connect(lambda: self._send(
             f'run|program("{self._run_prog.text().strip()}")'))
-        row = QHBoxLayout()
-        row.addWidget(self._run_prog)
-        row.addWidget(b)
-        form.addRow('Program:', self._wrap(row))
-        self._track_buttons.append(b)
+        self._run_prog.returnPressed.connect(btn.click)
+        form.addRow('Program:', self._run_prog)
+        form.addRow(btn)
+        self._track_buttons.append(btn)
+        return page
 
-        reboot = QPushButton('Reboot Core')
-        reboot.clicked.connect(lambda: self._send('run|reboot'))
-        form.addRow(reboot)
-        self._track_buttons.append(reboot)
-        return w
+    def _run_reboot_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        btn = QPushButton('Reboot Core')
+        btn.clicked.connect(lambda: self._send('run|reboot'))
+        v.addWidget(btn)
+        v.addStretch(1)
+        self._track_buttons.append(btn)
+        return page
 
     def _group_cycle(self) -> QWidget:
-        w = QWidget()
-        grid = QGridLayout(w)
-        a = QPushButton('Cycle CPU Prompt')
-        a.clicked.connect(lambda: self._send('cycle|cpuprompt'))
-        b = QPushButton('Cycle Time Prompt')
-        b.clicked.connect(lambda: self._send('cycle|timeprompt'))
-        grid.addWidget(a, 0, 0)
-        grid.addWidget(b, 0, 1)
-        self._track_buttons.extend([a, b])
-        return w
+        self._track_buttons = getattr(self, '_track_buttons', [])
+        tabs = self._make_vertical_tabs()
+        tabs.addTab(self._cycle_cpu_tab(),  'CPU Prompt')
+        tabs.addTab(self._cycle_time_tab(), 'Time Prompt')
+        return tabs
+
+    def _cycle_cpu_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        btn = QPushButton('Cycle CPU Prompt')
+        btn.clicked.connect(lambda: self._send('cycle|cpuprompt'))
+        v.addWidget(btn)
+        v.addStretch(1)
+        self._track_buttons.append(btn)
+        return page
+
+    def _cycle_time_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        btn = QPushButton('Cycle Time Prompt')
+        btn.clicked.connect(lambda: self._send('cycle|timeprompt'))
+        v.addWidget(btn)
+        v.addStretch(1)
+        self._track_buttons.append(btn)
+        return page
+
+    def _group_raw(self) -> QWidget:
+        self._track_buttons = getattr(self, '_track_buttons', [])
+        tabs = self._make_vertical_tabs()
+        tabs.addTab(self._raw_command_tab(), 'Raw Command')
+        return tabs
+
+    def _raw_command_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+        row = QHBoxLayout()
+        self._raw_input = QLineEdit()
+        self._raw_input.setPlaceholderText('e.g. list|programs')
+        self._raw_input.returnPressed.connect(self._send_raw)
+        row.addWidget(self._raw_input)
+        self._raw_send = QPushButton('Send')
+        self._raw_send.clicked.connect(self._send_raw)
+        row.addWidget(self._raw_send)
+        v.addLayout(row)
+        v.addStretch(1)
+        self._track_buttons.append(self._raw_send)
+        return page
 
     @staticmethod
     def _wrap(layout) -> QWidget:
