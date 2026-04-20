@@ -19,6 +19,7 @@ from .serial_terminal import SerialTerminal
 from .build_output import BuildOutput
 from .uploader import UploaderWorker
 from .settings import SettingsDialog
+from .docs_panel import DocsPanel
 from . import theme
 
 
@@ -47,6 +48,9 @@ class MainWindow(QMainWindow):
         log.debug('Restoring workspace')
         self._restore_workspace()
 
+        if QSettings().value('ui/docs_visible', False, type=bool):
+            self._docs_toggle.setChecked(True)
+
         # Auto-refresh serial port list
         self._port_timer = QTimer(self)
         self._port_timer.timeout.connect(self._refresh_ports)
@@ -56,8 +60,8 @@ class MainWindow(QMainWindow):
     # ── Central widget ────────────────────────────────────────────────────────
 
     def _setup_central(self):
-        outer = QSplitter(Qt.Orientation.Horizontal)
-        self.setCentralWidget(outer)
+        self._outer = QSplitter(Qt.Orientation.Horizontal)
+        self.setCentralWidget(self._outer)
 
         # Left: project tree
         self._tree = ProjectTree()
@@ -66,18 +70,18 @@ class MainWindow(QMainWindow):
         self._tree.new_file_requested.connect(self._new_file)
         self._tree.set_status_provider(self._file_status)
         self._tree.setMinimumWidth(120)
-        outer.addWidget(self._tree)
-        outer.setChildrenCollapsible(False)
+        self._outer.addWidget(self._tree)
+        self._outer.setChildrenCollapsible(False)
 
-        # Right: editor on top, bottom panel below
-        right = QSplitter(Qt.Orientation.Vertical)
-        outer.addWidget(right)
+        # Centre: editor on top, bottom panel below
+        centre = QSplitter(Qt.Orientation.Vertical)
+        self._outer.addWidget(centre)
 
         self._editor_tabs = QTabWidget()
         self._editor_tabs.setTabsClosable(True)
         self._editor_tabs.tabCloseRequested.connect(self._close_tab)
         self._editor_tabs.currentChanged.connect(self._on_tab_changed)
-        right.addWidget(self._editor_tabs)
+        centre.addWidget(self._editor_tabs)
 
         self._bottom = QTabWidget()
         self._terminal = SerialTerminal()
@@ -88,11 +92,18 @@ class MainWindow(QMainWindow):
         self._bottom.addTab(self._terminal, 'Serial Terminal')
         self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
-        right.addWidget(self._bottom)
-        right.setChildrenCollapsible(False)
+        centre.addWidget(self._bottom)
+        centre.setChildrenCollapsible(False)
 
-        outer.setSizes([200, 900])
-        right.setSizes([520, 200])
+        # Right: toggleable documentation panel
+        self._docs = DocsPanel()
+        self._docs.open_example.connect(self._open_example)
+        self._docs.setMinimumWidth(240)
+        self._docs.setVisible(False)
+        self._outer.addWidget(self._docs)
+
+        self._outer.setSizes([200, 900, 0])
+        centre.setSizes([520, 200])
 
     # ── Toolbar ───────────────────────────────────────────────────────────────
 
@@ -173,6 +184,12 @@ class MainWindow(QMainWindow):
         vm = mb.addMenu('&View')
         self._theme_menu = vm.addMenu('Theme')
         self._rebuild_theme_menu()
+        vm.addSeparator()
+        self._docs_toggle = QAction('&Documentation Panel', self)
+        self._docs_toggle.setCheckable(True)
+        self._docs_toggle.setShortcut(QKeySequence('F1'))
+        self._docs_toggle.toggled.connect(self._toggle_docs)
+        vm.addAction(self._docs_toggle)
 
         # Tools
         tm = mb.addMenu('&Tools')
@@ -533,6 +550,29 @@ class MainWindow(QMainWindow):
             worker.send(b'q\n')
         self._bottom.setCurrentWidget(self._terminal)
 
+    def _toggle_docs(self, checked: bool):
+        self._docs.setVisible(checked)
+        if checked:
+            sizes = self._outer.sizes()
+            if len(sizes) == 3 and sizes[2] == 0:
+                total = sum(sizes)
+                docs_w = max(320, total // 3)
+                centre = max(300, sizes[1] - docs_w)
+                self._outer.setSizes([sizes[0], centre, docs_w])
+        QSettings().setValue('ui/docs_visible', checked)
+
+    def _open_example(self, filename: str, code: str):
+        """Open an embLua example program in a new editor tab."""
+        editor = CodeEditor()
+        editor.setPlainText(code)
+        editor.document().setModified(True)
+        idx = self._editor_tabs.addTab(editor, filename)
+        self._editor_tabs.setCurrentIndex(idx)
+        editor.document().modificationChanged.connect(
+            lambda _: self._refresh_tab_title(editor))
+        self._refresh_tab_title(editor)
+        self._update_device_buttons()
+
     def _build(self):
         QMessageBox.information(self, 'Coming Soon',
             'C build support is coming soon.\n\n'
@@ -562,6 +602,7 @@ class MainWindow(QMainWindow):
         self._terminal.apply_theme()
         self._upload_out.apply_theme()
         self._build_out.apply_theme()
+        self._docs.apply_theme()
         for i in range(self._editor_tabs.count()):
             w = self._editor_tabs.widget(i)
             if isinstance(w, CodeEditor):

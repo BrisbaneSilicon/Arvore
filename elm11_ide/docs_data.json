@@ -1,0 +1,839 @@
+{
+  "source": "embLua_ProductDocumentation.pdf",
+  "api": [
+    {
+      "name": "CORE<x>",
+      "kind": "constant",
+      "category": "Constants › Core",
+      "description": "Represents CORE number 'x', For example, in the REPL (or an uploaded program):"
+    },
+    {
+      "name": "$print(\"ValueofCORE3is:\"..CORE3)ValueofCORE3is:3",
+      "kind": "constant",
+      "category": "Constants › Core",
+      "description": ""
+    },
+    {
+      "name": "PIN<x>",
+      "kind": "constant",
+      "category": "Constants › Pin",
+      "description": "Represents I/O PIN number 'x', For example, in the REPL (or an uploaded program):"
+    },
+    {
+      "name": "$print(\"ValueofPIN7is:\"..PIN7)ValueofPIN7is:7",
+      "kind": "constant",
+      "category": "Constants › Pin",
+      "description": ""
+    },
+    {
+      "name": "PIN<x>_BITMASK",
+      "kind": "constant",
+      "category": "Constants › Pin",
+      "description": "Represents I/O PIN number 'x' bitmask. For example, handling interrupts:\n   $ function interrupt(interrupt_vector)\n       if (interrupt_vector & PIN3_BITMASK) ~= 0 then\n           print(\"Interrupt occurred on PIN3!\")\n       end\n   end"
+    },
+    {
+      "name": "LOW",
+      "kind": "constant",
+      "category": "Constants › I/O Level",
+      "description": "Represents a voltage low (0 volts) signal level."
+    },
+    {
+      "name": "HIGH",
+      "kind": "constant",
+      "category": "Constants › I/O Level",
+      "description": "Represents a voltage high (3.3 volts) signal level."
+    },
+    {
+      "name": "TOGGLE",
+      "kind": "constant",
+      "category": "Constants › I/O Level",
+      "description": "Represents an inverse voltage signal level, i.e. high the opposite of low. For example:"
+    },
+    {
+      "name": "$set_gpio(PIN7,TOGGLE)",
+      "kind": "constant",
+      "category": "Constants › I/O Level",
+      "description": ""
+    },
+    {
+      "name": "NONE",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents an I/O type of none."
+    },
+    {
+      "name": "GPIO_OUT",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents an General Purpose, 'Digital I/O' type with direction output."
+    },
+    {
+      "name": "GPIO_IN",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents an General Purpose, 'Digital I/O' type with direction input."
+    },
+    {
+      "name": "PWM",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents a Pulse-Width-Modulation, 'Digital I/O' type."
+    },
+    {
+      "name": "UART_OUT",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents a UART communications protocol, 'Digital I/O' pin type, with direction\noutput."
+    },
+    {
+      "name": "UART_IN",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents a UART communications protocol, 'Digital I/O' pin type, with direction input."
+    },
+    {
+      "name": "SPI_OUT",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents a SPI communications protocol, 'Digital I/O' pin type, with direction output."
+    },
+    {
+      "name": "SPI_IN",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents a SPI communications protocol, 'Digital I/O' pin type, with direction input."
+    },
+    {
+      "name": "I2C",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": "Represents a I2C communications protocol, 'Digital I/O' pin type, with direction input\nand output. For example:"
+    },
+    {
+      "name": "$set_io_config(PIN14,I2C)",
+      "kind": "constant",
+      "category": "Constants › I/O Type",
+      "description": ""
+    },
+    {
+      "name": "GPIO_INTRPT_LOW",
+      "kind": "constant",
+      "category": "Constants › GPIO Interrupt",
+      "description": "Represents a low (0 volts) interrupt type on an I/O configured as GPIO_IN."
+    },
+    {
+      "name": "GPIO_INTRPT_HIGH",
+      "kind": "constant",
+      "category": "Constants › GPIO Interrupt",
+      "description": "Represents a high (3.3 volts) interrupt type on an I/O configured as GPIO_IN."
+    },
+    {
+      "name": "GPIO_INTRPT_RISING_EDGE",
+      "kind": "constant",
+      "category": "Constants › GPIO Interrupt",
+      "description": "Represents a low to high transition interrupt type on an I/O configured as GPIO_IN."
+    },
+    {
+      "name": "GPIO_INTRPT_",
+      "kind": "constant",
+      "category": "Constants › GPIO Interrupt",
+      "description": "Represents a high to low interrupt type on an I/O configured as GPIO_IN. For example,\nparsing interrupt types:"
+    },
+    {
+      "name": "FALLING_EDGE",
+      "kind": "constant",
+      "category": "Constants › GPIO Interrupt",
+      "description": "$ gpio_interrupt_vector = get_interrupts_on_pin(PIN6)\nif (tgpio_interrupt_vector & GPIO_INTRPT_RISING_EDGE) ~= 0\nthen\n     print(\"Detected rising edge on PIN6!\")\nend"
+    },
+    {
+      "name": "UART_RX_INTRPT_DATA_AVAILABLE",
+      "kind": "constant",
+      "category": "Constants › UART Interrupt",
+      "description": "Represents data available interrupt type on an I/O configured as UART_IN."
+    },
+    {
+      "name": "import",
+      "kind": "function",
+      "category": "Functions › Base Library › Import",
+      "description": "Import function from base library (ARG1: <base library function>).\nImport function from non-base library (ARG1: <library>, ARG2: <library function>).\nFor example:"
+    },
+    {
+      "name": "$import(\"set_io_type_cfg\")",
+      "kind": "function",
+      "category": "Functions › Base Library › Import",
+      "description": ""
+    },
+    {
+      "name": "set_io_type_cfg",
+      "kind": "function",
+      "category": "Functions › Base Library › I/O Config",
+      "description": "Configure I/O (ARG1: PIN<x>) as type (ARG2: NONE, GPIO_OUT, GPIO_IN, PWM,\nUART_OUT, UART_IN, SPI_OUT, SPI_IN or I2C)."
+    },
+    {
+      "name": "reset_io_type_cfg",
+      "kind": "function",
+      "category": "Functions › Base Library › I/O Config",
+      "description": "Reset I/O (ARG1: PIN<x>) to type NONE."
+    },
+    {
+      "name": "reset_all_io_type_cfg",
+      "kind": "function",
+      "category": "Functions › Base Library › I/O Config",
+      "description": "Reset all I/O to type NONE (no arguments). For example:\n  $ reset_all_io_type_cfg()"
+    },
+    {
+      "name": "set_gpio",
+      "kind": "function",
+      "category": "Functions › Base Library › GPIO",
+      "description": "Set I/O (ARG1: PIN<x>), configured as GPIO_OUT, to level (ARG2: LOW, HIGH or\nTOGGLE). For example:"
+    },
+    {
+      "name": "$set_gpio(PIN7,HIGH)",
+      "kind": "function",
+      "category": "Functions › Base Library › GPIO",
+      "description": ""
+    },
+    {
+      "name": "get_gpio",
+      "kind": "function",
+      "category": "Functions › Base Library › GPIO",
+      "description": "Get I/O (ARG1: PIN<x>), configured as GPIO_IN, level. For example:"
+    },
+    {
+      "name": "$my_kite=get_gpio(PIN2)$ifmy_kite==HIGHthenprint(\"my_kiteisHIGH!\")$$elseprint(\"my_kiteisnotHIGH!\")endmy_kiteisHIGH!",
+      "kind": "function",
+      "category": "Functions › Base Library › GPIO",
+      "description": ""
+    },
+    {
+      "name": "set_pwm",
+      "kind": "function",
+      "category": "Functions › Base Library › PWM",
+      "description": "Set I/O (ARG1: PIN<x>), configured as PWM, to duty cycle (ARG2: 0 - PWM_MAX).\nThe value of ‘PWM_MAX’ is 256 (100% duty)."
+    },
+    {
+      "name": "spi_tx",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Same as 'spi_tx_byte'."
+    },
+    {
+      "name": "ThebehaviorinthecasetheARG1I/OPINisconfiguredtohaveanonbyte-multipledatawidth:Ifthedatawidth,X,islessthanonebyte,eachbytethatissenttotheSPImodulewillhavethemost-significant[8-X]bitsdiscarded,theremainderaretransmitted.Ifthedatawidth,X,isgreaterthanonebyte,eachbytethatissenttotheSPImoduleisbuffereduntilabyte-multipleofdataisstored.Thenthemost-significant[Buffered-Bits-X]bitsarediscarded,theremainderaretransmitted.",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": ""
+    },
+    {
+      "name": "spi_tx_byte",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Send 1 byte (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as\nSPI_OUT."
+    },
+    {
+      "name": "ItispossiblethiswillNOTresultinanactualSPItransmission(ifitislessthanthebuildconfigurednumberofbitsperSPItransmission).Seedescriptionof‘spi_tx’.",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": ""
+    },
+    {
+      "name": "spi_tx_char",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Send 1 byte (ARG2: string) of data to I/O (ARG1: PIN<x>), configured as SPI_OUT."
+    },
+    {
+      "name": "spi_tx_int",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Send 4 bytes (ARG2: integer) of data to I/O (ARG1: PIN<x>), configured as\nSPI_OUT."
+    },
+    {
+      "name": "ItispossiblethiswillresultinmultipleSPItransmissions.",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": ""
+    },
+    {
+      "name": "spi_rx_byte",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Receive one byte from I/O (ARG1: PIN<x>), configured as SPI_IN. This function\nwill hang if no SPI data has been received."
+    },
+    {
+      "name": "spi_rx_byte_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Not included in Beta Release."
+    },
+    {
+      "name": "spi_rx_char",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Receive one character from I/O (ARG1: PIN<x>), configured as SPI_IN. This\nfunction will hang if no SPI data has been received."
+    },
+    {
+      "name": "spi_rx_char_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › SPI",
+      "description": "Not included in Beta Release."
+    },
+    {
+      "name": "uart_tx",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Same as 'uart_tx_byte'. For example:"
+    },
+    {
+      "name": "$uart_tx(PIN4,0x30)",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": ""
+    },
+    {
+      "name": "uart_tx_char",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Send 1 byte (ARG2: string) of data to the I/O (ARG1: PIN<x>), configured as\nUART_OUT."
+    },
+    {
+      "name": "uart_tx_byte",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Send 1 byte (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as\nUART_OUT."
+    },
+    {
+      "name": "uart_tx_int",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Send 4 bytes (ARG2: integer) of data to the I/O (ARG1: PIN<x>), configured as\nUART_OUT."
+    },
+    {
+      "name": "uart_rx_byte",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Receive and return 1 byte (as an integer) of data from the I/O (ARG1: PIN<x>),\nconfigured as UART_IN."
+    },
+    {
+      "name": "ThisfunctionwillblockifthecorrespondingUARTmodulecurrentlyhasnodata,untilabyteofdataisreceived.",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": ""
+    },
+    {
+      "name": "uart_rx_byte_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Receive and return 1 byte (as an integer) of data and return 'byte valid' from the I/\nO (ARG1: PIN<x>), configured as UART_IN."
+    },
+    {
+      "name": "Thisfunctionwillnotblock-ifthecorrespondingUART_INmodulecurrentlyhasnodatathen'bytevalid'willbefalse.",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": ""
+    },
+    {
+      "name": "uart_rx_char",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Same as 'uart_rx_byte', however the returned UART data will be a character."
+    },
+    {
+      "name": "uart_rx_char_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › UART",
+      "description": "Again, same as 'uart_rx_byte_nonblocking', however the returned UART data will\nbe a character."
+    },
+    {
+      "name": "i2c_txNotincludedinBetaRelease.",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": ""
+    },
+    {
+      "name": "i2c_tx_charNotincludedinBetaRelease.",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": ""
+    },
+    {
+      "name": "i2c_tx_byteNotincludedinBetaRelease.",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": ""
+    },
+    {
+      "name": "i2c_tx_intNotincludedinBetaRelease.",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": ""
+    },
+    {
+      "name": "i2c_rx_byteNotincludedinBetaRelease.",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": ""
+    },
+    {
+      "name": "i2c_rx_byte_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": "Not included in Beta Release."
+    },
+    {
+      "name": "i2c_rx_charNotincludedinBetaRelease.",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": ""
+    },
+    {
+      "name": "i2c_rx_char_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › I2C",
+      "description": "Not included in Beta Release."
+    },
+    {
+      "name": "fpga_write",
+      "kind": "function",
+      "category": "Functions › Base Library › FPGA Bus",
+      "description": "Write a integer (ARG1: integer) to the FPGA bus. Block until the FPGA bus ‘ready’\nstrobe is asserted."
+    },
+    {
+      "name": "fpga_write_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › FPGA Bus",
+      "description": "Attempt to write a integer (ARG1: integer) to the FPGA bus. Doesn’t block, returns\ntrue / false to indicate if the write was successful (i.e. the FPGA bus ‘ready’ strobe\nwas asserted)."
+    },
+    {
+      "name": "fpga_read",
+      "kind": "function",
+      "category": "Functions › Base Library › FPGA Bus",
+      "description": "Read a integer from the FPGA bus. Block until the FPGA bus ‘ready’ strobe is\nasserted."
+    },
+    {
+      "name": "fpga_read_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › FPGA Bus",
+      "description": "Read a integer from the FPGA bus. Doesn’t block, returns the value read (0 in\ninvalid) and true / false to indicate if the read was successful (i.e. the FPGA bus\n‘ready’ strobe was asserted)."
+    },
+    {
+      "name": "global_interrupt_",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Global interrupt enable. The 'interrupt' function will trigger if an enabled interrupt\nto occurs (no arguments)."
+    },
+    {
+      "name": "enable",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "global_interrupt_",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Global interrupt disable. The 'interrupt' function will not trigger even if an enabled\ninterrupt to occurs (no arguments)."
+    },
+    {
+      "name": "disable",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "repl_interrupt_mode_enable",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "This interrupt mode is enabled by default prior to the execution of each new\natomic (i.e. single or set of multi-line) REPL input. It is disabled by default prior to\nthe execution of a program. Thus only a multi-line REPL input, which calls\n‘repl_interrupt_mode_disable' will proceed with this mode disabled, and only a\nprogram which calls ‘repl_interrupt_mode_enable’ will proceed with this mode\nenabled (from the point at which it is enabled / disabled, of course).\nIf enabled, any individual interrupt source that is enabled and active at the end of\nthe entire REPL input will trigger an interrupt at that point (i.e. just prior to\nreturning to user prompt). This is in addition to the typical interrupt functionality\nof triggering between each line of script (i.e. in the case of a REPL, a multi-line\nREPL input). Also, if the interrupts have been enabled globally (i.e.\n'global_interrupt_enable') this the global interrupt enable will persist across\nindividual, atomic calls to the REPL (i.e. across single-line calls, or separate multi-\nline calls). Otherwise, the global interrupt configuration will be reset to disabled at\nthe beginning of each new input into the REPL (i.e. a single-line or multi-line input\nhas completed, and the user has been prompted to enter new Lua script)."
+    },
+    {
+      "name": "repl_interrupt_mode_disable",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "See above description."
+    },
+    {
+      "name": "set_interrupt_types_for_pin",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Enable only specified interrupts by bitmask (ARG2: bit-wise combination of\n<PIN<x> Type>_INTRPT_<type>) for input I/O (ARG1: PIN<x>). For example:"
+    },
+    {
+      "name": "$set_io_config(PIN1,GPIO_IN)$set_interrupt_types_for_pin(PIN1,GPIO_INTRPT_LOW|GPIO_INTRPT_RISING_EDGE|GPIO_INTRPT_FALLING_EDGE)$print(\"EnabledInterruptTypesof'Low''RisingEdge'and'FallingEdge'forGPIO_INPIN1\")EnabledInterruptTypesof'Low''RisingEdge'and'FallingEdge'forGPIO_INPIN1",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "enable_interrupt_",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Same as 'set_interrupt_types_for_pin' however additionally enable specified\ninterrupts, as well as whatever is already enabled."
+    },
+    {
+      "name": "types_for_pin",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "disable_interrupt_",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Disable specified interrupts by bitmask (ARG2: bit-wise combination of <PIN<x>\nType>_INTRPT_<type>) for input I/O (ARG1: PIN<x>)."
+    },
+    {
+      "name": "types_for_pin",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "get_interrupts_on_pin",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Get interrupt vector for I/O (ARG1: PIN<x>)."
+    },
+    {
+      "name": "ack_interrupt_types_on_pin",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Acknowledge specified interrupts by bitmask (ARG2: bit-wise combination of\n<PIN<x> Type>_INTRPT_<type>) for I/O (ARG1: PIN<x>)."
+    },
+    {
+      "name": "ack_interrupt_types_on_pins",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Acknowledge specified interrupts by bitmask (ARG2: bit-wise combination of\n<PIN<x> Type>_INTRPT_<type>) for I/O specified by bitmask (ARG1:\nPIN<x>_BITMASK)."
+    },
+    {
+      "name": "interrupt_handler",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": "Users redefine this function with a single argument, 'interrupt_vector', and it will be\ncalled upon an enabled interrupt occurring. When called, the 'interrupt_vector'\nargument will reflect all PIN<x> upon which an interrupt occurred, via the\ncorresponding 'PIN<x>_BITMASK'. For example:"
+    },
+    {
+      "name": "$set_interrupt_types_for_pin(PIN4,GPIO_INTRPT_LOW|GPIO_INTRPT_RISING_EDGE)$set_interrupt_types_for_pin(PIN6,GPIO_INTRPT_FALLING_EDGE)$global_interrupt_enable()$functioninterrupt_handler(interrupt_vector)if(interrupt_vector&PIN4_BITMASK)~=0thenprint(\"InterruptoccurredonPIN4!\")endif(interrupt_vector&PIN6_BITMASK)~=0thenprint(\"InterruptoccurredonPIN6!\")endend",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "interrupt.bind(interrupt_handler)",
+      "kind": "function",
+      "category": "Functions › Base Library › Interrupt",
+      "description": ""
+    },
+    {
+      "name": "sleep",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: integer) seconds. Interruptible."
+    },
+    {
+      "name": "sleep_f",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: float) seconds. Interruptible."
+    },
+    {
+      "name": "msleep",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: integer) milliseconds. Interruptible."
+    },
+    {
+      "name": "msleep_f",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: float) milliseconds. Interruptible."
+    },
+    {
+      "name": "usleep",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: integer) microseconds. Interruptible."
+    },
+    {
+      "name": "sleep_noint",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: integer) seconds. Uninterruptible."
+    },
+    {
+      "name": "mssleep_noint",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: integer) milliseconds. Uninterruptible."
+    },
+    {
+      "name": "usleep_noint",
+      "kind": "function",
+      "category": "Functions › Base Library › Sleep",
+      "description": "Pause for X (ARG1: integer) microseconds. Uninterruptible."
+    },
+    {
+      "name": "watchdog_reset",
+      "kind": "function",
+      "category": "Functions › Base Library › Watchdog",
+      "description": "Reset the hardware watchdog back to its start timer value. See Command\nMode (see page 23) for more information. If the watchdog is not present, calling this\nfunction will have no effect."
+    },
+    {
+      "name": "get_watchdog_timer",
+      "kind": "function",
+      "category": "Functions › Base Library › Watchdog",
+      "description": "Get the current watchdog timer value. See Command Mode (see page 23) for more\ninformation. If the watchdog is not present, calling this function will return zero."
+    },
+    {
+      "name": "pipe_tx_byte",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Communication",
+      "description": "Send 1 byte (ARG2: integer) of data to CORE (ARG1: PIN<x>), blocking if the\nchannel is currently busy (i.e. the FIFO is full). Attempts to send data to self will\nthrow an error. The xbar data route must be enabled in the build configuration of\nthe XBar, or the function will hang - see Command Mode (see page 23) for more\ninformation. For example:"
+    },
+    {
+      "name": "[#1]$pipe_tx_byte(CORE2,0xde)[#1]$pipe_tx_byte(CORE3,0xad)[#1]$pipe_tx_byte(CORE4,0xbe)[#1]$pipe_tx_byte(CORE1,0xef)stdin:1:badargument#1to'pipe_tx_byte'(invalidcorenumber)stacktraceback:[C]:infunction'pipe_tx_byte'stdin:1:inmainchunk",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Communication",
+      "description": ""
+    },
+    {
+      "name": "pipe_tx_byte_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Communication",
+      "description": "Attempt to send 1 byte (ARG2: integer) of data to CORE (ARG1: PIN<x>), will not\nblock if the channel is currently busy (i.e. the xbar data FIFO is full). Returns an\ninteger representing the number of bytes sent. The route must be enabled in the\nbuild configuration of the XBar, or the function will hang."
+    },
+    {
+      "name": "pipe_rx_byte",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Communication",
+      "description": "Receive 1 byte (ARG2: integer) of data from CORE (ARG1: PIN<x>), blocking if the\nchannel is currently busy (i.e. the FIFO is empty). Attempts to send data to self\nwill throw an error. The xbar data route must be enabled in the build configuration\nof the XBar, or the function will hang."
+    },
+    {
+      "name": "pipe_rx_byte_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Communication",
+      "description": "Attempt to receive 1 byte (ARG2: integer) of data from CORE (ARG1: PIN<x>), will\nnot block if the channel is currently busy (i.e. the xbar data FIFO is full). Returns\nan integer representing the number of bytes received, and the actual byte received\n(zero if none received). The route must be enabled in the build configuration of\nthe XBar, or the function will hang."
+    },
+    {
+      "name": "lock",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Synchronization",
+      "description": "Lock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will block\nuntil barrier is unlocked by Core<x>."
+    },
+    {
+      "name": "Onpower-on,allxbarbarrierswillbegininthe‘unlocked’state,tothedepthlistedintheXbarconfig(seeCommandMode(seepage23)).",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Synchronization",
+      "description": ""
+    },
+    {
+      "name": "lock_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Synchronization",
+      "description": "Attempt to lock xbar barrier between Core<self> and Core <x> (ARG1: integer).\nWill not block if barrier has not been unlocked by that Core. Returns ‘1' to\nrepresent successful locking of the barrier, '0’ otherwise."
+    },
+    {
+      "name": "unlock",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Synchronization",
+      "description": "Unlock xbar barrier between Core<self> and Core <x> (ARG1: integer). Will block\nuntil barrier is locked by Core<x>."
+    },
+    {
+      "name": "unlock_nonblocking",
+      "kind": "function",
+      "category": "Functions › Base Library › Core Synchronization",
+      "description": "Attempt to unlock xbar barrier between Core<self> and Core <x> (ARG1: integer).\nWill not block if barrier has not been locked by Core<x>. Returns ‘1' to represent\nsuccessful unlocking of the barrier, '0’ otherwise."
+    },
+    {
+      "name": "run_program",
+      "kind": "function",
+      "category": "Functions › Base Library › Program",
+      "description": "Run the program named (ARG1: string). For example:"
+    },
+    {
+      "name": "$cmd/list|programsProgram1.:hello_world.luaProgram2.:the_day_my_bum_went_psycho.luaProgram3.:gpio_example.lua/exit$run_program(\"the_day_my_bum_went_psycho.lua\")ThisisthestoryofthedaymyBumwentPsycho...actuallyforgetit.Programend.",
+      "kind": "function",
+      "category": "Functions › Base Library › Program",
+      "description": ""
+    },
+    {
+      "name": "reboot",
+      "kind": "function",
+      "category": "Functions › Base Library › Power",
+      "description": "Reboot the current Core."
+    },
+    {
+      "name": "exit",
+      "kind": "function",
+      "category": "Functions › Base Library › Power",
+      "description": "Exit the current program or statement (REPL), , irrespective of nested program\nlevel. If provided, returns argument 1, of any type (ARG1: obj)."
+    },
+    {
+      "name": "Bydefault,allfunctionsexcept‘reboot’,‘exit’and‘import’needtobefirstimportedpriortobeingcalled.Thisisbydesign,inordertoreducememoryusage.",
+      "kind": "function",
+      "category": "Functions › Base Library › Power",
+      "description": ""
+    },
+    {
+      "name": "ItispossibletoimporttheentireAPIinasinglecallto‘import(“all”).’",
+      "kind": "function",
+      "category": "Functions › Base Library › Power",
+      "description": ""
+    },
+    {
+      "name": "bind",
+      "kind": "function",
+      "category": "Functions › Interrupt Library",
+      "description": "Bind the interrupt handler (ARG1: function) to the global interrupt source. Is part of\nthe interrupt library, so must be called as such:"
+    },
+    {
+      "name": "$interrupt.bind(interrupt_handler)",
+      "kind": "function",
+      "category": "Functions › Interrupt Library",
+      "description": ""
+    },
+    {
+      "name": "call",
+      "kind": "function",
+      "category": "Functions › Interrupt Library",
+      "description": "Explicitly call the interrupt handler that is bound to the global interrupt source. Is\npart of the interrupt library, so must be called as such:"
+    },
+    {
+      "name": "$interrupt.call()",
+      "kind": "function",
+      "category": "Functions › Interrupt Library",
+      "description": ""
+    },
+    {
+      "name": "_VERSION",
+      "kind": "variable",
+      "category": "Variables",
+      "description": "embLua Lua version."
+    },
+    {
+      "name": "_sW",
+      "kind": "variable",
+      "category": "Variables",
+      "description": "Software build ID and date (same as output by boot log)."
+    },
+    {
+      "name": "_fW",
+      "kind": "variable",
+      "category": "Variables",
+      "description": "Firmware build ID and date (same as output by boot log)."
+    },
+    {
+      "name": "_hW",
+      "kind": "variable",
+      "category": "Variables",
+      "description": "Hardware DNA (same as output by boot log)."
+    },
+    {
+      "name": "_cI",
+      "kind": "variable",
+      "category": "Variables",
+      "description": "Current Core number and total Cores."
+    },
+    {
+      "name": "PWM_MAX",
+      "kind": "variable",
+      "category": "Variables",
+      "description": "Maximum PWM duty cycle value (256)."
+    }
+  ],
+  "examples": [
+    {
+      "title": "gpio_toggle.lua",
+      "code": " --[[\n         Demonstrate GPIO Out toggle (and LED - as it's GPIO1)\n\n         NOTE: stray, beginning of line '--' comments improve\n         code readability while still allowing user to copy-paste\n         the entire program into the REPL.\n --]]\n\n\n main_program_name = \"GPIO OUT Toggle Rate Example\"\n\n\n -- Import required functions from API\n\n quick_import = true\n     -- NOTE: change to 'false' to demonstrate\n     -- more code import functions, but this will\n     -- consume less memory (importing only API\n     -- functionality that is used)\n\n if quick_import then\n     import(\"all\")\n else\n     import(\"reset_all_io_type_cfg\")\n     import(\"set_io_type_cfg\")\n --\n     import(\"set_gpio\")\n --\n     import(\"sleep\")\n     import(\"msleep\")\n end\n\n -- Program configuration\n\n GPIO_OUT_PIN = 1\n LOOP_COUNT = 12\n\n\n -- Main program begin\n\n print(\"Program begin: \"..main_program_name)\n\n\n -- Initialise PINS\n\n print(\"Initialise PINs\")\n\n\n\n\n\n\n\n\n\nreset_all_io_type_cfg()\nset_io_type_cfg(GPIO_OUT_PIN, GPIO_OUT)\n\nmsleep(500)\n\nprint(\"Set GPIO\"..GPIO_OUT_PIN..\" HIGH\")\nset_gpio(GPIO_OUT_PIN, HIGH)\nsleep(1)\n\nprint(\"Set GPIO\"..GPIO_OUT_PIN..\" LOW\")\nset_gpio(GPIO_OUT_PIN, LOW)\nsleep(1)\n\n-- Perform output toggle loop\n\nfor i=1,LOOP_COUNT do\n    print(\"Toggle GPIO\"..GPIO_OUT_PIN)\n    set_gpio(GPIO_OUT_PIN, TOGGLE)\n    msleep(500)\nend\n\nsleep(1)\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "gpio_interrupt.lua",
+      "code": " --[[\n         Demonstrate GPIO interrupts\n\n         NOTE: stray, beginning of line '--' comments improve\n         code readability while still allowing user to copy-paste\n         the entire program into the REPL.\n --]]\n\n\n main_program_name = \"GPIO Interrupt Example\"\n\n\n -- Import required functions from API\n\n quick_import = false\n     -- NOTE: change to 'true' to demonstrate\n     -- faster & less code import, but this will\n     -- consume more memory (importing API\n     -- functionality that is unused)\n\n if quick_import then\n     import(\"all\")\n else\n     import(\"global_interrupt_enable\")\n     import(\"global_interrupt_disable\")\n     import(\"enable_interrupt_types_for_pin\")\n     import(\"set_interrupt_types_for_pin\")\n     import(\"get_interrupts_on_pin\")\n     import(\"ack_interrupt_types_on_pin\")\n --\n     import(\"reset_all_io_type_cfg\")\n     import(\"set_io_type_cfg\")\n --\n     import(\"set_gpio\")\n     import(\"get_gpio\")\n --\n     import(\"sleep\")\n     import(\"msleep\")\n end\n\n\n -- Helper functions\n\n function board_setup_msg (prefix)\n     msg = prefix..\" '\"..main_program_name..\"' requires feedback resistor\"\n     msg = msg ..\"(< 100 Ohm) between PIN\"..GPIO_OUT_PIN..\" and PIN\"\n     return msg..GPIO_IN_PIN..\".\"\n\n\n\n\n\n\n\n\n\nend\n\n\n-- Program configuration\n\nGPIO_OUT_PIN = PIN2\nGPIO_IN_PIN = PIN1\nGPIO_IN_PIN_INTERRUPT_BITMASK = PIN1_BITMASK\n\nLOOP_COUNT = 60\nLOOP_SLEEP_MS = 500\n\nPERFORMANCE_TEST_DURATION_MILLISEC = 1000\n\n\n-- Global variables\n\ninterrupt_occurred_base_msg = \"\\tI] PIN\"..GPIO_IN_PIN..\"! Type(s): \"\nset_gpio_high_msg = \"M] GPIO\"..GPIO_OUT_PIN..\" HIGH\"\nset_gpio_low_msg = \"M] GPIO\"..GPIO_OUT_PIN..\" LOW\"\n\ndoing_performance_test = false\nintrpt_cntr = 0\n\n\n-- Main program begin\n\nprint(\"Program begin: \"..main_program_name)\n\n\nprint(board_setup_msg(\"Important!\"))\nsleep(1)\n\n\n-- Initialise REPL mode\n\n\n-- Initialise Board State\n\nprint(\"Initialise Board State\")\n\nglobal_interrupt_disable()\nreset_all_io_type_cfg()\nsleep(1)\n\n\n-- Initialise PINS\n\nprint(\"Initialise I/Os\")\nset_io_type_cfg(GPIO_OUT_PIN, GPIO_OUT)\nset_io_type_cfg(GPIO_IN_PIN, GPIO_IN)\nsleep(1)\n\n\n\n\n\n\n\n\n\n-- Confirm external board setup\n\nprint(\"Confirm external board setup\")\n\nset_gpio(GPIO_OUT_PIN, HIGH)\ngpio_level = get_gpio(GPIO_IN_PIN)\nif gpio_level ~= HIGH then\n    exit(board_setup_msg(\"Board setup error!\"))\nend\n\nset_gpio(GPIO_OUT_PIN, LOW)\ngpio_level = get_gpio(GPIO_IN_PIN)\nif gpio_level ~= LOW then\n    exit(board_setup_msg(\"Board setup error!\"))\nend\n\n\n-- Initialise Interrupts\n\nprint(\"Initialise Interrupts\")\n\nset_interrupt_types_for_pin(GPIO_IN_PIN, NONE)\nack_interrupt_types_on_pin(GPIO_IN_PIN, 0xFF)\n    -- NOTE: acknowledge any existing interrupts\nsleep(1)\n\n\n-- Define Interrupt Handler\n\nprint(\"Define Interrupt Handler\")\n\nfunction interrupt_handler(interrupt_vector)\n    intrpt_cntr = intrpt_cntr + 1\n--\n    if not doing_performance_test then\n        if (interrupt_vector & GPIO_IN_PIN_INTERRUPT_BITMASK) ~= 0 then\n            gpio_interrupt_vector = get_interrupts_on_pin(GPIO_IN_PIN)\n            ack_interrupt_types_on_pin(GPIO_IN_PIN, gpio_interrupt_vector)\n                -- NOTE: ack all interrupts that occurred\n--\n            -- NOTE: print GPIO interrupts that occurred\n            interrupt_types_str = \"\"\n            if (gpio_interrupt_vector & GPIO_INTRPT_RISING_EDGE) ~= 0 then\n                interrupt_types_str = \"R | \"\n            end\n            if (gpio_interrupt_vector & GPIO_INTRPT_FALLING_EDGE) ~= 0 then\n                interrupt_types_str = interrupt_types_str..\"F | \"\n            end\n            if (gpio_interrupt_vector & GPIO_INTRPT_LOW) ~= 0 then\n                interrupt_types_str = interrupt_types_str..\"L | \"\n            end\n            if (gpio_interrupt_vector & GPIO_INTRPT_HIGH) ~= 0 then\n\n\n\n\n\n\n\n\n\n                         interrupt_types_str = interrupt_types_str..\"H | \"\n                   end\n--\n                   print(interrupt_occurred_base_msg..interrupt_types_str..intrpt_cntr)\n            else\n                   -- NOTE: shouldn't get here!\n--\n                   print(\"\\tI] Interrupted on other PIN than PIN\"..GPIO_IN_PIN..\" ?!\")\n                   print(\"\\tI] interrupt_vector:\"..interrupt_vector)\n            end\n      end\nend\n\n\n-- Bind Interrupt Handler\n\nprint(\"Bind Interrupt Handler\")\n\ninterrupt.bind(interrupt_handler)\n\n\n-- Perform toggle / interrupt loop\n\nfor i=1,LOOP_COUNT do\n    print(\"M] <sleep \"..LOOP_SLEEP_MS..\" ms>\")\n    msleep(LOOP_SLEEP_MS)\n--\n    if (i % 6) == 0 then\n        print(set_gpio_high_msg)\n        set_gpio(GPIO_OUT_PIN, HIGH)\n    elseif (i % 3) == 0 then\n        print(set_gpio_low_msg)\n        set_gpio(GPIO_OUT_PIN, LOW)\n    end\n--\n    if i == 10 then\n        print(\"M] Global interrupt enable\")\n        global_interrupt_enable()\n    elseif i == 20 then\n        print(\"M] Enable only falling edge interrupt on GPIO\"..GPIO_IN_PIN)\n        set_interrupt_types_for_pin(GPIO_IN_PIN, GPIO_INTRPT_FALLING_EDGE)\n    elseif i == 35 then\n        print(\"M] Enable also rising edge interrupt on GPIO\"..GPIO_IN_PIN)\n        enable_interrupt_types_for_pin(GPIO_IN_PIN, GPIO_INTRPT_RISING_EDGE)\n    elseif i == 50 then\n        print(\"M] Enable only VCC and GND interrupt on GPIO\"..GPIO_IN_PIN)\n        set_interrupt_types_for_pin(GPIO_IN_PIN, GPIO_INTRPT_HIGH | GPIO_INTRPT_LOW)\n    elseif i == LOOP_COUNT then\n        set_interrupt_types_for_pin(GPIO_IN_PIN, NONE)\n        sleep(1)\n--\n        print(\"M] Perform performance test\")\n        set_gpio(GPIO_OUT_PIN, LOW)\n\n\n\n\n\n\n\n\n\n            intrpt_cntr = 0\n            doing_performance_test = true\n            set_interrupt_types_for_pin(GPIO_IN_PIN, GPIO_INTRPT_LOW)\n            msleep(PERFORMANCE_TEST_DURATION_MILLISEC)\n      end\nend\n\n\n-- End Program\n\nglobal_interrupt_disable()\n\nperf_res_msg = (intrpt_cntr / PERFORMANCE_TEST_DURATION_MILLISEC)..\" kHz\"\nprint(\"Peformance results: \"..perf_res_msg)\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "led_fade_inout.lua",
+      "code": " --[[\n            Demonstrate LED (GPIO1) fade in / out\n\n            NOTE: stray, beginning of line '--' comments improve\n            code readability while still allowing user to copy-paste\n            the entire program into the REPL.\n --]]\n\n\n main_program_name = \"LED Fade\"\n\n\n -- Import required functions from API\n\n import(\"reset_all_io_type_cfg\")\n import(\"set_io_type_cfg\")\n import(\"set_pwm\")\n import(\"set_gpio\")\n import(\"sleep\")\n import(\"msleep_f\")\n\n\n -- Program configuration\n\n PWM_PIN = 1\n LOOP_COUNT = 10\n\n\n -- Main program begin\n\n print(\"Program begin: \"..main_program_name)\n\n\n -- Initialise PINS\n\n print(\"Initialise PINs\")\n\n reset_all_io_type_cfg()\n set_io_type_cfg(PWM_PIN, PWM)\n set_io_type_cfg(PIN2, GPIO_OUT)\n set_io_type_cfg(PIN3, GPIO_OUT)\n\n sleep(1)\n\n\n\n -- Helper functions\n\n\n\n\n\n\n\n\n\nfunction is_even(x)\n    return ((x & 1) == 0)\nend\n\n\n-- Set other LEDs to GND\n\nset_gpio(PIN2, LOW)\nset_gpio(PIN3, LOW)\n\n\n-- Perform LED fade in/out\n\nprint(\"Begin Fade in/out\")\n\nfor i=1,LOOP_COUNT do\n    for j=5,PWM_MAX do\n        if is_even(i) then\n             set_pwm(PWM_PIN, j)\n             msleep_f(100/j)\n        else\n             set_pwm(PWM_PIN, (PWM_MAX-j))\n             msleep_f(100/((PWM_MAX+5)-j))\n        end\n    end\nend\n\n\n-- Cleanup (free memory)\n\nmain_program_name = nil\n\nPWM_PIN = nil\nLOOP_COUNT = nil\n\nreset_all_io_type_cfg = nil\nset_io_type_cfg = nil\nset_pwm = nil\nsleep = nil\nmsleep_f = nil\n\ncollectgarbage()\n\nprint(\"Program end\")\n"
+    },
+    {
+      "title": "fibonacci_nonrecursive.lua",
+      "code": " --[[\n          Demonstrate Fibonacci Sequence calculated without recursion (fast in Lua)\n\n          NOTE: stray, beginning of line '--' comments improve\n          code readability while still allowing user to copy-paste\n          the entire program into the REPL.\n --]]\n\n\n main_program_name = \"Fibonacci Sequence Non-Recursive Example\"\n\n\n -- Program configuration\n\n n = 30\n\n\n -- Helper functions\n\n function FiboNonRecursive(n)\n     a = 0\n     b = 1\n     c = (n >> 1)\n     for i=1,c do\n          a=a+b\n          b=a+b\n     end\n --\n     if (n & 1) == 1 then\n         return b;\n     else\n         return a;\n     end\n end\n\n\n\n\n -- Main program begin\n\n print(\"Program begin: \"..main_program_name)\n\n\n -- Calculate Fibonacci\n\n fibo_n = FiboNonRecursive(n)\n\n print(\"Fibo(\"..n..\"): \"..fibo_n)\n\n\n\n\n\n\n\n\n\n-- Ends\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "fibonacci_recursive.lua",
+      "code": "--[[\n          Demonstrate Fibonacci Sequence calculated via recursion (very slow in Lua)\n\n          NOTE: stray, beginning of line '--' comments improve\n          code readability while still allowing user to copy-paste\n          the entire program into the REPL.\n--]]\n\n\nmain_program_name = \"Fibonacci Sequence Recursive (slow) Example\"\n\n\n-- Program configuration\n\nn = 10\n\n\n-- Helper functions\n\nfunction FiboRecursive(n)\n    if (n == 1) then\n        return 1;\n    end\n    if (n == 0) then\n        return 0;\n    end\n--\n    return FiboRecursive(n-1) + FiboRecursive(n-2);\nend\n\n\n-- Main program begin\n\nprint(\"Program begin: \"..main_program_name)\n\n\n-- Calculate Fibonacci\n\nfibo_n = FiboRecursive(n)\n\nprint(\"Fibo(\"..n..\"): \"..fibo_n)\n\n\n-- Ends\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "sseg_regs.lua",
+      "code": "--[[\n        SSEG register definiton for Duinotech display.\n        See MAX7219/MAX7221 \"Serially Interfaced, 8-Digit\n        LED Display Drivers\" document.\n\n        https://www.analog.com/media/en/technical-documentation/\n        data-sheets/MAX7219-MAX7221.pdf.\n\n        NOTE: variables are declared as 'local' to ensure they\n        do not consume memory after the program exits...\n--]]\n\n-- SSEG registers\n\nlocal digit_regs = {}\ndigit_regs[1] = 0x01\ndigit_regs[2] = 0x02\ndigit_regs[3] = 0x03\ndigit_regs[4] = 0x04\ndigit_regs[5] = 0x05\ndigit_regs[6] = 0x06\ndigit_regs[7] = 0x07\ndigit_regs[8] = 0x08\n\nlocal mode_regs = {}\nmode_regs[\"REG_DECODE_MODE_CTRL\"]       = 0x09\nmode_regs[\"REG_INTENSITY_CTRL\"]         = 0x0A\nmode_regs[\"REG_SCAN_LIMIT_CTRL\"]        = 0x0B\nmode_regs[\"REG_OPERATION_MODE_CTRL\"]    = 0x0C\nmode_regs[\"REG_DISPLAY_TEST_MODE_CTRL\"] = 0x0F\n\nreturn digit_regs, mode_regs\n"
+    },
+    {
+      "title": "spi_out.lua",
+      "code": " --[[\n         Demonstrate SPI output by counting on a\n         SSEG display (Duinotech display).\n\n         NOTE: stray, beginning of line '--' comments improve\n         code readability while still allowing user to copy-paste\n         the entire program into the REPL.\n\n         NOTE: Depending upon 'sseg_regs_uploaded', this program\n         requires the program 'sseg_regs.lua' to be present on embLua.\n --]]\n\n\n main_program_name = \"SPI OUT Example\"\n\n sseg_regs_uploaded = false\n     -- NOTE: change to 'true' if 'sseg_regs.lua' has been\n     -- uploaded to embLua\n\n\n -- Dependencies\n\n import(\"reset_all_io_type_cfg\")\n import(\"set_io_type_cfg\")\n import(\"spi_tx_int\")\n import(\"msleep\")\n\n import(\"string\", \"format\")\n\n if sseg_regs_uploaded then\n      digit_regs, mode_regs = run_program(\"sseg_regs.lua\")\n else\n      digit_regs = {}\n      digit_regs[1] = 0x01\n      digit_regs[2] = 0x02\n      digit_regs[3] = 0x03\n      digit_regs[4] = 0x04\n      digit_regs[5] = 0x05\n      digit_regs[6] = 0x06\n      digit_regs[7] = 0x07\n      digit_regs[8] = 0x08\n\n     mode_regs = {}\n     mode_regs[\"REG_DECODE_MODE_CTRL\"]       = 0x09\n     mode_regs[\"REG_INTENSITY_CTRL\"]         = 0x0A\n     mode_regs[\"REG_SCAN_LIMIT_CTRL\"]        = 0x0B\n     mode_regs[\"REG_OPERATION_MODE_CTRL\"]    = 0x0C\n\n\n\n\n\n\n\n\n\n      mode_regs[\"REG_DISPLAY_TEST_MODE_CTRL\"] = 0x0F\nend\n\n\n\n\n-- SSEG register values\n\nDISPLAY_TEST_MODE_OFF             = 0x00\nDISPLAY_NORMAL_OPERATION_MODE     = 0x01\nDISPLAY_DECODE_MODE_CODE_B        = 0xFF\nDISPLAY_SCAN_ALL_DIGITS           = 0x07\nDISPLAY_INTENSITY_LOW             = 0x03\n\n\n-- Program configuration\n\nSPI_OUT_PIN = 1\n\nLOOP_COUNT = 100\nLOOP_DURATION_MS = 50\n\n\n-- Helper functions\n\nfunction spi_cmnd (register, value)\n    return (register << 8) | value\nend\n\n\n-- Main program begin\n\nprint(\"Program begin: \"..main_program_name)\n\n\n-- Initialise PINS\n\nprint(\"Initialise PINs\")\n\nreset_all_io_type_cfg()\nset_io_type_cfg(SPI_OUT_PIN, SPI_OUT)\n\nmsleep(500)\n\n\n-- Initialise SSEG\n\nprint(\"Initialise SSEG\")\n\ncmnds = {}\ncmnds[1] = spi_cmnd(mode_regs[\"REG_DISPLAY_TEST_MODE_CTRL\"], DISPLAY_TEST_MODE_OFF)\ncmnds[2] = spi_cmnd(mode_regs[\"REG_OPERATION_MODE_CTRL\"],\nDISPLAY_NORMAL_OPERATION_MODE)\ncmnds[3] = spi_cmnd(mode_regs[\"REG_DECODE_MODE_CTRL\"], DISPLAY_DECODE_MODE_CODE_B)\n\n\n\n\n\n\n\n\n\ncmnds[4] = spi_cmnd(mode_regs[\"REG_SCAN_LIMIT_CTRL\"], DISPLAY_SCAN_ALL_DIGITS)\ncmnds[5] = spi_cmnd(mode_regs[\"REG_INTENSITY_CTRL\"], DISPLAY_INTENSITY_LOW)\n\nfor i=1,#cmnds do\n    print(\"SPI CMD \"..i..\": 0x\"..string.format(\"%.4x\", cmnds[i]))\n--\n    spi_tx_int(SPI_OUT_PIN, cmnds[i])\n    msleep(50)\nend\n\nmsleep(500)\n\n\n-- Perform counting loop\n\nprint(\"Perform counting loop\")\n\ntarget_digit = 1\ntarget_digit_value = 0\nfor i = 1, LOOP_COUNT do\n    spi_tx_int(SPI_OUT_PIN, spi_cmnd(digit_regs[target_digit], target_digit_value))\n--\n    msleep(LOOP_DURATION_MS);\n--\n    target_digit = target_digit + 1\n    if target_digit > #digit_regs then\n        target_digit = 1\n    end\n--\n    target_digit_value = target_digit_value + 1\n    if target_digit_value > 9 then\n        target_digit_value = 0\n    end\nend\n\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "uart_rx_interrupt.lua",
+      "code": " --[[\n         Demonstrate UART Rx and UART Rx interrupts\n --]]\n\n\n main_program_name = \"UART Rx and UART Rx Interrupt Example\"\n\n\n -- Import required functions from API\n\n quick_import = false\n     -- NOTE: change to 'true' to demonstrate\n     -- faster & less code import, but this will\n     -- consume more memory (importing API\n     -- functionality that is unused)\n\n if quick_import then\n     import(\"all\")\n else\n     import(\"global_interrupt_enable\")\n     import(\"global_interrupt_disable\")\n     import(\"enable_interrupt_types_for_pin\")\n     import(\"set_interrupt_types_for_pin\")\n     import(\"get_interrupts_on_pin\")\n     import(\"ack_interrupt_types_on_pin\")\n --\n     import(\"reset_all_io_type_cfg\")\n     import(\"set_io_type_cfg\")\n --\n     import(\"uart_rx_char\")\n --\n     import(\"sleep\")\n     import(\"msleep\")\n end\n\n -- Program configuration\n\n UART_RX_PIN = PIN2\n UART_RX_PIN_INTERRUPT_BITMASK = PIN2_BITMASK\n\n LOOP_COUNT = 1000\n LOOP_SLEEP_MS = 20\n\n\n -- Main program begin\n\n print(\"Program begin: \"..main_program_name)\n\n\n\n\n\n\n\n\n\nsleep(1)\n\n\n-- Initialise Board State\n\nprint(\"Initialise Board State\")\n\nglobal_interrupt_disable()\nreset_all_io_type_cfg()\nsleep(1)\n\n\n-- Initialise PINS\n\nprint(\"Initialise I/Os\")\nset_io_type_cfg(UART_RX_PIN, UART_IN)\nsleep(1)\n\n\n-- Initialise Interrupts\n\nprint(\"Initialise Interrupts\")\n\nset_interrupt_types_for_pin(UART_RX_PIN, NONE)\nack_interrupt_types_on_pin(UART_RX_PIN, 0xFF)\n    -- NOTE: acknowledge any existing interrupts\nsleep(1)\n\n\n-- Define Interrupts Handler\n\nprint(\"Define Interrupt Handler\")\n\nfunction interrupt_handler(interrupt_vector)\n    if (interrupt_vector & UART_RX_PIN_INTERRUPT_BITMASK) ~= 0 then\n             -- NOTE: no need to get interrupt vector, as\n             -- there is only one for UART RX (UART_RX_INTRPT_DATA_AVAILABLE)\n             -- NOTE: no need to ACK, as interrupt will clear\n             -- automatically when the RX dat is read\n--\n         int_vec = get_interrupts_on_pin(UART_RX_PIN)\n        if (int_vec & UART_RX_INTRPT_DATA_AVAILABLE) == 0 then\n             -- NOTE: don't really need to do this...\n             msg = \"\\t[Interrupt] PIN\"..UART_RX_PIN..\" interrupt vector \"\n             print(msg..\"doesn't contain 'UART_RX_INTRPT_DATA_AVAILABLE' ?!\")\n         end\n--\n         print(\"\\t[Interrupt] UART RX: '\"..uart_rx_char(UART_RX_PIN)..\"'\")\n    else\n         -- NOTE: shouldn't get here!\n--\n         print(\"\\t[Interrupt] Interrupted on other PIN than PIN\"..UART_RX_PIN..\" ?!\")\n         print(\"\\t[Interrupt] interrupt_vector:\"..interrupt_vector)\n\n\n\n\n\n\n\n\n\n    end\nend\ninterrupt.bind(interrupt_handler)\n\n\n-- Perform output toggle loop\n\nfor i=1,LOOP_COUNT do\n    if (i % 100) == 0 then\n        print(\"[Main Loop] <tick>\")\n    end\n    if i == 150 then\n        print(\"[Main Loop] Global interrupt enable\")\n        global_interrupt_enable()\n    end\n    if i == 250 then\n        print(\"[Main Loop] Enable RX data received interrupt on UART\"..UART_RX_PIN)\n        set_interrupt_types_for_pin(UART_RX_PIN, UART_RX_INTRPT_DATA_AVAILABLE)\n    end\n--\n    msleep(LOOP_SLEEP_MS)\nend\n\n\n-- End Program\n\nglobal_interrupt_disable()\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "exit_prog.lua",
+      "code": " --[[\n         Demonstrate exiting a running program or script (if copy-\n         pasted into REPL).\n\n         NOTE: stray, beginning of line '--' comments improve\n         code readability while still allowing user to copy-paste\n         the entire program into the REPL.\n --]]\n\n\n main_program_name = \"Exit Program Example\"\n\n -- Import required functions from API\n\n import(\"msleep\")\n\n\n -- Program configuration\n\n PRIMARY_LOOP_COUNT = 1000000\n SECONDARY_LOOP_COUNT = 5\n\n\n -- Main program begin\n\n print(\"Program begin: \"..main_program_name)\n\n\n -- Initialise PINS\n\n\n -- Perform output toggle loop\n\n for i=1,PRIMARY_LOOP_COUNT do\n     for j=1,SECONDARY_LOOP_COUNT do\n         print(\"Loop! I: \"..i.. \", J: \"..j)\n --\n         msleep(100)\n         if i > 7 then\n             if j > 3 then\n                 exit(\"Bye for now!\")\n             end\n         end\n     end\n end\n\n\n\n\n\n\n\n\n\n-- NOTE: won't get here!\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "exit_prog_nested.lua",
+      "code": "--[[\n        Demonstrate nested program exit.\n\n        NOTE: This program requires the script\n        'exit_prog.lua' to be present on embLua as\n        a program.\n--]]\n\n\nmain_program_name = \"Exit Program Nested Example\"\n\n\n-- Dependencies\n\nunused_unassigned = run_program(\"exit_prog.lua\")\n\n\n-- NOTE: we shouldn't end up here!\n\nimport(\"sleep\")\n\nfor i=1,10 do\n        print(\"How did I get here?!\")\n        sleep(2)\nend\n\nprint(\"Program end: \"..main_program_name)\n"
+    },
+    {
+      "title": "prog_err.lua",
+      "code": "--[[\n        Demonstrate a programming error.\n\n        NOTE: stray, beginning of line '--' comments improve\n        code readability while still allowing user to copy-paste\n        the entire program into the REPL.\n--]]\n\nif true then\n--\n    local a_string = \"blahblahblah\"\n    local oops_not_allowed = a_string..false\n        -- NOTE: not allowed!!\n--\nend\n"
+    }
+  ],
+  "usage": [
+    {
+      "title": "Toggle GPIO",
+      "body": "The following page provides an example of toggling a GPIO."
+    },
+    {
+      "title": "UART Transmit",
+      "body": "The following page provides an example of transmitting a string via UART."
+    },
+    {
+      "title": "SPI Receive",
+      "body": "The following page provides an example of receiving data via SPI."
+    },
+    {
+      "title": "LED Fade",
+      "body": "The following page provides an example of fading an LED in and out."
+    },
+    {
+      "title": "Fibonacci Sequence Calculation",
+      "body": "The following page provides an example of calculating the Fibonacci Sequence, and performance profiling it."
+    },
+    {
+      "title": "Float Divide and String Concatenation",
+      "body": "The following page provides an example of peforming 100x floating point division, concatenating the result\nwith a string, and printing it."
+    },
+    {
+      "title": "Interrupt",
+      "body": "The following page provides an example of setting up and triggering an interrupt."
+    },
+    {
+      "title": "Inter-Core Communication",
+      "body": "The following page provides an example of transferring data between heterogeneous Cores."
+    },
+    {
+      "title": "Inter-Core Synchronization",
+      "body": "The following page provides an example of synchronizing execution between between heterogeneous Cores."
+    },
+    {
+      "title": "Exit Script/Program",
+      "body": "The following page provides an example of exiting a script or program."
+    },
+    {
+      "title": "Non-volatile I/O Config",
+      "body": "The following page provides an example of setting the current I/O configuration to persist across reboots."
+    },
+    {
+      "title": "Program Upload",
+      "body": "The following page provides an example of uploading and running a program."
+    }
+  ]
+}
