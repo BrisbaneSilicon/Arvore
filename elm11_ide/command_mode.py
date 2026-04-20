@@ -185,6 +185,8 @@ class _ProgramsView(_ListOutputView):
 
     _LINE_RE = re.compile(r'^\s*Program\s+(\d+)\.\s*:\s*(\S.*?)\s*$', re.MULTILINE)
 
+    program_list_updated = pyqtSignal(list)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -210,12 +212,16 @@ class _ProgramsView(_ListOutputView):
     def _refresh(self):
         matches = list(self._LINE_RE.finditer(self._buffer))
         self._table.setRowCount(len(matches))
+        names: list[str] = []
         for row, m in enumerate(matches):
             num_item  = QTableWidgetItem(m.group(1))
             num_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self._table.setItem(row, 0, num_item)
-            self._table.setItem(row, 1, QTableWidgetItem(m.group(2)))
+            name = m.group(2)
+            names.append(name)
+            self._table.setItem(row, 1, QTableWidgetItem(name))
+        self.program_list_updated.emit(names)
 
 
 _IO_TYPE_COLORS = {
@@ -653,6 +659,11 @@ class CommandModePanel(QWidget):
         # Buffered ANSI stripper — handles partial escape sequences split
         # across serial chunks so they don't leak into parser views.
         self._stripper = _AnsiStripper(reply_cb=None)
+        # Program-name auto-complete: every program-input dropdown is
+        # registered here so we can repopulate them all at once after a
+        # `list|programs` response.
+        self._known_programs: list[str] = []
+        self._program_combos: list[QComboBox] = []
         self._build_ui()
         self._set_controls_enabled(False)
 
@@ -770,6 +781,8 @@ class CommandModePanel(QWidget):
         for label, cmd in no_arg:
             view_cls = _LIST_VIEW_CLASSES.get(cmd, _RawOutputView)
             view = view_cls()
+            if isinstance(view, _ProgramsView):
+                view.program_list_updated.connect(self._set_program_list)
             page = QWidget()
             v = QVBoxLayout(page)
             v.setContentsMargins(4, 4, 4, 4)
@@ -809,14 +822,12 @@ class CommandModePanel(QWidget):
         v.setContentsMargins(4, 4, 4, 4)
 
         row = QHBoxLayout()
-        name_input = QLineEdit()
-        name_input.setPlaceholderText('program name')
+        name_input = self._make_program_combo()
         btn_label = ('Print Program Code' if command == 'list|program_code'
                      else 'Print Program Bytecode')
         send_btn = QPushButton(btn_label)
         send_btn.clicked.connect(lambda: self._send_program_query(
-            command, name_input.text().strip(), page))
-        name_input.returnPressed.connect(send_btn.click)
+            command, name_input.currentText().strip(), page))
         row.addWidget(QLabel('Program:'))
         row.addWidget(name_input, 1)
         row.addWidget(send_btn)
@@ -898,6 +909,61 @@ class CommandModePanel(QWidget):
         combo.addItems(f'PIN{i}' for i in range(1, 33))
         return combo
 
+    def _make_program_combo(self) -> QComboBox:
+        """Pure dropdown populated from the device's `list|programs`
+        response. Tracked so they can all be refreshed at once."""
+        combo = QComboBox()
+        combo.setPlaceholderText('<select>')
+        combo.addItems(self._known_programs)
+        self._program_combos.append(combo)
+        return combo
+
+    def _set_program_list(self, names: list[str]):
+        """Update every tracked program combo with `names`, preserving the
+        previously-selected program if it's still in the list."""
+        self._known_programs = list(names)
+        for combo in self._program_combos:
+            current = combo.currentText()
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItems(self._known_programs)
+            if current in self._known_programs:
+                combo.setCurrentText(current)
+            combo.blockSignals(False)
+
+    def _refresh_programs(self, on_done=None):
+        """Send `list|programs` silently and rebuild the program dropdowns
+        from the response. Optionally invokes `on_done()` when finished."""
+        if not self._worker or not self._active:
+            if on_done:
+                on_done()
+            return
+        buf: list[bytes] = []
+
+        def capture(data: bytes):
+            buf.append(data)
+
+        self._worker.data_received.connect(capture)
+        self._send('list|programs')
+
+        def finish():
+            if self._worker:
+                try:
+                    self._worker.data_received.disconnect(capture)
+                except (TypeError, RuntimeError):
+                    pass
+            raw = b''.join(buf).decode('utf-8', errors='replace')
+            stripper = _AnsiStripper(reply_cb=None)
+            clean = stripper.feed(raw)
+            names = re.findall(
+                r'^\s*Program\s+\d+\.\s*:\s*(\S.*?)\s*$',
+                clean, re.MULTILINE)
+            self._set_program_list(names)
+            if on_done:
+                on_done()
+
+        QTimer.singleShot(600, finish)
+
     def _set_io_type_tab(self) -> QWidget:
         page = QWidget()
         form = QFormLayout(page)
@@ -972,12 +1038,10 @@ class CommandModePanel(QWidget):
         v = QVBoxLayout(page)
 
         form = QFormLayout()
-        self._set_boot_prog = QLineEdit()
-        self._set_boot_prog.setPlaceholderText('program name')
+        self._set_boot_prog = self._make_program_combo()
         prog_btn = QPushButton('Set Run On-Boot Program')
         prog_btn.clicked.connect(lambda: self._send(
-            f'set|start_on_boot_program("{self._set_boot_prog.text().strip()}")'))
-        self._set_boot_prog.returnPressed.connect(prog_btn.click)
+            f'set|start_on_boot_program("{self._set_boot_prog.currentText().strip()}")'))
         form.addRow('Program:', self._set_boot_prog)
         form.addRow(prog_btn)
         v.addLayout(form)
@@ -1078,12 +1142,10 @@ class CommandModePanel(QWidget):
     def _delete_program_tab(self) -> QWidget:
         page = QWidget()
         form = QFormLayout(page)
-        self._del_prog = QLineEdit()
-        self._del_prog.setPlaceholderText('program name')
+        self._del_prog = self._make_program_combo()
         btn = QPushButton('Delete Program')
         btn.clicked.connect(lambda: self._send(
-            f'delete|program("{self._del_prog.text().strip()}")'))
-        self._del_prog.returnPressed.connect(btn.click)
+            f'delete|program("{self._del_prog.currentText().strip()}")'))
         form.addRow('Program:', self._del_prog)
         form.addRow(btn)
         self._track_buttons.append(btn)
@@ -1135,12 +1197,10 @@ class CommandModePanel(QWidget):
     def _run_program_tab(self) -> QWidget:
         page = QWidget()
         form = QFormLayout(page)
-        self._run_prog = QLineEdit()
-        self._run_prog.setPlaceholderText('program name')
+        self._run_prog = self._make_program_combo()
         btn = QPushButton('Run Program')
         btn.clicked.connect(lambda: self._send(
-            f'run|program("{self._run_prog.text().strip()}")'))
-        self._run_prog.returnPressed.connect(btn.click)
+            f'run|program("{self._run_prog.currentText().strip()}")'))
         form.addRow('Program:', self._run_prog)
         form.addRow(btn)
         self._track_buttons.append(btn)
@@ -1241,10 +1301,12 @@ class CommandModePanel(QWidget):
         self._active = True
         self._set_controls_enabled(True)
         self.active_changed.emit(True)
-        # After command mode is ready, trigger the current list tab's command
-        # so its view populates without requiring a click.
-        QTimer.singleShot(600, lambda: self._on_list_tab_changed(
-            self._list_tabs.currentIndex()))
+        # After command mode is ready, silently fetch the program list so
+        # every program-name dropdown is populated, then fire the currently
+        # selected list tab's command.
+        QTimer.singleShot(600, lambda: self._refresh_programs(
+            on_done=lambda: self._on_list_tab_changed(
+                self._list_tabs.currentIndex())))
 
     def _send_cmd_enter(self):
         if self._active and self._worker:
