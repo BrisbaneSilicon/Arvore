@@ -146,6 +146,24 @@ class CommandModePanel(QWidget):
         raw_layout.addStretch(1)
         self._tabs.addTab(raw, 'Raw')
 
+        # Offset the outer tab bar so its left edge lines up with the right
+        # edge of the inner vertical list tab bar. Use a QLabel with the
+        # longest inner tab's text rendered transparently — this forces the
+        # corner widget to claim the right width from its sizeHint, whereas a
+        # plain QWidget sometimes collapses to zero width.
+        offset = self._list_tab_bar_width
+        if offset:
+            spacer = QLabel('Boot Prompt Format')
+            spacer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            spacer.setStyleSheet(
+                'color: transparent; background: transparent;'
+                'padding: 0px; margin: 0px;'
+            )
+            # Use fixedWidth so the corner claims exactly the inner bar width
+            # (plus a tiny nudge for the QTabWidget's own corner padding).
+            spacer.setFixedWidth(offset + 4)
+            self._tabs.setCornerWidget(spacer, Qt.Corner.TopLeftCorner)
+
     @staticmethod
     def _as_tab(content: QWidget) -> QWidget:
         """Wrap a group body in a scroll area so long tabs remain usable."""
@@ -171,6 +189,7 @@ class CommandModePanel(QWidget):
         list_tabs.setUsesScrollButtons(False)
 
         no_arg = [
+            ('Boot Prompt Format',    'list|start_on_boot_prompt_format'),
             ('I/O Capabilities',      'list|io_capabilities'),
             ('I/O Type Config',       'list|io_type_cfg'),
             ('I/O Baud Config',       'list|io_baud_cfg'),
@@ -184,7 +203,6 @@ class CommandModePanel(QWidget):
             ('Clock Frequency',       'list|clk_freq'),
             ('Program Count',         'list|program_count'),
             ('Programs',              'list|programs'),
-            ('Boot Prompt Format',    'list|start_on_boot_prompt_format'),
             ('Boot Program',          'list|start_on_boot_program'),
             ('REPL History',          'list|repl_history'),
             ('CMD History',           'list|cmd_history'),
@@ -222,6 +240,12 @@ class CommandModePanel(QWidget):
 
         list_tabs.currentChanged.connect(self._on_list_tab_changed)
         self._list_tabs = list_tabs
+        # Width of the inner vertical tab bar — used by the parent to offset
+        # the outer tab bar so their edges line up visually.
+        self._list_tab_bar_width = max(
+            list_tabs.tabBar().tabSizeHint(i).width()
+            for i in range(list_tabs.count())
+        )
         return list_tabs
 
     def _on_list_tab_changed(self, index: int):
