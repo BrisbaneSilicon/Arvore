@@ -1340,7 +1340,13 @@ class CommandModePanel(QWidget):
         if not self._active:
             return
         self._on_list_tab_changed(self._list_tabs.currentIndex())
-        QTimer.singleShot(1000, self._refresh_programs)
+        # If the current tab is already Programs its response will update
+        # the dropdowns via `program_list_updated`, so skip the extra
+        # list|programs fetch to avoid duplicating the response.
+        page = self._list_tabs.currentWidget()
+        cmd = page.property('list_command') if page else None
+        if cmd != 'list|programs':
+            QTimer.singleShot(1000, self._refresh_programs)
 
     def _send_cmd_enter(self):
         if self._active and self._worker:
