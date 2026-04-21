@@ -2,9 +2,15 @@
 # Build with:  pyinstaller packaging/elm11-ide.spec
 # Output:      dist/elm11-ide/  (folder-style bundle)
 
+import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
+IS_WIN = sys.platform.startswith('win')
+# Windows wants a .ico file for the .exe icon; Linux/macOS use the PNG
+# elsewhere at runtime via setWindowIcon.
+WIN_ICON = ROOT / 'packaging' / 'elm11-ide.ico'
+EXE_ICON = str(WIN_ICON) if IS_WIN and WIN_ICON.is_file() else None
 
 a = Analysis(
     [str(ROOT / 'main.py')],
@@ -42,6 +48,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=EXE_ICON,
 )
 coll = COLLECT(
     exe,
