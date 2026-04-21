@@ -1,0 +1,54 @@
+# PyInstaller spec for the ELM11 IDE.
+# Build with:  pyinstaller packaging/elm11-ide.spec
+# Output:      dist/elm11-ide/  (folder-style bundle)
+
+from pathlib import Path
+
+ROOT = Path(SPECPATH).parent
+
+a = Analysis(
+    [str(ROOT / 'main.py')],
+    pathex=[str(ROOT)],
+    binaries=[],
+    datas=[
+        # Pre-extracted documentation data is loaded at runtime.
+        (str(ROOT / 'elm11_ide' / 'docs_data.json'), 'elm11_ide'),
+        # Window / taskbar icon used by QApplication.setWindowIcon.
+        (str(ROOT / 'elm11_ide' / 'elm11-ide.png'), 'elm11_ide'),
+    ],
+    hiddenimports=['serial.tools.list_ports_linux'],
+    hookspath=[],
+    runtime_hooks=[],
+    excludes=[
+        # Trim heavyweight Qt bits we don't use.
+        'PyQt6.QtBluetooth', 'PyQt6.QtQml', 'PyQt6.QtQuick',
+        'PyQt6.QtQuickWidgets', 'PyQt6.QtMultimedia',
+        'PyQt6.QtMultimediaWidgets', 'PyQt6.QtWebEngineCore',
+        'PyQt6.QtWebEngineWidgets', 'PyQt6.QtWebChannel',
+    ],
+    noarchive=False,
+)
+pyz = PYZ(a.pure, a.zipped_data)
+exe = EXE(
+    pyz, a.scripts, [],
+    exclude_binaries=True,
+    name='elm11-ide',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=False,
+    disable_windowed_traceback=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='elm11-ide',
+)
