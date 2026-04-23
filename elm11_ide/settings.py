@@ -56,47 +56,32 @@ class SettingsDialog(QDialog):
         f.addRow('Default baud rate:', self._baud)
         tabs.addTab(serial_w, 'Serial')
 
-        # ── Lua ───────────────────────────────────────────────────────
-        lua_w = QWidget()
-        f = QFormLayout(lua_w)
-        self._uploader = QLineEdit()
-        self._uploader.setPlaceholderText('Path to program_uploader.py')
-        browse = QPushButton('Browse…')
-        browse.clicked.connect(self._browse_uploader)
-        row = QHBoxLayout()
-        row.addWidget(self._uploader)
-        row.addWidget(browse)
-        f.addRow('Program uploader:', row)
-        tabs.addTab(lua_w, 'Lua')
-
-        # ── C (coming soon) ───────────────────────────────────────────
+        # ── C ─────────────────────────────────────────────────────────
         c_w = QWidget()
         f = QFormLayout(c_w)
 
         self._compiler = QLineEdit()
-        self._compiler.setPlaceholderText('e.g. arm-none-eabi-gcc   (coming soon)')
-        self._compiler.setEnabled(False)
+        self._compiler.setPlaceholderText('e.g. arm-none-eabi-gcc')
         browse_cc = QPushButton('Browse…')
-        browse_cc.setEnabled(False)
+        browse_cc.clicked.connect(self._browse_compiler)
         row2 = QHBoxLayout()
         row2.addWidget(self._compiler)
         row2.addWidget(browse_cc)
         f.addRow('C compiler:', row2)
 
         self._cflags = QLineEdit()
-        self._cflags.setPlaceholderText('-O2 -Wall   (coming soon)')
-        self._cflags.setEnabled(False)
+        self._cflags.setPlaceholderText('-O2 -Wall')
         f.addRow('Compiler flags:', self._cflags)
 
         self._flash_tool = QLineEdit()
-        self._flash_tool.setPlaceholderText('Flash tool path   (coming soon)')
-        self._flash_tool.setEnabled(False)
-        f.addRow('Flash tool:', self._flash_tool)
-
-        note = QLabel('C toolchain support coming soon.')
-        note.setStyleSheet('color:#888; font-style:italic;')
-        f.addRow(note)
-        tabs.addTab(c_w, 'C  (coming soon)')
+        self._flash_tool.setPlaceholderText('Path to flash tool')
+        browse_flash = QPushButton('Browse…')
+        browse_flash.clicked.connect(self._browse_flash_tool)
+        row3 = QHBoxLayout()
+        row3.addWidget(self._flash_tool)
+        row3.addWidget(browse_flash)
+        f.addRow('Flash tool:', row3)
+        tabs.addTab(c_w, 'C')
 
         # ── Buttons ───────────────────────────────────────────────────
         btns = QDialogButtonBox(
@@ -120,11 +105,17 @@ class SettingsDialog(QDialog):
             )
         return cls._mono_cache
 
-    def _browse_uploader(self):
+    def _browse_compiler(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, 'Select program_uploader.py', '', 'Python files (*.py)')
+            self, 'Select C compiler', '', 'All files (*)')
         if path:
-            self._uploader.setText(path)
+            self._compiler.setText(path)
+
+    def _browse_flash_tool(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Select flash tool', '', 'All files (*)')
+        if path:
+            self._flash_tool.setText(path)
 
     def _load(self):
         saved_font = self._s.value('editor/font_family', _default_mono_font())
@@ -133,13 +124,14 @@ class SettingsDialog(QDialog):
             self._font_combo.setCurrentIndex(idx)
         self._font_size.setValue(int(self._s.value('editor/font_size', 13)))
         self._baud.setValue(int(self._s.value('serial/baud', 115200)))
-        self._uploader.setText(self._s.value('lua/uploader_path', ''))
+        self._compiler.setText(self._s.value('c/compiler_path', ''))
+        self._cflags.setText(self._s.value('c/compiler_flags', ''))
+        self._flash_tool.setText(self._s.value('c/flash_tool', ''))
 
     def _save(self):
-        self._s.setValue('editor/font_family',   self._font_combo.currentText())
-        self._s.setValue('editor/font_size',     self._font_size.value())
-        self._s.setValue('serial/baud',          self._baud.value())
-        self._s.setValue('lua/uploader_path',     self._uploader.text())
+        self._s.setValue('editor/font_family',    self._font_combo.currentText())
+        self._s.setValue('editor/font_size',      self._font_size.value())
+        self._s.setValue('serial/baud',           self._baud.value())
         self._s.setValue('c/compiler_path',       self._compiler.text())
         self._s.setValue('c/compiler_flags',      self._cflags.text())
         self._s.setValue('c/flash_tool',          self._flash_tool.text())
@@ -156,10 +148,6 @@ class SettingsDialog(QDialog):
     @staticmethod
     def baud() -> int:
         return int(QSettings().value('serial/baud', 115200))
-
-    @staticmethod
-    def uploader_path() -> str:
-        return QSettings().value('lua/uploader_path', '')
 
     @staticmethod
     def compiler_path() -> str:

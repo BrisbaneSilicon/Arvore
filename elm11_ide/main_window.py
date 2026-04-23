@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
 
         self._build_btn = QPushButton('Build')
-        self._build_btn.setToolTip('Build C project (coming soon)')
+        self._build_btn.setToolTip('Build the current C project')
         self._build_btn.clicked.connect(self._build)
         self._build_btn.setEnabled(False)
         tb.addWidget(self._build_btn)
@@ -301,8 +301,9 @@ class MainWindow(QMainWindow):
             self._cmd_status.setText('COMMAND MODE')
         else:
             self._cmd_status.setText('REPL')
-        # Build stays disabled until C toolchain support arrives
-        self._build_btn.setEnabled(False)
+        # Build is available whenever the current editor holds a .c/.h file.
+        cur = self._cur()
+        self._build_btn.setEnabled(bool(cur and cur.is_c) and not cmd_active)
 
     def _on_cmd_btn_toggled(self, checked: bool):
         self._cmd_mode.set_active(checked)
@@ -645,9 +646,25 @@ class MainWindow(QMainWindow):
         self._update_device_buttons()
 
     def _build(self):
-        QMessageBox.information(self, 'Coming Soon',
-            'C build support is coming soon.\n\n'
-            'Configure your compiler in Settings → C when it arrives.')
+        editor = self._cur()
+        if not editor or not editor.is_c or not editor.file_path:
+            QMessageBox.warning(self, 'No C File',
+                'Open a C or header file to build.')
+            return
+        compiler = SettingsDialog.compiler_path()
+        if not compiler:
+            QMessageBox.warning(self, 'No C Compiler',
+                'Set the compiler path in Settings → C.')
+            return
+        if editor.document().isModified():
+            editor.save()
+        source = str(editor.file_path)
+        output = str(editor.file_path.with_suffix(''))
+        self._build_out.clear()
+        self._bottom.setCurrentWidget(self._build_out)
+        self._build_out.run_build(
+            compiler, SettingsDialog.compiler_flags(),
+            [source], output, cwd=str(editor.file_path.parent))
 
     # ── Theme ─────────────────────────────────────────────────────────────────
 
