@@ -146,6 +146,12 @@ class MainWindow(QMainWindow):
         self._build_btn.setEnabled(False)
         tb.addWidget(self._build_btn)
 
+        self._flash_btn = QPushButton('Flash')
+        self._flash_btn.setToolTip('Flash the built binary to the ELM11')
+        self._flash_btn.clicked.connect(self._flash)
+        self._flash_btn.setEnabled(False)
+        tb.addWidget(self._flash_btn)
+
         self._upload_btn = QPushButton('Upload')
         self._upload_btn.setToolTip('Upload Lua program to ELM11')
         self._upload_btn.clicked.connect(self._upload)
@@ -286,24 +292,31 @@ class MainWindow(QMainWindow):
             self.statusBar().addPermanentWidget(self._sb_mode)
         self._sb_mode.setText(f'  {mode}  ')
         self._sb_mode.setVisible(True)
+        self._update_device_buttons()
 
     def _update_device_buttons(self):
         connected = self._terminal.is_connected
         cmd_active = getattr(self, '_cmd_mode', None) and self._cmd_mode.is_active
+        is_c_mode = self._workspace_mode == 'C'
         usable = connected and not cmd_active
-        self._upload_btn.setEnabled(usable)
-        self._run_btn.setEnabled(usable)
-        self._stop_btn.setEnabled(usable)
-        self._cmd_btn.setEnabled(connected)
-        if not connected:
+        # Lua-workflow buttons — only relevant in Lua mode.
+        lua_usable = usable and not is_c_mode
+        self._upload_btn.setEnabled(lua_usable)
+        self._run_btn.setEnabled(lua_usable)
+        self._stop_btn.setEnabled(lua_usable)
+        # Command Mode is a Lua-only concept — disabled entirely in C mode.
+        self._cmd_btn.setEnabled(connected and not is_c_mode)
+        if not connected or is_c_mode:
             self._cmd_status.setText('')
         elif cmd_active:
             self._cmd_status.setText('COMMAND MODE')
         else:
             self._cmd_status.setText('REPL')
-        # Build is available whenever the current editor holds a .c/.h file.
-        cur = self._cur()
-        self._build_btn.setEnabled(bool(cur and cur.is_c) and not cmd_active)
+        # C-workflow buttons — enabled whenever a C workspace is open.
+        # The handlers themselves check for a loaded file and warn if needed.
+        has_workspace = self._workspace_root is not None
+        self._build_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
+        self._flash_btn.setEnabled(is_c_mode and has_workspace and usable)
 
     def _on_cmd_btn_toggled(self, checked: bool):
         self._cmd_mode.set_active(checked)
@@ -666,6 +679,30 @@ class MainWindow(QMainWindow):
             compiler, SettingsDialog.compiler_flags(),
             [source], output, cwd=str(editor.file_path.parent))
 
+    def _flash(self):
+        editor = self._cur()
+        if not editor or not editor.is_c or not editor.file_path:
+            QMessageBox.warning(self, 'No C File',
+                'Open the C file you want to flash.')
+            return
+        flash_tool = SettingsDialog.flash_tool()
+        if not flash_tool:
+            QMessageBox.warning(self, 'No Flash Tool',
+                'Set the flash tool path in Settings → C.')
+            return
+        binary = editor.file_path.with_suffix('')
+        if not binary.is_file():
+            QMessageBox.warning(self, 'Not Built',
+                f'Expected build output not found:\n{binary}\n\n'
+                'Run Build first.')
+            return
+        port = self._port_combo.currentText()
+        self._build_out.clear()
+        self._bottom.setCurrentWidget(self._build_out)
+        self._build_out.run_command(
+            flash_tool, [str(binary), port],
+            cwd=str(binary.parent))
+
     # ── Theme ─────────────────────────────────────────────────────────────────
 
     def _rebuild_theme_menu(self):
@@ -780,6 +817,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('ELM11 IDE')
         if self._sb_mode:
             self._sb_mode.setVisible(False)
+        self._update_device_buttons()
 
     def _show_workspace_tooltip(self, action: QAction):
         full_path = action.data()
