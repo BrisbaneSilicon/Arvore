@@ -741,8 +741,10 @@ class MainWindow(QMainWindow):
     def _load_workspace(self, path: Path):
         log.debug('Load workspace: %s', path)
         """Switch the tree root to path and persist it in the workspace history."""
+        # Persist the outgoing workspace's open files before we swap roots.
+        self._save_workspace_tabs()
         self._workspace_root = path
-        self._tree.set_root(path)
+        self._tree.set_root(path, is_workspace=True)
         self.setWindowTitle(f'ELM11 IDE — {path.name}')
 
         s = QSettings()
@@ -774,6 +776,46 @@ class MainWindow(QMainWindow):
         self._set_mode(saved_mode)
 
         self._rebuild_workspaces_menu()
+        self._restore_workspace_tabs(path)
+
+    # ── Per-workspace tab persistence ─────────────────────────────────────
+
+    def _save_workspace_tabs(self):
+        """Record the currently-open file paths + active index under the
+        current workspace's QSettings keys. No-op when no workspace is open."""
+        if self._workspace_root is None:
+            return
+        files: list[str] = []
+        for i in range(self._editor_tabs.count()):
+            w = self._editor_tabs.widget(i)
+            if isinstance(w, CodeEditor) and w.file_path:
+                files.append(str(w.file_path))
+        s = QSettings()
+        s.setValue(f'workspaces/open_files/{self._workspace_root}', files)
+        s.setValue(f'workspaces/active_tab/{self._workspace_root}',
+                   self._editor_tabs.currentIndex())
+
+    def _restore_workspace_tabs(self, path: Path):
+        """Close any currently-open tabs and re-open the files recorded for
+        `path` on its last close."""
+        s = QSettings()
+        raw = s.value(f'workspaces/open_files/{path}', [])
+        files = (list(raw) if isinstance(raw, (list, tuple))
+                 else ([raw] if raw else []))
+        # Clear existing tabs (directly — bypasses the unsaved-changes prompt
+        # that tabCloseRequested triggers; users should save before switching).
+        while self._editor_tabs.count():
+            self._editor_tabs.removeTab(0)
+        for f in files:
+            p = Path(f)
+            if p.is_file():
+                self._open_path(p)
+        try:
+            idx = int(s.value(f'workspaces/active_tab/{path}', 0))
+        except (TypeError, ValueError):
+            idx = 0
+        if 0 <= idx < self._editor_tabs.count():
+            self._editor_tabs.setCurrentIndex(idx)
 
     def _rebuild_workspaces_menu(self):
         self._ws_menu.clear()
@@ -812,6 +854,7 @@ class MainWindow(QMainWindow):
             no_ws.setEnabled(False)
 
     def _close_workspace(self):
+        self._save_workspace_tabs()
         self._workspace_root = None
         self._tree.set_root(Path.home())
         self.setWindowTitle('ELM11 IDE')
@@ -834,6 +877,8 @@ class MainWindow(QMainWindow):
             history.remove(entry)
         s.setValue('workspaces/history', history)
         s.remove(f'workspaces/mode/{entry}')
+        s.remove(f'workspaces/open_files/{entry}')
+        s.remove(f'workspaces/active_tab/{entry}')
         # Close if it's the current workspace
         if self._workspace_root and str(self._workspace_root) == entry:
             self._close_workspace()
@@ -841,11 +886,13 @@ class MainWindow(QMainWindow):
 
     def _clear_workspace_history(self):
         s = QSettings()
-        # Remove all per-workspace mode keys
+        # Remove all per-workspace keys
         raw = s.value('workspaces/history', [])
         history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
         for entry in history:
             s.remove(f'workspaces/mode/{entry}')
+            s.remove(f'workspaces/open_files/{entry}')
+            s.remove(f'workspaces/active_tab/{entry}')
         s.remove('workspaces/history')
         self._close_workspace()
         self._rebuild_workspaces_menu()
@@ -880,10 +927,11 @@ class MainWindow(QMainWindow):
             if p.is_dir():
                 log.debug('Restoring workspace: %s', p)
                 self._workspace_root = p
-                self._tree.set_root(p)
+                self._tree.set_root(p, is_workspace=True)
                 self.setWindowTitle(f'ELM11 IDE — {p.name}')
                 saved_mode = s.value(f'workspaces/mode/{p}', 'Lua')
                 self._set_mode(saved_mode)
+                self._restore_workspace_tabs(p)
             else:
                 log.debug('Workspace dir no longer exists: %s', p)
         else:
@@ -940,6 +988,7 @@ class MainWindow(QMainWindow):
                     return
                 break
 
+        self._save_workspace_tabs()
         self._cmd_mode.shutdown()
         port = self._port_combo.currentText()
         if port:

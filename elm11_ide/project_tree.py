@@ -66,6 +66,9 @@ class _WorkspaceProxy(QSortFilterProxyModel):
         return False
 
 
+_MAX_AUTO_EXPAND_DEPTH = 4
+
+
 class ProjectTree(QTreeView):
     file_activated   = pyqtSignal(Path)
     workspace_loaded = pyqtSignal(Path)
@@ -95,6 +98,9 @@ class ProjectTree(QTreeView):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._context_menu)
         self.activated.connect(self._activated)
+
+        # Cascade-expand subdirectories as QFileSystemModel lazy-loads them.
+        self._model.directoryLoaded.connect(self._on_directory_loaded)
 
         # Default to home directory
         self.set_root(Path.home())
@@ -139,8 +145,10 @@ class ProjectTree(QTreeView):
         path = self._source_path(index)
         return path if path.is_dir() else path.parent
 
-    def set_root(self, path: Path):
-        log.debug('set_root: path=%s  parent=%s', path, path.parent)
+    def set_root(self, path: Path, is_workspace: bool = False):
+        log.debug('set_root: path=%s  parent=%s  workspace=%s',
+                  path, path.parent, is_workspace)
+        self._auto_expand = is_workspace
         self._proxy.set_workspace(path)
         parent_path = path.parent if path.parent != path else path
         parent_source = self._model.index(str(parent_path))
@@ -153,8 +161,52 @@ class ProjectTree(QTreeView):
         log.debug('set_root: ws_proxy valid=%s', ws_proxy.isValid())
         self.expand(ws_proxy)
         self.setCurrentIndex(ws_proxy)
+        # Only deep-expand for real workspaces — the home fallback would
+        # otherwise open the user's whole home tree.
+        if is_workspace:
+            self._expand_all_loaded(ws_proxy)
+
+    def _expand_all_loaded(self, parent_idx: QModelIndex, depth: int = 0):
+        """Recursively expand every already-populated child directory, up to
+        `_MAX_AUTO_EXPAND_DEPTH` levels below the workspace root."""
+        if depth >= _MAX_AUTO_EXPAND_DEPTH:
+            return
+        for i in range(self._proxy.rowCount(parent_idx)):
+            child = self._proxy.index(i, 0, parent_idx)
+            if self._source_path(child).is_dir():
+                self.expand(child)
+                self._expand_all_loaded(child, depth + 1)
 
     # ── Internal ─────────────────────────────────────────────────────────
+
+    def _on_directory_loaded(self, dir_path: str):
+        """Expand every subdirectory that lives under the current workspace
+        as QFileSystemModel finishes loading it. The expansion triggers the
+        model to load *that* directory's contents in turn, so the cascade
+        continues until the whole tree under the workspace is expanded
+        (capped at `_MAX_AUTO_EXPAND_DEPTH`)."""
+        if not getattr(self, '_auto_expand', False):
+            return
+        ws = self._proxy._workspace
+        if ws is None:
+            return
+        p = Path(dir_path)
+        try:
+            if p != ws and not p.is_relative_to(ws):
+                return
+            rel = p.relative_to(ws)
+        except (ValueError, OSError):
+            return
+        depth = len(rel.parts)  # 0 for the workspace root itself
+        if depth >= _MAX_AUTO_EXPAND_DEPTH:
+            return
+        proxy_idx = self._proxy.mapFromSource(self._model.index(dir_path))
+        if not proxy_idx.isValid():
+            return
+        for i in range(self._proxy.rowCount(proxy_idx)):
+            child = self._proxy.index(i, 0, proxy_idx)
+            if self._source_path(child).is_dir():
+                self.expand(child)
 
     def _source_path(self, proxy_index: QModelIndex) -> Path:
         return Path(self._model.filePath(self._proxy.mapToSource(proxy_index)))
