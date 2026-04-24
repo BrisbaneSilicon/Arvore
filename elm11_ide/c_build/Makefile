@@ -25,9 +25,14 @@ COMPRESSED          ?= no
 # ── Toolchain ─────────────────────────────────────────────────────────────
 RISCV_NAME          ?= riscv-none-elf
 RISCV_PATH          ?= NONE
-RISCV_CC            := $(RISCV_PATH)/bin/$(RISCV_NAME)-gcc
-RISCV_OBJCOPY       := $(RISCV_PATH)/bin/$(RISCV_NAME)-objcopy
-RISCV_OBJDUMP       := $(RISCV_PATH)/bin/$(RISCV_NAME)-objdump
+# `RISCV_PATH` can contain spaces (e.g. /opt/My Toolchains/...). Make stores
+# the value verbatim but hands recipes to the shell unquoted, which would
+# then tokenise on spaces. Build an escaped copy for use in recipes.
+_SPACE              := $(subst ,, )
+RISCV_PATH_ESC      := $(subst $(_SPACE),\$(_SPACE),$(RISCV_PATH))
+RISCV_CC            := $(RISCV_PATH_ESC)/bin/$(RISCV_NAME)-gcc
+RISCV_OBJCOPY       := $(RISCV_PATH_ESC)/bin/$(RISCV_NAME)-objcopy
+RISCV_OBJDUMP       := $(RISCV_PATH_ESC)/bin/$(RISCV_NAME)-objdump
 
 PYTHON              ?= python3
 

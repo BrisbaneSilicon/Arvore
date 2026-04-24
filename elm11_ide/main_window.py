@@ -687,51 +687,60 @@ class MainWindow(QMainWindow):
         self._update_device_buttons()
 
     def _build(self):
+        if self._workspace_mode != 'C' or self._workspace_root is None:
+            QMessageBox.warning(self, 'No C Workspace',
+                'Open a C workspace to build.')
+            return
+        make_dir = self._workspace_root / 'build' / 'make'
+        makefile = make_dir / 'Makefile'
+        if not makefile.is_file():
+            QMessageBox.warning(self, 'Missing Makefile',
+                f'No Makefile found at:\n{makefile}\n\n'
+                "The C workspace templates don't appear to be deployed.")
+            return
+        # Save any in-flight edits before invoking make.
         editor = self._cur()
-        if not editor or not editor.is_c or not editor.file_path:
-            QMessageBox.warning(self, 'No C File',
-                'Open a C or header file to build.')
+        if editor and editor.file_path and editor.document().isModified():
+            editor.save()
+        compiler = SettingsDialog.compiler_path()
+        if not compiler:
+            QMessageBox.warning(self, 'No C Compiler',
+                'Set the compiler path in Settings → C.')
+            return
+
+        toolchain_root = str(Path(compiler).resolve())
+        self._build_out.clear()
+        self._bottom.setCurrentWidget(self._build_out)
+        self._build_out.run_command(
+            'make',
+            ['-C', str(make_dir), f'RISCV_PATH={toolchain_root}'],
+            cwd=str(self._workspace_root))
+
+    def _flash(self):
+        if self._workspace_mode != 'C' or self._workspace_root is None:
+            QMessageBox.warning(self, 'No C Workspace',
+                'Open a C workspace to flash.')
+            return
+        make_dir = self._workspace_root / 'build' / 'make'
+        makefile = make_dir / 'Makefile'
+        if not makefile.is_file():
+            QMessageBox.warning(self, 'Missing Makefile',
+                f'No Makefile found at:\n{makefile}')
             return
         compiler = SettingsDialog.compiler_path()
         if not compiler:
             QMessageBox.warning(self, 'No C Compiler',
                 'Set the compiler path in Settings → C.')
             return
-        if editor.document().isModified():
-            editor.save()
-        source = str(editor.file_path)
-        output = str(editor.file_path.with_suffix(''))
-        # Every C program links against the bundled ELM11 runtime objects.
-        sources = [source] + _c_runtime_objects()
-        self._build_out.clear()
-        self._bottom.setCurrentWidget(self._build_out)
-        self._build_out.run_build(
-            compiler, SettingsDialog.compiler_flags(),
-            sources, output, cwd=str(editor.file_path.parent))
-
-    def _flash(self):
-        editor = self._cur()
-        if not editor or not editor.is_c or not editor.file_path:
-            QMessageBox.warning(self, 'No C File',
-                'Open the C file you want to flash.')
-            return
-        flash_tool = SettingsDialog.flash_tool()
-        if not flash_tool:
-            QMessageBox.warning(self, 'No Flash Tool',
-                'Set the flash tool path in Settings → C.')
-            return
-        binary = editor.file_path.with_suffix('')
-        if not binary.is_file():
-            QMessageBox.warning(self, 'Not Built',
-                f'Expected build output not found:\n{binary}\n\n'
-                'Run Build first.')
-            return
+        toolchain_root = str(Path(compiler).resolve().parent.parent)
         port = self._port_combo.currentText()
+        args = ['-C', str(make_dir), 'flash', f'RISCV_PATH={toolchain_root}']
+        if port:
+            args.append(f'PORT={port}')
         self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
         self._build_out.run_command(
-            flash_tool, [str(binary), port],
-            cwd=str(binary.parent))
+            'make', args, cwd=str(self._workspace_root))
 
     # ── Theme ─────────────────────────────────────────────────────────────────
 
