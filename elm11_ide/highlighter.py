@@ -236,3 +236,76 @@ class CHighlighter(QSyntaxHighlighter):
                 break
             m = self._ml_start.match(text, start + length)
             start = m.capturedStart() if m.hasMatch() else -1
+
+
+MAKE_DIRECTIVES = [
+    'include', '-include', 'sinclude',
+    'ifeq', 'ifneq', 'ifdef', 'ifndef', 'else', 'endif',
+    'define', 'endef', 'override', 'export', 'unexport',
+    'vpath', 'undefine',
+]
+MAKE_BUILTINS = [
+    'patsubst', 'subst', 'strip', 'findstring', 'filter', 'filter-out',
+    'sort', 'word', 'wordlist', 'words', 'firstword', 'lastword',
+    'dir', 'notdir', 'suffix', 'basename', 'addsuffix', 'addprefix',
+    'join', 'wildcard', 'realpath', 'abspath',
+    'if', 'or', 'and', 'foreach', 'call', 'value', 'eval', 'origin',
+    'flavor', 'shell', 'error', 'warning', 'info',
+]
+
+
+class MakefileHighlighter(QSyntaxHighlighter):
+    """Syntax highlighter for GNU Makefiles."""
+
+    def __init__(self, document):
+        super().__init__(document)
+        self._rules: list[tuple[QRegularExpression, QTextCharFormat]] = []
+        c = _colors()
+        kw_fmt      = _fmt(c['keyword'],     bold=True)
+        builtin_fmt = _fmt(c['builtin'])
+        str_fmt     = _fmt(c['string'])
+        num_fmt     = _fmt(c['number'])
+        cmt_fmt     = _fmt(c['comment'],     italic=True)
+        pp_fmt      = _fmt(c['preproc'])
+        target_fmt  = _fmt(c['elm11_func'],  bold=True)
+        var_fmt     = _fmt(c['elm11_const'])
+
+        # Directives
+        for d in MAKE_DIRECTIVES:
+            self._rules.append((
+                QRegularExpression(rf'^\s*{re.escape(d)}\b'), kw_fmt))
+
+        # Built-in function calls: $(wildcard ...), $(patsubst ...)
+        for fn in MAKE_BUILTINS:
+            self._rules.append((
+                QRegularExpression(rf'\$\(\s*{re.escape(fn)}\b'), builtin_fmt))
+
+        # Target definitions: name[ name2]: deps
+        self._rules.append((
+            QRegularExpression(r'^[A-Za-z0-9_./%\-${}()]+\s*::?\s*'), target_fmt))
+
+        # Assignments: VAR := value / VAR = value / VAR += / VAR ?=
+        self._rules.append((
+            QRegularExpression(r'^\s*[A-Za-z_][A-Za-z0-9_]*\s*(\?=|:=|\+=|=)'),
+            pp_fmt))
+
+        # $(VAR), ${VAR}, $@, $<, $^, $*, $?, $%, $+, $|
+        self._rules.append((
+            QRegularExpression(r'\$[@<^*?%+|]'), var_fmt))
+        self._rules.append((
+            QRegularExpression(r'\$[({][A-Za-z_][A-Za-z0-9_]*[)}]'), var_fmt))
+
+        # Strings and numbers
+        self._rules.append((QRegularExpression(r'"([^"\\]|\\.)*"'), str_fmt))
+        self._rules.append((QRegularExpression(r"'([^'\\]|\\.)*'"), str_fmt))
+        self._rules.append((QRegularExpression(r'\b\d+\b'),         num_fmt))
+
+        # Line comments: # ... to EOL
+        self._rules.append((QRegularExpression(r'(^|[^\\])#[^\n]*'), cmt_fmt))
+
+    def highlightBlock(self, text: str):
+        for pattern, fmt in self._rules:
+            it = pattern.globalMatch(text)
+            while it.hasNext():
+                m = it.next()
+                self.setFormat(m.capturedStart(), m.capturedLength(), fmt)

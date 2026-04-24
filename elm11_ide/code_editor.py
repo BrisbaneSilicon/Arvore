@@ -10,7 +10,7 @@ from PyQt6.QtGui import (
 )
 from pathlib import Path
 
-from .highlighter import LuaHighlighter, CHighlighter
+from .highlighter import LuaHighlighter, CHighlighter, MakefileHighlighter
 from .settings import SettingsDialog
 from . import theme
 
@@ -266,7 +266,10 @@ class CodeEditor(QPlainTextEdit):
 
     def _apply_highlighter(self, path: Path):
         suffix = path.suffix.lower()
+        name = path.name
         if suffix in ('.c', '.h'):
             self._highlighter = CHighlighter(self.document())
+        elif name == 'Makefile' or suffix in ('.mk',):
+            self._highlighter = MakefileHighlighter(self.document())
         else:
             self._highlighter = LuaHighlighter(self.document())
