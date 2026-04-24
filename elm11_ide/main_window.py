@@ -834,6 +834,7 @@ class MainWindow(QMainWindow):
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, workspace / 'build' / 'runtime' / src.name))
 
+        import re
         for src, dst in plan:
             try:
                 dst.parent.mkdir(parents=True, exist_ok=True)
@@ -844,7 +845,22 @@ class MainWindow(QMainWindow):
                 log.debug('Skipping existing %s', dst)
                 continue
             try:
-                shutil.copy2(src, dst)
+                if src.name == 'Makefile':
+                    # Substitute the placeholder PROJ_NAME with the workspace
+                    # directory name so the emitted artefacts are named after
+                    # the project rather than a generic "NONE".
+                    content = src.read_text(encoding='utf-8')
+                    content = re.sub(
+                        r'^(PROJ_NAME\s*:=\s*)\S+',
+                        lambda m: f'{m.group(1)}{workspace.name}',
+                        content,
+                        count=1,
+                        flags=re.MULTILINE,
+                    )
+                    dst.write_text(content, encoding='utf-8')
+                    shutil.copymode(src, dst)
+                else:
+                    shutil.copy2(src, dst)
                 log.debug('Deployed %s -> %s', src, dst)
             except OSError as exc:
                 log.warning('Could not deploy %s: %s', src, exc)
