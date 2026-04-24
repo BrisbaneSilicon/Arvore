@@ -24,6 +24,9 @@ a = Analysis(
         # Pre-built ELM11 C runtime objects — every user C program links
         # against these.
         (str(ROOT / 'elm11_ide' / 'c_runtime'), 'elm11_ide/c_runtime'),
+        # Makefile + linker script + helper tools deployed into each new
+        # C workspace.
+        (str(ROOT / 'elm11_ide' / 'c_build'), 'elm11_ide/c_build'),
     ],
     hiddenimports=['serial.tools.list_ports_linux'],
     hookspath=[],

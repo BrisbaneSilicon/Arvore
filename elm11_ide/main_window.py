@@ -25,17 +25,17 @@ from .command_mode import CommandModePanel
 from . import theme
 
 
-def _c_runtime_objects() -> list[str]:
-    """Return every `*.o` file shipped in `elm11_ide/c_runtime/`.
-
-    Resolves correctly in dev (`elm11_ide/c_runtime/`), in a PyInstaller
-    bundle (`sys._MEIPASS/elm11_ide/c_runtime/`), and in the system .deb
-    install (`/usr/lib/python3/dist-packages/elm11_ide/c_runtime/`).
-    """
+def _ide_data_dir(name: str) -> Path:
+    """Resolve a bundled data directory (`elm11_ide/<name>/`) for dev,
+    PyInstaller, and system-install layouts."""
     if hasattr(sys, '_MEIPASS'):
-        base = Path(sys._MEIPASS) / 'elm11_ide' / 'c_runtime'
-    else:
-        base = Path(__file__).resolve().parent / 'c_runtime'
+        return Path(sys._MEIPASS) / 'elm11_ide' / name
+    return Path(__file__).resolve().parent / name
+
+
+def _c_runtime_objects() -> list[str]:
+    """Return every `*.o` file shipped in `elm11_ide/c_runtime/`."""
+    base = _ide_data_dir('c_runtime')
     if not base.is_dir():
         return []
     return sorted(str(p) for p in base.glob('*.o'))
@@ -779,7 +779,8 @@ class MainWindow(QMainWindow):
         # Restore or choose mode for this workspace
         mode_key = f'workspaces/mode/{path}'
         saved_mode = s.value(mode_key, None)
-        if saved_mode is None:
+        is_new_workspace = saved_mode is None
+        if is_new_workspace:
             # New workspace — ask the user to pick a language mode
             items = ['Lua', 'C']
             from PyQt6.QtWidgets import QInputDialog
@@ -793,8 +794,60 @@ class MainWindow(QMainWindow):
             saved_mode = mode
         self._set_mode(saved_mode)
 
+        # Deploy the C build-system templates into a brand-new C workspace.
+        if is_new_workspace and saved_mode == 'C':
+            self._deploy_c_build_templates(path)
+
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
+
+    def _deploy_c_build_templates(self, workspace: Path):
+        """Seed a freshly-created C workspace with the bundled templates,
+        laid out as:
+
+          * `<workspace>/main.c`            — starter user source
+          * `<workspace>/build/runtime/`    — prebuilt runtime objects
+          * `<workspace>/build/make/`       — Makefile + linker script
+          * `<workspace>/build/utilities/`  — helper Python scripts
+
+        Files that already exist are skipped so user edits aren't
+        clobbered."""
+        import shutil
+
+        def _target_for(src: Path) -> Path:
+            """Where does a c_build file go? Rooted on `workspace`."""
+            if src.name == 'main.c':
+                return workspace / src.name
+            if src.suffix == '.py':
+                return workspace / 'build' / 'utilities' / src.name
+            return workspace / 'build' / 'make' / src.name
+
+        plan: list[tuple[Path, Path]] = []   # (source, destination)
+        c_build = _ide_data_dir('c_build')
+        if c_build.is_dir():
+            for src in c_build.iterdir():
+                if src.is_file() and not src.name.startswith('.'):
+                    plan.append((src, _target_for(src)))
+        c_runtime = _ide_data_dir('c_runtime')
+        if c_runtime.is_dir():
+            for src in c_runtime.iterdir():
+                if src.is_file() and not src.name.startswith('.'):
+                    plan.append((src, workspace / 'build' / 'runtime' / src.name))
+
+        for src, dst in plan:
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                log.warning('Could not create %s: %s', dst.parent, exc)
+                continue
+            if dst.exists():
+                log.debug('Skipping existing %s', dst)
+                continue
+            try:
+                shutil.copy2(src, dst)
+                log.debug('Deployed %s -> %s', src, dst)
+            except OSError as exc:
+                log.warning('Could not deploy %s: %s', src, exc)
 
     # ── Per-workspace tab persistence ─────────────────────────────────────
 
