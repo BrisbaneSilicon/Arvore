@@ -21,6 +21,9 @@ a = Analysis(
         (str(ROOT / 'elm11_ide' / 'docs_data.json'), 'elm11_ide'),
         # Window / taskbar icon used by QApplication.setWindowIcon.
         (str(ROOT / 'elm11_ide' / 'elm11-ide.png'), 'elm11_ide'),
+        # Pre-built ELM11 C runtime objects — every user C program links
+        # against these.
+        (str(ROOT / 'elm11_ide' / 'c_runtime'), 'elm11_ide/c_runtime'),
     ],
     hiddenimports=['serial.tools.list_ports_linux'],
     hookspath=[],

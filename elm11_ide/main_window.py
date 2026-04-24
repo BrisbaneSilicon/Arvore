@@ -25,6 +25,22 @@ from .command_mode import CommandModePanel
 from . import theme
 
 
+def _c_runtime_objects() -> list[str]:
+    """Return every `*.o` file shipped in `elm11_ide/c_runtime/`.
+
+    Resolves correctly in dev (`elm11_ide/c_runtime/`), in a PyInstaller
+    bundle (`sys._MEIPASS/elm11_ide/c_runtime/`), and in the system .deb
+    install (`/usr/lib/python3/dist-packages/elm11_ide/c_runtime/`).
+    """
+    if hasattr(sys, '_MEIPASS'):
+        base = Path(sys._MEIPASS) / 'elm11_ide' / 'c_runtime'
+    else:
+        base = Path(__file__).resolve().parent / 'c_runtime'
+    if not base.is_dir():
+        return []
+    return sorted(str(p) for p in base.glob('*.o'))
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -673,11 +689,13 @@ class MainWindow(QMainWindow):
             editor.save()
         source = str(editor.file_path)
         output = str(editor.file_path.with_suffix(''))
+        # Every C program links against the bundled ELM11 runtime objects.
+        sources = [source] + _c_runtime_objects()
         self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
         self._build_out.run_build(
             compiler, SettingsDialog.compiler_flags(),
-            [source], output, cwd=str(editor.file_path.parent))
+            sources, output, cwd=str(editor.file_path.parent))
 
     def _flash(self):
         editor = self._cur()
