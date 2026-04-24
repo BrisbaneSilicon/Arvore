@@ -420,7 +420,8 @@ class MainWindow(QMainWindow):
             if self._editor_tabs.widget(i) is editor:
                 name = editor.file_path.name if editor.file_path else 'untitled'
                 dot   = ' ●' if editor.document().isModified() else ''
-                stale = ' ↑' if editor.is_stale else ''
+                stale = '' if self._is_build_artifact(editor.file_path) \
+                    else (' ↑' if editor.is_stale else '')
                 self._editor_tabs.setTabText(i, name + dot + stale)
                 break
         if editor.file_path:
@@ -433,12 +434,23 @@ class MainWindow(QMainWindow):
                 return w
         return None
 
+    def _is_build_artifact(self, path: Path | None) -> bool:
+        """Suppress the upload/stale marker for anything the IDE deploys
+        into `<workspace>/build/` — runtime objects, Makefiles, helpers."""
+        if not path or not self._workspace_root:
+            return False
+        try:
+            return path.is_relative_to(self._workspace_root / 'build')
+        except (ValueError, OSError):
+            return False
+
     def _file_status(self, path: Path) -> tuple[bool, bool]:
         """Return (dirty, stale) for the given path, used to decorate the tree."""
         editor = self._editor_for(path)
         if editor:
-            return (editor.document().isModified(), editor.is_stale)
-        if path.suffix.lower() != '.lua':
+            stale = False if self._is_build_artifact(path) else editor.is_stale
+            return (editor.document().isModified(), stale)
+        if path.suffix.lower() != '.lua' or self._is_build_artifact(path):
             return (False, False)
         try:
             stored = QSettings().value(_upload_hash_key(path), '')
