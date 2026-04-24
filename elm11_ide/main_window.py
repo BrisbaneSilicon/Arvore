@@ -829,18 +829,23 @@ class MainWindow(QMainWindow):
           * `<workspace>/main.c`            — starter user source
           * `<workspace>/build/runtime/`    — prebuilt runtime objects
           * `<workspace>/build/make/`       — Makefile + linker script
+          * `<workspace>/build/header/`     — bundled C headers
           * `<workspace>/build/utilities/`  — helper Python scripts
 
-        Files that already exist are skipped so user edits aren't
-        clobbered."""
+        Existing files at the destinations are overwritten so the
+        deployed templates always reflect the IDE's current bundle."""
         import shutil
 
         def _target_for(src: Path) -> Path:
             """Where does a c_build file go? Rooted on `workspace`."""
-            if src.name == 'main.c':
+            if src.suffix == '.c':
                 return workspace / src.name
             if src.suffix == '.py':
                 return workspace / 'build' / 'utilities' / src.name
+            if src.suffix == '.h':
+                return workspace / 'build' / 'header' / src.name
+            # `.S` startup files, Makefile, linker script, etc. all sit in
+            # the make/ directory.
             return workspace / 'build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
@@ -861,9 +866,6 @@ class MainWindow(QMainWindow):
                 dst.parent.mkdir(parents=True, exist_ok=True)
             except OSError as exc:
                 log.warning('Could not create %s: %s', dst.parent, exc)
-                continue
-            if dst.exists():
-                log.debug('Skipping existing %s', dst)
                 continue
             try:
                 if src.name == 'Makefile':

@@ -42,6 +42,7 @@ BUILDDIR            := ../out
 ARTEFACTDIR         := $(BUILDDIR)/artefacts
 LDSCRIPT            := ./linker.ld
 RUNTIME_DIR         := ../runtime
+HEADER_DIR          := ../header
 UTIL_DIR            := ../utilities
 EELF_PATH           := $(UTIL_DIR)/eelf.py
 VDUMP_PATH          := $(UTIL_DIR)/vdump8to32.py
@@ -49,9 +50,13 @@ VDUMP_PATH          := $(UTIL_DIR)/vdump8to32.py
 # ── Sources ───────────────────────────────────────────────────────────────
 SRCS                := $(wildcard $(WORKSPACE)/*.c) \
                        $(wildcard $(WORKSPACE)/*.S)
+# Startup / bootstrap assembly files bundled with the Makefile itself
+# (e.g. crt_flash.S).
+STARTUP_SRCS        := $(wildcard *.S)
 RUNTIME_OBJS        := $(wildcard $(RUNTIME_DIR)/*.o)
 OBJS                := $(patsubst $(WORKSPACE)/%.c,$(BUILDDIR)/%.o,$(filter %.c,$(SRCS))) \
-                       $(patsubst $(WORKSPACE)/%.S,$(BUILDDIR)/%.o,$(filter %.S,$(SRCS)))
+                       $(patsubst $(WORKSPACE)/%.S,$(BUILDDIR)/%.o,$(filter %.S,$(SRCS))) \
+                       $(patsubst %.S,$(BUILDDIR)/startup/%.o,$(STARTUP_SRCS))
 
 ELF                 := $(BUILDDIR)/$(PROJ_NAME).elf
 HEX                 := $(BUILDDIR)/$(PROJ_NAME).hex
@@ -84,7 +89,7 @@ LDFLAGS := -march=$(MARCH) -mabi=$(MABI) -mcmodel=medany \
            -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(BUILDDIR)/$(PROJ_NAME).map,--print-memory-usage \
            -lm -lgcc -lc_nano
 
-INC     := -I$(WORKSPACE)
+INC     := -I$(WORKSPACE) -I$(HEADER_DIR)
 
 # ── Version stamp (git-aware; falls back cleanly if no git available) ─────
 GIT_SHORTREV      := $(shell git -C $(WORKSPACE) rev-parse --short HEAD 2>/dev/null || echo nogit)
@@ -108,6 +113,10 @@ $(BUILDDIR)/%.o: $(WORKSPACE)/%.c | $(BUILDDIR)
 	    -o $@ $<
 
 $(BUILDDIR)/%.o: $(WORKSPACE)/%.S | $(BUILDDIR)
+	@mkdir -p $(dir $@)
+	$(RISCV_CC) -c $(CFLAGS) -D__ASSEMBLY__=1 -o $@ $<
+
+$(BUILDDIR)/startup/%.o: %.S | $(BUILDDIR)
 	@mkdir -p $(dir $@)
 	$(RISCV_CC) -c $(CFLAGS) -D__ASSEMBLY__=1 -o $@ $<
 

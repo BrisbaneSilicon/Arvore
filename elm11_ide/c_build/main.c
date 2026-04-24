@@ -39,9 +39,6 @@ void check_and_handle_terminal_init_due_to_reboot(void);
 
 int main(void)
 {
-    int ret;
-
-
     // NOTE: initialize LEDs
 
     set_leds_init_begin_state();
