@@ -63,7 +63,6 @@ HEX                 := $(BUILDDIR)/$(PROJ_NAME).hex
 MCS                 := $(BUILDDIR)/$(PROJ_NAME).mcs
 ASM                 := $(BUILDDIR)/$(PROJ_NAME).asm
 VMEM                := $(BUILDDIR)/$(PROJ_NAME).v
-MIF                 := $(BUILDDIR)/$(PROJ_NAME).mif
 EELF                := $(BUILDDIR)/$(PROJ_NAME).eelf
 
 # ── ISA and flag assembly ─────────────────────────────────────────────────
@@ -101,7 +100,7 @@ VSTRING           := "$(GIT_SHORTREV)$(GIT_DIRTY)|$(TIME_STR)"
 .PHONY: all clean
 .SECONDARY: $(OBJS)
 
-all: $(HEX) $(MCS) $(ASM) $(VMEM) $(MIF) $(EELF)
+all: $(HEX) $(MCS) $(ASM) $(VMEM)
 
 $(ELF): $(OBJS) $(RUNTIME_OBJS) | $(BUILDDIR)
 	$(RISCV_CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -134,12 +133,6 @@ $(BUILDDIR)/startup/%.o: %.S | $(BUILDDIR)
 
 %.mcs: %.hex
 	cp $< $@
-
-%.mif: %.v
-	$(PYTHON) $(VDUMP_PATH) $< $@ mif $(MEM_BASEADDR) $(MEM_SIZE_KB)
-
-%.eelf: %.elf
-	$(PYTHON) $(EELF_PATH) $< $@ $(MEM_BASEADDR)
 
 $(BUILDDIR) $(ARTEFACTDIR):
 	@mkdir -p $@
