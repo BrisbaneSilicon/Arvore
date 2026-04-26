@@ -162,6 +162,12 @@ class MainWindow(QMainWindow):
         self._build_btn.setEnabled(False)
         tb.addWidget(self._build_btn)
 
+        self._clean_btn = QPushButton('Clean')
+        self._clean_btn.setToolTip('Delete build artefacts (make clean)')
+        self._clean_btn.clicked.connect(self._clean)
+        self._clean_btn.setEnabled(False)
+        tb.addWidget(self._clean_btn)
+
         self._flash_btn = QPushButton('Flash')
         self._flash_btn.setToolTip('Flash the built binary to the ELM11')
         self._flash_btn.clicked.connect(self._flash)
@@ -332,6 +338,7 @@ class MainWindow(QMainWindow):
         # The handlers themselves check for a loaded file and warn if needed.
         has_workspace = self._workspace_root is not None
         self._build_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
+        self._clean_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
         self._flash_btn.setEnabled(is_c_mode and has_workspace and usable)
 
     def _on_cmd_btn_toggled(self, checked: bool):
@@ -714,6 +721,23 @@ class MainWindow(QMainWindow):
         self._build_out.run_command(
             'make',
             ['-C', str(make_dir), f'RISCV_PATH={toolchain_root}'],
+            cwd=str(self._workspace_root))
+
+    def _clean(self):
+        if self._workspace_mode != 'C' or self._workspace_root is None:
+            QMessageBox.warning(self, 'No C Workspace',
+                'Open a C workspace to clean.')
+            return
+        make_dir = self._workspace_root / 'build' / 'make'
+        makefile = make_dir / 'Makefile'
+        if not makefile.is_file():
+            QMessageBox.warning(self, 'Missing Makefile',
+                f'No Makefile found at:\n{makefile}')
+            return
+        self._build_out.clear()
+        self._bottom.setCurrentWidget(self._build_out)
+        self._build_out.run_command(
+            'make', ['-C', str(make_dir), 'clean'],
             cwd=str(self._workspace_root))
 
     def _flash(self):
