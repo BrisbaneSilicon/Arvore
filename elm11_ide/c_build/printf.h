@@ -20,7 +20,7 @@
  * \return The number of characters that are WRITTEN into the buffer, not counting the terminating null character
  */
 #define sprintf sprintf_
-int sprintf_(char* buffer, const char* format, ...) ATTRIB_FASTESTCODE;
+int sprintf_(char* buffer, const char* format, ...) ATTRIB_F3CODE;
 
 
 /**
@@ -35,14 +35,14 @@ int sprintf_(char* buffer, const char* format, ...) ATTRIB_FASTESTCODE;
  */
 #define snprintf  snprintf_
 #define vsnprintf vsnprintf_
-int  snprintf_(char* buffer, size_t count, const char* format, ...) ATTRIB_FASTESTCODE;
-int vsnprintf_(char* buffer, size_t count, const char* format, va_list va) ATTRIB_FASTESTCODE;
+int  snprintf_(char* buffer, size_t count, const char* format, ...) ATTRIB_F3CODE;
+int vsnprintf_(char* buffer, size_t count, const char* format, va_list va) ATTRIB_F3CODE;
 
-unsigned int atoi_nano_positive_strict(const char *str, char *was_valid) ATTRIB_FASTESTCODE;
-unsigned int atoi_nano_postive(const char* str) ATTRIB_FASTESTCODE;
-unsigned int atoi_hex_nano(const char* str) ATTRIB_FASTESTCODE;
+unsigned int atoi_nano_positive_strict(const char *str, char *was_valid) ATTRIB_F3CODE;
+unsigned int atoi_nano_postive(const char* str) ATTRIB_F3CODE;
+unsigned int atoi_hex_nano(const char* str) ATTRIB_F3CODE;
 
-signed int chars_prior(const char* str, const char c) ATTRIB_FASTCODE;
-unsigned int valid_hex_string(const char* str) ATTRIB_FASTCODE;
+signed int chars_prior(const char* str, const char c) ATTRIB_F1CODE;
+unsigned int valid_hex_string(const char* str) ATTRIB_F1CODE;
 
 #endif

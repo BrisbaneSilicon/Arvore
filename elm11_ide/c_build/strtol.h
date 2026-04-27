@@ -9,6 +9,6 @@
 #include "global.h"
 #include "config.h"
 
-long strtol(const char *nptr, char **endptr, int base) ATTRIB_FASTESTCODE;
+long strtol(const char *nptr, char **endptr, int base) ATTRIB_F3CODE;
 
 #endif

@@ -159,20 +159,20 @@ extern const char *_ctype_;
    case '{': case '|': case '}': case '~'
 #define _C_CTYPE_UPPER _C_CTYPE_LOWER_N ('A' - 'a')
 
-int isalnum (int c) ATTRIB_FASTESTCODE;
-int isalpha (int c) ATTRIB_FASTESTCODE;
-int isascii (int c) ATTRIB_FASTESTCODE;
-int isblank (int c) ATTRIB_FASTESTCODE;
-int iscntrl (int c) ATTRIB_FASTESTCODE;
-int isdigit (int c) ATTRIB_FASTESTCODE;
-int isgraph (int c) ATTRIB_FASTESTCODE;
-int islower (int c) ATTRIB_FASTESTCODE;
-int isprint (int c) ATTRIB_FASTESTCODE;
-int ispunct (int c) ATTRIB_FASTESTCODE;
-int isspace (int c) ATTRIB_FASTESTCODE;
-int isupper (int c) ATTRIB_FASTESTCODE;
-int isxdigit (int c) ATTRIB_FASTESTCODE;
-int tolower (int c) ATTRIB_FASTESTCODE;
-int toupper (int c) ATTRIB_FASTESTCODE;
+int isalnum (int c) ATTRIB_F3CODE;
+int isalpha (int c) ATTRIB_F3CODE;
+int isascii (int c) ATTRIB_F3CODE;
+int isblank (int c) ATTRIB_F3CODE;
+int iscntrl (int c) ATTRIB_F3CODE;
+int isdigit (int c) ATTRIB_F3CODE;
+int isgraph (int c) ATTRIB_F3CODE;
+int islower (int c) ATTRIB_F3CODE;
+int isprint (int c) ATTRIB_F3CODE;
+int ispunct (int c) ATTRIB_F3CODE;
+int isspace (int c) ATTRIB_F3CODE;
+int isupper (int c) ATTRIB_F3CODE;
+int isxdigit (int c) ATTRIB_F3CODE;
+int tolower (int c) ATTRIB_F3CODE;
+int toupper (int c) ATTRIB_F3CODE;
 
 #endif

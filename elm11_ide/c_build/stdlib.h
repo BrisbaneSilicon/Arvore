@@ -16,66 +16,66 @@
     #include "memory.h"
 #endif
 
-void init_mem_buf(void) ATTRIB_FASTCODE;
+void init_mem_buf(void) ATTRIB_F1CODE;
 
-int abs(int j) ATTRIB_FASTESTCODE;
+int abs(int j) ATTRIB_F3CODE;
 
-void abort(void) ATTRIB_FASTCODE;
-char *getenv(const char *name) ATTRIB_FASTCODE;
-int system(const char *command) ATTRIB_FASTCODE;
+void abort(void) ATTRIB_F1CODE;
+char *getenv(const char *name) ATTRIB_F1CODE;
+int system(const char *command) ATTRIB_F1CODE;
 
-int printf(const char *format, ...) ATTRIB_FASTCODE;
+int printf(const char *format, ...) ATTRIB_F1CODE;
 
-int fclose(FILE *stream) ATTRIB_FASTCODE;
-int fflush(FILE *stream) ATTRIB_FASTCODE;
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_FASTCODE;
-size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_FASTCODE;
-size_t fwrite_hex_linewidth8bytes(const void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_FASTCODE;
-int fgetc(FILE *stream) ATTRIB_FASTCODE;
-FILE *fopen(const char *pathname, const char *mode) ATTRIB_FASTCODE;
-FILE *freopen(const char *pathname, const char *mode, FILE *stream) ATTRIB_FASTCODE;
-int fseek(FILE *stream, long offset, int whence) ATTRIB_FASTCODE;
-char *fgets(char *s, int size, FILE *stream) ATTRIB_FASTCODE;
-long ftell(FILE *stream) ATTRIB_FASTCODE;
-FILE *tmpfile(void) ATTRIB_FASTCODE;
+int fclose(FILE *stream) ATTRIB_F1CODE;
+int fflush(FILE *stream) ATTRIB_F1CODE;
+size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_F1CODE;
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_F1CODE;
+size_t fwrite_hex_linewidth8bytes(const void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_F1CODE;
+int fgetc(FILE *stream) ATTRIB_F1CODE;
+FILE *fopen(const char *pathname, const char *mode) ATTRIB_F1CODE;
+FILE *freopen(const char *pathname, const char *mode, FILE *stream) ATTRIB_F1CODE;
+int fseek(FILE *stream, long offset, int whence) ATTRIB_F1CODE;
+char *fgets(char *s, int size, FILE *stream) ATTRIB_F1CODE;
+long ftell(FILE *stream) ATTRIB_F1CODE;
+FILE *tmpfile(void) ATTRIB_F1CODE;
 
-int getc(FILE *stream) ATTRIB_FASTCODE;
-int getchar(void) ATTRIB_FASTCODE;
-int putchar(int c) ATTRIB_FASTCODE;
+int getc(FILE *stream) ATTRIB_F1CODE;
+int getchar(void) ATTRIB_F1CODE;
+int putchar(int c) ATTRIB_F1CODE;
 
-int puts(const char *s) ATTRIB_FASTCODE;
-int ungetc(int c, FILE *stream) ATTRIB_FASTCODE;
+int puts(const char *s) ATTRIB_F1CODE;
+int ungetc(int c, FILE *stream) ATTRIB_F1CODE;
 
-char *strchr(const char *s, int c) ATTRIB_FASTESTCODE;
-int strcmp(const char *s1, const char *s2) ATTRIB_FASTESTCODE;
-int strcmp_volatile(volatile const char *s1, volatile const char *s2) ATTRIB_FASTESTCODE;
-char *strerror(int errnum) ATTRIB_FASTESTCODE;
-size_t strlen(const char *s) ATTRIB_FASTESTCODE;
-size_t strlen_volatile(const volatile char *s) ATTRIB_FASTESTCODE;
-int strcoll(const char *s1, const char *s2) ATTRIB_FASTESTCODE;
-size_t strspn(const char *s, const char *accept) ATTRIB_FASTESTCODE;
-char *strstr(const char *haystack, const char *needle) ATTRIB_FASTESTCODE;
-char *strpbrk(const char *s, const char *accept) ATTRIB_FASTESTCODE;
-char *stpcpy(char *dst, const char *src) ATTRIB_FASTESTCODE;
-char *strcpy(char *dst, const char *src) ATTRIB_FASTESTCODE;
-volatile char *strcpy_volatile(volatile char *dst, volatile const char *src) ATTRIB_FASTESTCODE;
-char *strncpy(char *dst, const char *src, size_t sz) ATTRIB_FASTESTCODE;
-int strncmp(const char *s1, const char *s2, size_t n) ATTRIB_FASTESTCODE;
-char *strdup(const char *str) ATTRIB_FASTESTCODE;
+char *strchr(const char *s, int c) ATTRIB_F3CODE;
+int strcmp(const char *s1, const char *s2) ATTRIB_F3CODE;
+int strcmp_volatile(volatile const char *s1, volatile const char *s2) ATTRIB_F3CODE;
+char *strerror(int errnum) ATTRIB_F3CODE;
+size_t strlen(const char *s) ATTRIB_F3CODE;
+size_t strlen_volatile(const volatile char *s) ATTRIB_F3CODE;
+int strcoll(const char *s1, const char *s2) ATTRIB_F3CODE;
+size_t strspn(const char *s, const char *accept) ATTRIB_F3CODE;
+char *strstr(const char *haystack, const char *needle) ATTRIB_F3CODE;
+char *strpbrk(const char *s, const char *accept) ATTRIB_F3CODE;
+char *stpcpy(char *dst, const char *src) ATTRIB_F3CODE;
+char *strcpy(char *dst, const char *src) ATTRIB_F3CODE;
+volatile char *strcpy_volatile(volatile char *dst, volatile const char *src) ATTRIB_F3CODE;
+char *strncpy(char *dst, const char *src, size_t sz) ATTRIB_F3CODE;
+int strncmp(const char *s1, const char *s2, size_t n) ATTRIB_F3CODE;
+char *strdup(const char *str) ATTRIB_F3CODE;
 
-void *memchr(const void *s, int c, size_t n) ATTRIB_FASTESTCODE;
-void *memmove(void *dest, const void *src, size_t n) ATTRIB_FASTESTCODE;
+void *memchr(const void *s, int c, size_t n) ATTRIB_F3CODE;
+void *memmove(void *dest, const void *src, size_t n) ATTRIB_F3CODE;
 
 
-//int setjmp(jmp_buf env) ATTRIB_FASTCODE;
-//void longjmp(jmp_buf env, int val) ATTRIB_FASTCODE;
+//int setjmp(jmp_buf env) ATTRIB_F1CODE;
+//void longjmp(jmp_buf env, int val) ATTRIB_F1CODE;
 
-int setvbuf(FILE *stream, char *buf, int mode, size_t size) ATTRIB_FASTCODE;
+int setvbuf(FILE *stream, char *buf, int mode, size_t size) ATTRIB_F1CODE;
 
-int my_clock(void) ATTRIB_FASTCODE;
-int my_time(char *t) ATTRIB_FASTCODE;
+int my_clock(void) ATTRIB_F1CODE;
+int my_time(char *t) ATTRIB_F1CODE;
 
-struct lconv *localeconv(void) ATTRIB_FASTCODE;
-char lua_getlocaledecpoint(void) ATTRIB_FASTCODE;
+struct lconv *localeconv(void) ATTRIB_F1CODE;
+char lua_getlocaledecpoint(void) ATTRIB_F1CODE;
 
 #endif

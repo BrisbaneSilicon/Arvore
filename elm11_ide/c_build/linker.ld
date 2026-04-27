@@ -83,10 +83,10 @@ SECTIONS {
     *(.srodata*)       /* .rodata* sections (constants, strings, etc.) */
     _ram_start = .;    /* create a global symbol at FASTCODE start for garbage collector */
     . = ALIGN(4);
-    _fastcodesection_start = .;
-    *(.fastestcode .fastestcode.*);
-    *(.fastercode .fastercode.*);
-    *(.fastcode .fastcode.*);
+    _fcodesection_start = .;
+    *(.f3code .f3code.*);
+    *(.f2code .f2code.*);
+    *(.f1code .f1code.*);
     *(.text)           /* .text sections (code) */
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end; used by startup code in order to initialise the .data section in FASTCODE */

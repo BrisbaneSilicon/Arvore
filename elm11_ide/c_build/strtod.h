@@ -14,6 +14,6 @@
 #include "config.h"
 
 
-float strtod_f(const char *nptr, char **endptr) ATTRIB_FASTESTCODE;
+float strtod_f(const char *nptr, char **endptr) ATTRIB_F3CODE;
 
 #endif

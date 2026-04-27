@@ -223,7 +223,7 @@ typedef enum e_pin_enable_state
 
 
 
-e_status set_gpio(uint32_t user_io_num, uint32_t gpio_val) ATTRIB_FASTCODE;
+e_status set_gpio(uint32_t user_io_num, uint32_t gpio_val) ATTRIB_F1CODE;
 
 
 void init_io(void);
@@ -231,73 +231,73 @@ void init_io(void);
 uint8_t io_get_num_pins(void);
 uint8_t update_io_type(uint16_t io_index, e_iotype io_type);
 const char* get_io_type_as_str(uint16_t io_index);
-uint16_t user_io_num_from_str(char *user_io_num_str) ATTRIB_FASTCODE;
+uint16_t user_io_num_from_str(char *user_io_num_str) ATTRIB_F1CODE;
 
-uint8_t is_hardware_shared_spi_config(void) ATTRIB_FASTCODE;
+uint8_t is_hardware_shared_spi_config(void) ATTRIB_F1CODE;
 
-e_iotype get_smallest_index_dynamic_iotype_offset(void) ATTRIB_FASTCODE;
-e_iotype get_max_iotypes(void) ATTRIB_FASTCODE;
-e_iotype get_io_type(uint32_t user_io_num) ATTRIB_FASTCODE;
+e_iotype get_smallest_index_dynamic_iotype_offset(void) ATTRIB_F1CODE;
+e_iotype get_max_iotypes(void) ATTRIB_F1CODE;
+e_iotype get_io_type(uint32_t user_io_num) ATTRIB_F1CODE;
 
-uint8_t valid_user_io_num(uint16_t user_io_num) ATTRIB_FASTCODE;
-uint8_t valid_user_io_num_as_str(char *user_io_num_str) ATTRIB_FASTCODE;
-uint8_t valid_formatting_for_user_io_num_as_str(char *user_io_num_str) ATTRIB_FASTCODE;
-uint8_t valid_io_type_as_str(char *io_type_str) ATTRIB_FASTCODE;
-uint8_t valid_standalone_io_type(e_iotype io_type) ATTRIB_FASTCODE;
+uint8_t valid_user_io_num(uint16_t user_io_num) ATTRIB_F1CODE;
+uint8_t valid_user_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE;
+uint8_t valid_formatting_for_user_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE;
+uint8_t valid_io_type_as_str(char *io_type_str) ATTRIB_F1CODE;
+uint8_t valid_standalone_io_type(e_iotype io_type) ATTRIB_F1CODE;
 
-uint8_t valid_io_baud(uint32_t baud_rate) ATTRIB_FASTCODE;
-uint8_t can_set_baud_for_io_type(e_iotype iotype) ATTRIB_FASTCODE;
-uint8_t is_baud_config_applicable_to_io(uint32_t io_index) ATTRIB_FASTCODE;
-uint32_t get_baud_config_for_io(uint32_t io_index) ATTRIB_FASTCODE;
-uint8_t set_baud_config_for_io(uint32_t io_index, uint32_t baud) ATTRIB_FASTCODE;
+uint8_t valid_io_baud(uint32_t baud_rate) ATTRIB_F1CODE;
+uint8_t can_set_baud_for_io_type(e_iotype iotype) ATTRIB_F1CODE;
+uint8_t is_baud_config_applicable_to_io(uint32_t io_index) ATTRIB_F1CODE;
+uint32_t get_baud_config_for_io(uint32_t io_index) ATTRIB_F1CODE;
+uint8_t set_baud_config_for_io(uint32_t io_index, uint32_t baud) ATTRIB_F1CODE;
 
-uint8_t valid_io_pwm_freq(uint32_t pwm_freq_khz) ATTRIB_FASTCODE;
-uint32_t get_pwm_clock_divider(uint8_t pwm_freq_khz) ATTRIB_FASTCODE;
-uint8_t is_pwm_config_applicable_to_io(uint32_t io_index) ATTRIB_FASTCODE;
-uint8_t get_pwm_config_for_io(uint32_t io_index) ATTRIB_FASTCODE;
-uint8_t set_pwm_config_for_io(uint32_t io_index, uint8_t pwm_freq_khz) ATTRIB_FASTCODE;
+uint8_t valid_io_pwm_freq(uint32_t pwm_freq_khz) ATTRIB_F1CODE;
+uint32_t get_pwm_clock_divider(uint8_t pwm_freq_khz) ATTRIB_F1CODE;
+uint8_t is_pwm_config_applicable_to_io(uint32_t io_index) ATTRIB_F1CODE;
+uint8_t get_pwm_config_for_io(uint32_t io_index) ATTRIB_F1CODE;
+uint8_t set_pwm_config_for_io(uint32_t io_index, uint8_t pwm_freq_khz) ATTRIB_F1CODE;
 
-uint32_t get_spi_freq_from_clock_divider(uint32_t spi_clock_divider) ATTRIB_FASTCODE;
-uint32_t get_spi_clock_divider(uint8_t spi_freq_khz) ATTRIB_FASTCODE;
-uint8_t is_spi_config_applicable_to_io(uint32_t io_index) ATTRIB_FASTCODE;
-uint8_t get_spi_config_for_io(uint32_t io_index) ATTRIB_FASTCODE;
-uint8_t set_spi_config_for_standalone_spi_io(uint32_t io_index, uint8_t spi_freq_khz) ATTRIB_FASTCODE;
-uint8_t set_spi_config_for_io(uint32_t io_index, uint8_t spi_freq_khz) ATTRIB_FASTCODE;
-uint8_t valid_io_spi_freq(uint32_t spi_freq_khz) ATTRIB_FASTCODE;
-uint8_t configure_spi_out_for_shared_spi_config_hardware(uint16_t io_index, uint8_t spi_freq_khz) ATTRIB_FASTCODE;
-uint8_t configure_spi_in_for_shared_spi_config_hardware(uint16_t io_index, uint8_t spi_freq_khz) ATTRIB_FASTCODE;
+uint32_t get_spi_freq_from_clock_divider(uint32_t spi_clock_divider) ATTRIB_F1CODE;
+uint32_t get_spi_clock_divider(uint8_t spi_freq_khz) ATTRIB_F1CODE;
+uint8_t is_spi_config_applicable_to_io(uint32_t io_index) ATTRIB_F1CODE;
+uint8_t get_spi_config_for_io(uint32_t io_index) ATTRIB_F1CODE;
+uint8_t set_spi_config_for_standalone_spi_io(uint32_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE;
+uint8_t set_spi_config_for_io(uint32_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE;
+uint8_t valid_io_spi_freq(uint32_t spi_freq_khz) ATTRIB_F1CODE;
+uint8_t configure_spi_out_for_shared_spi_config_hardware(uint16_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE;
+uint8_t configure_spi_in_for_shared_spi_config_hardware(uint16_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE;
 
-uint8_t get_software_interrupt_types_for_io(uint16_t io_index) ATTRIB_FASTCODE;
-e_status set_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_FASTCODE;
-e_status enable_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_FASTCODE;
-e_status disable_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_FASTCODE;
+uint8_t get_software_interrupt_types_for_io(uint16_t io_index) ATTRIB_F1CODE;
+e_status set_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_F1CODE;
+e_status enable_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_F1CODE;
+e_status disable_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_F1CODE;
 
-volatile uint32_t get_software_interrupt_vector(void) ATTRIB_FASTCODE;
-volatile uint32_t get_software_interrupts_for_io(uint16_t io_index) ATTRIB_FASTCODE;
-e_status acknowledge_software_interrupts_for_io(uint16_t io_index, uint8_t interrupts) ATTRIB_FASTCODE;
+volatile uint32_t get_software_interrupt_vector(void) ATTRIB_F1CODE;
+volatile uint32_t get_software_interrupts_for_io(uint16_t io_index) ATTRIB_F1CODE;
+e_status acknowledge_software_interrupts_for_io(uint16_t io_index, uint8_t interrupts) ATTRIB_F1CODE;
 
-e_status set_io_type(uint16_t io_index, e_iotype io_type) ATTRIB_FASTCODE;
-e_status set_io_type_from_str(uint16_t io_index, char *io_type_str) ATTRIB_FASTCODE;
+e_status set_io_type(uint16_t io_index, e_iotype io_type) ATTRIB_F1CODE;
+e_status set_io_type_from_str(uint16_t io_index, char *io_type_str) ATTRIB_F1CODE;
 
-e_status get_gpio(uint32_t user_io_num, uint32_t *gpio_val) ATTRIB_FASTCODE;
+e_status get_gpio(uint32_t user_io_num, uint32_t *gpio_val) ATTRIB_F1CODE;
 
-e_status set_pwm(uint32_t user_io_num, uint32_t pwm_val) ATTRIB_FASTCODE;
+e_status set_pwm(uint32_t user_io_num, uint32_t pwm_val) ATTRIB_F1CODE;
 
-e_status spi_tx_char(uint32_t user_io_num, char tx_char) ATTRIB_FASTCODE;
-e_status spi_tx_byte(uint32_t user_io_num, uint32_t tx_byte) ATTRIB_FASTCODE;
-e_status spi_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_FASTCODE;
-e_status spi_rx_byte(uint32_t user_io_num, volatile uint8_t *rx_byte) ATTRIB_FASTCODE;
+e_status spi_tx_char(uint32_t user_io_num, char tx_char) ATTRIB_F1CODE;
+e_status spi_tx_byte(uint32_t user_io_num, uint32_t tx_byte) ATTRIB_F1CODE;
+e_status spi_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_F1CODE;
+e_status spi_rx_byte(uint32_t user_io_num, volatile uint8_t *rx_byte) ATTRIB_F1CODE;
 
-e_status uart_tx_char(uint32_t user_io_num, char tx_char) ATTRIB_FASTCODE;
-e_status uart_tx_byte(uint32_t user_io_num, uint32_t tx_byte) ATTRIB_FASTCODE;
-e_status uart_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_FASTCODE;
+e_status uart_tx_char(uint32_t user_io_num, char tx_char) ATTRIB_F1CODE;
+e_status uart_tx_byte(uint32_t user_io_num, uint32_t tx_byte) ATTRIB_F1CODE;
+e_status uart_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_F1CODE;
 
-e_status uart_rx_byte(uint32_t user_io_num, volatile uint8_t *uart_rx_val) ATTRIB_FASTCODE;
-e_status uart_rx_byte_nonblocking(uint32_t user_io_num, volatile uint8_t *uart_rx_val, uint8_t *uart_rx_val_valid) ATTRIB_FASTCODE;
+e_status uart_rx_byte(uint32_t user_io_num, volatile uint8_t *uart_rx_val) ATTRIB_F1CODE;
+e_status uart_rx_byte_nonblocking(uint32_t user_io_num, volatile uint8_t *uart_rx_val, uint8_t *uart_rx_val_valid) ATTRIB_F1CODE;
 
-const char* standalone_io_type_tostring(e_iotype io_type) ATTRIB_FASTCODE;
-const char* relational_io_type_tostring(e_relational_iotype rel_io_type) ATTRIB_FASTCODE;
-const char* analog_io_type_tostring(e_analogtype analog_io_type) ATTRIB_FASTCODE;
+const char* standalone_io_type_tostring(e_iotype io_type) ATTRIB_F1CODE;
+const char* relational_io_type_tostring(e_relational_iotype rel_io_type) ATTRIB_F1CODE;
+const char* analog_io_type_tostring(e_analogtype analog_io_type) ATTRIB_F1CODE;
 
 e_status reset_io_type_config(uint32_t io_index);
 void reset_all_io_config(void);
@@ -315,20 +315,20 @@ uint32_t get_default_spi_clock_divider(void);
 
 // NOTE: analog I/O related...
 
-uint8_t valid_analog_io_type_as_str(char *analog_type_str) ATTRIB_FASTCODE;
-uint8_t valid_analog_io_type(e_analogtype analog_type) ATTRIB_FASTCODE;
-uint8_t valid_analog_dac_user_io_num(uint32_t analog_dac_user_io_num) ATTRIB_FASTCODE;
-uint8_t valid_analog_adc_user_io_num(uint32_t analog_adc_user_io_num) ATTRIB_FASTCODE;
-uint8_t valid_user_analog_io_num_as_str(char *user_io_num_str) ATTRIB_FASTCODE;
-uint8_t valid_user_analog_io_num(uint32_t user_io_num) ATTRIB_FASTCODE;
+uint8_t valid_analog_io_type_as_str(char *analog_type_str) ATTRIB_F1CODE;
+uint8_t valid_analog_io_type(e_analogtype analog_type) ATTRIB_F1CODE;
+uint8_t valid_analog_dac_user_io_num(uint32_t analog_dac_user_io_num) ATTRIB_F1CODE;
+uint8_t valid_analog_adc_user_io_num(uint32_t analog_adc_user_io_num) ATTRIB_F1CODE;
+uint8_t valid_user_analog_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE;
+uint8_t valid_user_analog_io_num(uint32_t user_io_num) ATTRIB_F1CODE;
 
 e_status set_adc_enabled_state(uint16_t adc_index, e_pin_enable_state enabled_state);
 e_status set_dac_enabled_state(uint16_t dac_index, e_pin_enable_state enabled_state);
 
-e_status set_analog_io_type(uint16_t io_index, e_analogtype analog_type) ATTRIB_FASTCODE;
+e_status set_analog_io_type(uint16_t io_index, e_analogtype analog_type) ATTRIB_F1CODE;
 e_status set_analog_io_type_from_str(uint16_t io_index, char *io_type_str);
 
-e_status set_dac(uint32_t analog_dac_user_io_num, float voltage) ATTRIB_FASTCODE;
-e_status get_adc(uint32_t analog_adc_user_io_num, double *voltage) ATTRIB_FASTCODE;
+e_status set_dac(uint32_t analog_dac_user_io_num, float voltage) ATTRIB_F1CODE;
+e_status get_adc(uint32_t analog_adc_user_io_num, double *voltage) ATTRIB_F1CODE;
 
 #endif

@@ -552,17 +552,17 @@ const char* cpu_prompt_format_to_string(e_cpu_prompt_format pf);
 
 void read_performance_timer_cfg(void);
 uint8_t get_performance_timer_cfg(void);
-void clear_system_time_caches(void) ATTRIB_FASTCODE;
-void trigger_caching_of_system_time(e_system_time_cache cache) ATTRIB_FASTCODE;
+void clear_system_time_caches(void) ATTRIB_F1CODE;
+void trigger_caching_of_system_time(e_system_time_cache cache) ATTRIB_F1CODE;
 
 void read_general_timer_cfg(void);
 uint8_t get_general_timer_cfg(void);
 void cancel_interruptible_sleep(void);
 uint8_t doing_interruptible_sleep(void);
-e_sleep_end_cause sleep_milliseconds(uint16_t ms, uint8_t interruptible_options) ATTRIB_FASTCODE;
-e_sleep_end_cause continue_sleep_milliseconds(uint8_t interruptible_options) ATTRIB_FASTCODE;
-e_sleep_end_cause sleep_microseconds(uint16_t microsec, uint8_t interruptible_options) ATTRIB_FASTCODE;
-e_sleep_end_cause continue_sleep_microseconds(uint8_t interruptible_options) ATTRIB_FASTCODE;
+e_sleep_end_cause sleep_milliseconds(uint16_t ms, uint8_t interruptible_options) ATTRIB_F1CODE;
+e_sleep_end_cause continue_sleep_milliseconds(uint8_t interruptible_options) ATTRIB_F1CODE;
+e_sleep_end_cause sleep_microseconds(uint16_t microsec, uint8_t interruptible_options) ATTRIB_F1CODE;
+e_sleep_end_cause continue_sleep_microseconds(uint8_t interruptible_options) ATTRIB_F1CODE;
 
 uint8_t set_board_leds_state(const e_led_st *led_st, uint8_t num_leds);
 uint8_t set_board_led_state(e_board_led board_led, e_led_st led_st);
@@ -572,11 +572,11 @@ uint8_t set_all_board_leds_off(void);
 uint8_t set_board_leds_hw_mode(void);
 uint8_t set_board_leds_sw_mode(void);
 
-void set_software_interrupt_enabled_state(e_global_interrupt_st state) ATTRIB_FASTCODE;
-uint8_t software_interrupts_enabled(void) ATTRIB_FASTCODE;
+void set_software_interrupt_enabled_state(e_global_interrupt_st state) ATTRIB_F1CODE;
+uint8_t software_interrupts_enabled(void) ATTRIB_F1CODE;
 
-void set_repl_interrupt_mode(e_global_repl_interrupt_mode state) ATTRIB_FASTCODE;
-uint8_t repl_interrupt_mode_enabled(void) ATTRIB_FASTCODE;
+void set_repl_interrupt_mode(e_global_repl_interrupt_mode state) ATTRIB_F1CODE;
+uint8_t repl_interrupt_mode_enabled(void) ATTRIB_F1CODE;
 
 void remove_trailing_nl_and_cr(char *str);
 

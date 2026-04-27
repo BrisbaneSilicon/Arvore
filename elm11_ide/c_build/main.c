@@ -17,14 +17,6 @@
 
 // ---------- Global Variables / Constants ------------
 
-extern uint32_t sram;
-    // NOTE: a pointer to this is a null pointer,
-    // but the compiler does not know that because
-    // "sram" is a linker symbol from sections.lds.
-
-struct _reent reent_struct;
-struct _reent *_impure_ptr __ATTRIBUTE_IMPURE_PTR__;
-
 
 // --------------- Function Prototypes ----------------
 
@@ -62,27 +54,17 @@ int main(void)
     check_and_handle_reboot_due_to_overflow();
     check_and_handle_terminal_init_due_to_reboot();
 
-    uart_write_string_with_prompts(e_no_cpu_prompt, e_system_clock,
-                                        "initialize memory...", REPL_MODE);
+    uart_write_string("Initialize memory...");
     initialise_memory(e_print_none, REPL_MODE);
     uart_write_string("done."STR_NL_CR);
 
-    uart_write_string_with_prompts(e_no_cpu_prompt, e_system_clock,
-                                        "initialize I/O...", REPL_MODE);
+    uart_write_string("Initialize I/O...");
     init_io();
     uart_write_string("done."STR_NL_CR);
 
-    uart_write_string_with_prompts(e_no_cpu_prompt, e_system_clock, "initialize flash...", REPL_MODE);
+    uart_write_string("Initialize flash...");
     init_flash();
     uart_write_string("done."STR_NL_CR);
-
-    _impure_ptr = &reent_struct;
-
-    set_board_led_state(e_led5, e_off);
-
-    set_board_leds_hw_mode();
-        // NOTE: let hardware take control of
-        // our LEDs...
 
 
     // NOTE: user code goes here...

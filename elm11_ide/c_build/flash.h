@@ -134,46 +134,46 @@ assert_defined_type_size_equal_or_less_than( st_storage_metadata, FLASH_PAGE_BYT
 
 void spi_flashio(volatile uint8_t *pdata, int length, int wren) ATTRIB_RUNTIMECODE_FLASHIO;
 
-void spi_flashio_wrapper(volatile uint8_t *pdata, int length, int wren) ATTRIB_FASTCODE_BUILDSWITCH;
+void spi_flashio_wrapper(volatile uint8_t *pdata, int length, int wren) ATTRIB_F1CODE_BUILDSWITCH;
 
-void init_flash(void) ATTRIB_FASTCODE_BUILDSWITCH;
+void init_flash(void) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t read_board_id(uint8_t *board_id) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t read_board_id(uint8_t *board_id) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t read_flash_page_byte(uint16_t page_addr, volatile uint8_t *page_byte) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t read_flash_page(uint16_t page_addr, volatile uint8_t *page_data) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t write_flash_page(uint16_t page_addr, volatile uint8_t *page_data) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t read_flash_page_byte(uint16_t page_addr, volatile uint8_t *page_byte) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t read_flash_page(uint16_t page_addr, volatile uint8_t *page_data) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t write_flash_page(uint16_t page_addr, volatile uint8_t *page_data) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t write_io_type_to_flash(uint8_t io_index, uint8_t io_config) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t read_io_type_from_flash(uint8_t io_index) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t write_adc_enabled_state_to_flash(uint8_t adc_index, uint8_t adc_enabled) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t read_adc_config_state_from_flash(uint8_t adc_index) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t write_dac_enabled_state_to_flash(uint8_t dac_index, uint8_t dac_enabled) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t read_dac_config_state_from_flash(uint8_t dac_index) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t write_io_type_to_flash(uint8_t io_index, uint8_t io_config) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t read_io_type_from_flash(uint8_t io_index) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t write_adc_enabled_state_to_flash(uint8_t adc_index, uint8_t adc_enabled) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t read_adc_config_state_from_flash(uint8_t adc_index) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t write_dac_enabled_state_to_flash(uint8_t dac_index, uint8_t dac_enabled) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t read_dac_config_state_from_flash(uint8_t dac_index) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t initialise_storage_metadata(void) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t reset_program_name_start_on_boot(void) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t set_program_name_start_on_boot(const char *prog_name) ATTRIB_FASTCODE_BUILDSWITCH;
-volatile const char* get_program_name_start_on_boot(void) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t is_program_start_on_boot_valid(void) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t clear_storage_metadata_slot_for_addr(uint16_t prog_addr) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t set_storage_metadata_slot_for_addr(uint16_t prog_addr) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t initialise_storage_metadata(void) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t reset_program_name_start_on_boot(void) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t set_program_name_start_on_boot(const char *prog_name) ATTRIB_F1CODE_BUILDSWITCH;
+volatile const char* get_program_name_start_on_boot(void) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t is_program_start_on_boot_valid(void) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t clear_storage_metadata_slot_for_addr(uint16_t prog_addr) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t set_storage_metadata_slot_for_addr(uint16_t prog_addr) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t set_prompt_formats_start_on_boot(e_time_prompt_format time_prompt_format, e_cpu_prompt_format cpu_prompt_format) ATTRIB_FASTCODE_BUILDSWITCH;
-e_time_prompt_format get_time_prompt_format_start_on_boot(void) ATTRIB_FASTCODE_BUILDSWITCH;
-e_cpu_prompt_format get_cpu_prompt_format_start_on_boot(void) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t set_prompt_formats_start_on_boot(e_time_prompt_format time_prompt_format, e_cpu_prompt_format cpu_prompt_format) ATTRIB_F1CODE_BUILDSWITCH;
+e_time_prompt_format get_time_prompt_format_start_on_boot(void) ATTRIB_F1CODE_BUILDSWITCH;
+e_cpu_prompt_format get_cpu_prompt_format_start_on_boot(void) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t make_new_program_entry(char *prog_name, uint16_t *prog_addr) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t get_start_addr_of_program(const char *prog_name, uint16_t *prog_addr) ATTRIB_FASTCODE_BUILDSWITCH;
-uint16_t read_program_pages(uint8_t num_pages, uint16_t page_start_addr, volatile uint8_t *buffer, volatile uint8_t *last_page) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t upload_program(char *prog_name) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t delete_program(char *prog_name) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t delete_all_programs(e_print_level print_lvl) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t make_new_program_entry(char *prog_name, uint16_t *prog_addr) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t get_start_addr_of_program(const char *prog_name, uint16_t *prog_addr) ATTRIB_F1CODE_BUILDSWITCH;
+uint16_t read_program_pages(uint8_t num_pages, uint16_t page_start_addr, volatile uint8_t *buffer, volatile uint8_t *last_page) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t upload_program(char *prog_name) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t delete_program(char *prog_name) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t delete_all_programs(e_print_level print_lvl) ATTRIB_F1CODE_BUILDSWITCH;
 
-void print_all_program_names(void) ATTRIB_FASTCODE_BUILDSWITCH;
-void print_all_program_addrs(void) ATTRIB_FASTCODE_BUILDSWITCH;
+void print_all_program_names(void) ATTRIB_F1CODE_BUILDSWITCH;
+void print_all_program_addrs(void) ATTRIB_F1CODE_BUILDSWITCH;
 
-uint8_t print_num_saved_programs(void) ATTRIB_FASTCODE_BUILDSWITCH;
-uint8_t print_program_data_slot_utilisation(void) ATTRIB_FASTCODE_BUILDSWITCH;
+uint8_t print_num_saved_programs(void) ATTRIB_F1CODE_BUILDSWITCH;
+uint8_t print_program_data_slot_utilisation(void) ATTRIB_F1CODE_BUILDSWITCH;
 
 #endif
