@@ -524,6 +524,20 @@ class MainWindow(QMainWindow):
     def _on_tab_changed(self, _index: int):
         self._update_device_buttons()
 
+    def _close_all_editor_tabs(self):
+        """Close every editor tab without prompting. Files that have
+        unsaved modifications are saved silently first (untitled buffers
+        with no `file_path` are still discarded — saving those would
+        require a Save-As dialog we can't safely pop here)."""
+        for i in range(self._editor_tabs.count()):
+            w = self._editor_tabs.widget(i)
+            if isinstance(w, CodeEditor) and w.document().isModified() \
+                    and w.file_path:
+                w.save()
+        while self._editor_tabs.count():
+            self._editor_tabs.removeTab(0)
+        self._update_device_buttons()
+
     # ── Serial connection ─────────────────────────────────────────────────────
 
     def _toggle_connect(self, checked: bool):
@@ -543,6 +557,8 @@ class MainWindow(QMainWindow):
 
     def _on_connection_changed(self, connected: bool):
         log.debug('Connection changed: connected=%s', connected)
+        was_connected = getattr(self, '_was_connected', False)
+        self._was_connected = connected
         self._connect_btn.setChecked(connected)
         self._connect_btn.setText('Disconnect' if connected else 'Connect')
         t = theme.current()
@@ -557,6 +573,10 @@ class MainWindow(QMainWindow):
                 f"background:{t['status_bg']}; color:{t['status_fg']};")
         self._port_combo.setEnabled(not connected)
         self._update_device_buttons()
+        # On a true disconnect (was-connected → not-connected) close all
+        # editor tabs so the user starts fresh on reconnect.
+        if was_connected and not connected:
+            self._close_all_editor_tabs()
 
     # ── Device actions ────────────────────────────────────────────────────────
 
@@ -1120,6 +1140,13 @@ class MainWindow(QMainWindow):
         if self._sb_mode:
             self._sb_mode.setVisible(False)
         self._update_device_buttons()
+        # Tear down any active serial connection and clear the editor.
+        # Disconnect first — the resulting `_on_connection_changed(False)`
+        # will close tabs via its own hook; the explicit call covers the
+        # already-disconnected case.
+        if self._terminal.is_connected:
+            self._terminal.disconnect_port(self._port_combo.currentText())
+        self._close_all_editor_tabs()
 
     def _show_workspace_tooltip(self, action: QAction):
         full_path = action.data()
@@ -1138,9 +1165,12 @@ class MainWindow(QMainWindow):
         s.remove(f'workspaces/mode/{entry}')
         s.remove(f'workspaces/open_files/{entry}')
         s.remove(f'workspaces/active_tab/{entry}')
-        # Close if it's the current workspace
+        # Close if it's the current workspace, and clear out its open tabs.
         if self._workspace_root and str(self._workspace_root) == entry:
             self._close_workspace()
+        if self._terminal.is_connected:
+            self._terminal.disconnect_port(self._port_combo.currentText())
+        self._close_all_editor_tabs()
         self._rebuild_workspaces_menu()
 
     def _clear_workspace_history(self):
