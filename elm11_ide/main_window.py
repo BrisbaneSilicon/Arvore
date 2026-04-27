@@ -1,5 +1,6 @@
 """Main application window."""
 import logging
+import re
 log = logging.getLogger(__name__)
 
 from PyQt6.QtWidgets import (
@@ -39,6 +40,36 @@ def _c_runtime_objects() -> list[str]:
     if not base.is_dir():
         return []
     return sorted(str(p) for p in base.glob('*.o'))
+
+
+def _port_is_acceptable(port: str) -> bool:
+    """On Linux only `/dev/ttyUSB*` devices are usable for firmware /
+    program uploads — built-in (`ttyS*`) and CDC-ACM (`ttyACM*`) ports
+    aren't supported. Other platforms allow anything."""
+    if not port:
+        return False
+    if not sys.platform.startswith('linux'):
+        return True
+    return Path(port).name.startswith('ttyUSB')
+
+
+def _resolve_upload_port(intended: str) -> str:
+    """Return `intended` if it's currently present, otherwise fall back to
+    the highest-indexed acceptable port (so a replug-after-flash that
+    bumps `/dev/ttyUSB0` to `/dev/ttyUSB1` is handled automatically).
+    Returns `''` if nothing acceptable is connected."""
+    available = [p.device for p in serial.tools.list_ports.comports()
+                 if _port_is_acceptable(p.device)]
+    if intended and intended in available:
+        return intended
+    if not available:
+        return ''
+
+    def _index(p: str) -> int:
+        m = re.search(r'(\d+)$', Path(p).name)
+        return int(m.group(1)) if m else -1
+
+    return max(available, key=_index)
 
 
 class MainWindow(QMainWindow):
@@ -297,7 +328,8 @@ class MainWindow(QMainWindow):
         current = self._port_combo.currentText()
         if not current:
             current = QSettings().value('serial/last_port', '')
-        ports = [p.device for p in serial.tools.list_ports.comports()]
+        ports = [p.device for p in serial.tools.list_ports.comports()
+                 if _port_is_acceptable(p.device)]
         self._port_combo.blockSignals(True)
         self._port_combo.clear()
         self._port_combo.addItems(ports)
@@ -545,6 +577,26 @@ class MainWindow(QMainWindow):
         worker = self._terminal.get_worker()
         if not worker or not worker.serial_port:
             return
+        if not _port_is_acceptable(worker.port):
+            QMessageBox.warning(self, 'Unsupported Port',
+                f'The program uploader only supports /dev/ttyUSB* on Linux.\n'
+                f'Currently connected to: {worker.port}')
+            return
+        # If the originally connected port has disappeared (e.g. board was
+        # replugged), silently switch to whichever ttyUSB is available now.
+        target = _resolve_upload_port(worker.port)
+        if not target:
+            QMessageBox.warning(self, 'No USB Port',
+                'No /dev/ttyUSB* device is currently present.')
+            return
+        if target != worker.port:
+            log.debug('Upload: %s no longer present, switching to %s',
+                      worker.port, target)
+            self._terminal.release_port()
+            self._terminal.reacquire_port(target, SettingsDialog.baud())
+            worker = self._terminal.get_worker()
+            if not worker or not worker.serial_port:
+                return
 
         # Switch to Upload Status tab immediately
         self._upload_out._append('\n--- Upload Begin ---\n\n', theme.current()['term_fg'])
@@ -754,6 +806,12 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Not Connected',
                 'Connect to the ELM11 before flashing.')
             return
+        worker = self._terminal.get_worker()
+        if worker and not _port_is_acceptable(worker.port):
+            QMessageBox.warning(self, 'Unsupported Port',
+                f'The firmware uploader only supports /dev/ttyUSB* on Linux.\n'
+                f'Currently connected to: {worker.port}')
+            return
         # Locate the bundled firmware uploader and the Verilog memory image.
         if hasattr(sys, '_MEIPASS'):
             uploader = Path(sys._MEIPASS) / 'elm11_ide' / 'firmware_uploader.py'
@@ -791,6 +849,15 @@ class MainWindow(QMainWindow):
             self._terminal.reacquire_port(held, SettingsDialog.baud())
             self._flash_held_port = ''
             return
+        # Now that the user has performed the unplug/replug, look for
+        # whichever ttyUSB the device has come back as.
+        target_port = _resolve_upload_port(held)
+        if not target_port:
+            QMessageBox.warning(self, 'No USB Port',
+                'No /dev/ttyUSB* device is currently present.')
+            self._terminal.reacquire_port(held, SettingsDialog.baud())
+            self._flash_held_port = ''
+            return
         self._flash_out.clear()
         self._bottom.setCurrentWidget(self._flash_out)
         try:
@@ -802,7 +869,7 @@ class MainWindow(QMainWindow):
         # firmware uploader tries to open it.
         QTimer.singleShot(500, lambda: self._flash_out.run_command(
             sys.executable,
-            [str(uploader), str(v_file), held, '115200'],
+            [str(uploader), str(v_file), target_port, '115200'],
             cwd=str(self._workspace_root)))
 
     def _on_flash_finished(self, _code: int):
@@ -812,11 +879,17 @@ class MainWindow(QMainWindow):
             pass
         held = getattr(self, '_flash_held_port', '')
         self._flash_held_port = ''
-        if held:
-            # Brief delay so the device is ready post-flash before we reopen.
-            QTimer.singleShot(
-                800,
-                lambda: self._terminal.reacquire_port(held, SettingsDialog.baud()))
+        if not held:
+            return
+
+        def _reconnect():
+            # The device may re-enumerate after flashing, so re-resolve.
+            target = _resolve_upload_port(held)
+            if target:
+                self._terminal.reacquire_port(target, SettingsDialog.baud())
+
+        # Brief delay so the device is ready post-flash before we reopen.
+        QTimer.singleShot(800, _reconnect)
 
     # ── Theme ─────────────────────────────────────────────────────────────────
 
