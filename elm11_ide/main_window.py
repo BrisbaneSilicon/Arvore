@@ -812,7 +812,7 @@ class MainWindow(QMainWindow):
                 f'The firmware uploader only supports /dev/ttyUSB* on Linux.\n'
                 f'Currently connected to: {worker.port}')
             return
-        # Locate the bundled firmware uploader and the Verilog memory image.
+        # Locate the bundled firmware uploader and the Memory image.
         if hasattr(sys, '_MEIPASS'):
             uploader = Path(sys._MEIPASS) / 'elm11_ide' / 'firmware_uploader.py'
         else:
@@ -825,7 +825,7 @@ class MainWindow(QMainWindow):
                   / f'{self._workspace_root.name}.v')
         if not v_file.is_file():
             QMessageBox.warning(self, 'No Build Output',
-                f'Verilog memory image not found:\n{v_file}\n\n'
+                f'Memory image not found:\n{v_file}\n\n'
                 'Run Build first.')
             return
         # Disconnect the USB port immediately — the user is about to
@@ -841,7 +841,7 @@ class MainWindow(QMainWindow):
         reply = QMessageBox.information(
             self, 'Prepare ELM11 for Flash',
             'Unplug-Plug the ELM11 while holding BTN1, ensuring LEDs 1-3 '
-            'remain illuminated.',
+            'remain illuminated after releasing BTN1.',
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Ok)
         if reply != QMessageBox.StandardButton.Ok:

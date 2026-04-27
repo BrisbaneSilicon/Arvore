@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox,
 )
 from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import Qt, QDir, pyqtSignal, QModelIndex, QSortFilterProxyModel
+from PyQt6.QtCore import Qt, QDir, QTimer, pyqtSignal, QModelIndex, QSortFilterProxyModel
 from pathlib import Path
 import shutil
 
@@ -165,6 +165,28 @@ class ProjectTree(QTreeView):
         # otherwise open the user's whole home tree.
         if is_workspace:
             self._expand_all_loaded(ws_proxy)
+            # Disarm the lazy-cascade after the initial load window. Without
+            # this, later filesystem rescans (e.g. _refresh_parent toggling
+            # the model root after rename/delete, or build artefacts being
+            # written) would re-fire `directoryLoaded` and re-expand every
+            # directory the user might have just collapsed.
+            QTimer.singleShot(5000, self._disarm_auto_expand)
+
+    def _disarm_auto_expand(self):
+        self._auto_expand = False
+
+    def _is_under_build(self, path: Path) -> bool:
+        """True if `path` is the workspace's `build/` directory or anything
+        beneath it. Auto-expand skips these so the user isn't dumped into
+        a tree of generated artefacts on workspace open."""
+        ws = self._proxy._workspace
+        if ws is None:
+            return False
+        try:
+            rel = path.relative_to(ws)
+        except (ValueError, OSError):
+            return False
+        return bool(rel.parts) and rel.parts[0] == 'build'
 
     def _expand_all_loaded(self, parent_idx: QModelIndex, depth: int = 0):
         """Recursively expand every already-populated child directory, up to
@@ -173,7 +195,8 @@ class ProjectTree(QTreeView):
             return
         for i in range(self._proxy.rowCount(parent_idx)):
             child = self._proxy.index(i, 0, parent_idx)
-            if self._source_path(child).is_dir():
+            child_path = self._source_path(child)
+            if child_path.is_dir() and not self._is_under_build(child_path):
                 self.expand(child)
                 self._expand_all_loaded(child, depth + 1)
 
@@ -197,6 +220,9 @@ class ProjectTree(QTreeView):
             rel = p.relative_to(ws)
         except (ValueError, OSError):
             return
+        # Don't drill into the build/ tree — those are generated artefacts.
+        if rel.parts and rel.parts[0] == 'build':
+            return
         depth = len(rel.parts)  # 0 for the workspace root itself
         if depth >= _MAX_AUTO_EXPAND_DEPTH:
             return
@@ -205,7 +231,8 @@ class ProjectTree(QTreeView):
             return
         for i in range(self._proxy.rowCount(proxy_idx)):
             child = self._proxy.index(i, 0, proxy_idx)
-            if self._source_path(child).is_dir():
+            child_path = self._source_path(child)
+            if child_path.is_dir() and not self._is_under_build(child_path):
                 self.expand(child)
 
     def _source_path(self, proxy_index: QModelIndex) -> Path:
