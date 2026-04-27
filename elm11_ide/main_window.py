@@ -109,9 +109,11 @@ class MainWindow(QMainWindow):
         self._upload_out = BuildOutput()
         self._build_out = BuildOutput()
         self._build_out.build_finished.connect(self._on_build_finished)
+        self._flash_out = BuildOutput()
         self._bottom.addTab(self._terminal, 'Serial Terminal')
         self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
+        self._bottom.addTab(self._flash_out, 'Flash Output')
         centre.addWidget(self._bottom)
         centre.setChildrenCollapsible(False)
 
@@ -260,6 +262,7 @@ class MainWindow(QMainWindow):
         tm.addAction(self._act('Clear &Terminal', None,      self._terminal.clear))
         tm.addAction(self._act('Clear &Upload Status', None, self._upload_out.clear))
         tm.addAction(self._act('Clear &Build Output', None,  self._build_out.clear))
+        tm.addAction(self._act('Clear &Flash Output', None,  self._flash_out.clear))
 
         # Workspaces
         self._ws_menu = mb.addMenu('&Workspaces')
@@ -339,6 +342,8 @@ class MainWindow(QMainWindow):
         has_workspace = self._workspace_root is not None
         self._build_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
         self._clean_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
+        # Flash needs an active connection so the IDE can hand the same
+        # serial port off to the firmware uploader subprocess.
         self._flash_btn.setEnabled(is_c_mode and has_workspace and usable)
 
     def _on_cmd_btn_toggled(self, checked: bool):
@@ -745,26 +750,73 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'No C Workspace',
                 'Open a C workspace to flash.')
             return
-        make_dir = self._workspace_root / 'build' / 'make'
-        makefile = make_dir / 'Makefile'
-        if not makefile.is_file():
-            QMessageBox.warning(self, 'Missing Makefile',
-                f'No Makefile found at:\n{makefile}')
+        if not self._terminal.is_connected:
+            QMessageBox.warning(self, 'Not Connected',
+                'Connect to the ELM11 before flashing.')
             return
-        compiler = SettingsDialog.compiler_path()
-        if not compiler:
-            QMessageBox.warning(self, 'No C Compiler',
-                'Set the compiler path in Settings → C.')
+        # Locate the bundled firmware uploader and the Verilog memory image.
+        if hasattr(sys, '_MEIPASS'):
+            uploader = Path(sys._MEIPASS) / 'elm11_ide' / 'firmware_uploader.py'
+        else:
+            uploader = Path(__file__).resolve().parent / 'firmware_uploader.py'
+        if not uploader.is_file():
+            QMessageBox.warning(self, 'Missing Firmware Uploader',
+                f'firmware_uploader.py not found at:\n{uploader}')
             return
-        toolchain_root = str(Path(compiler).resolve().parent.parent)
-        port = self._port_combo.currentText()
-        args = ['-C', str(make_dir), 'flash', f'RISCV_PATH={toolchain_root}']
-        if port:
-            args.append(f'PORT={port}')
-        self._build_out.clear()
-        self._bottom.setCurrentWidget(self._build_out)
-        self._build_out.run_command(
-            'make', args, cwd=str(self._workspace_root))
+        v_file = (self._workspace_root / 'build' / 'out'
+                  / f'{self._workspace_root.name}.v')
+        if not v_file.is_file():
+            QMessageBox.warning(self, 'No Build Output',
+                f'Verilog memory image not found:\n{v_file}\n\n'
+                'Run Build first.')
+            return
+        # Disconnect the USB port immediately — the user is about to
+        # unplug/replug the board, so the IDE shouldn't be holding it.
+        held = self._terminal.release_port()
+        if not held:
+            QMessageBox.warning(self, 'Not Connected',
+                'Connection dropped before flashing could start. '
+                'Reconnect and try again.')
+            return
+        self._flash_held_port = held
+        # Walk the user through putting the board in flash-mode.
+        reply = QMessageBox.information(
+            self, 'Prepare ELM11 for Flash',
+            'Unplug-Plug the ELM11 while holding BTN1, ensuring LEDs 1-3 '
+            'remain illuminated.',
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Ok)
+        if reply != QMessageBox.StandardButton.Ok:
+            # Cancel: silently restore the connection we just released.
+            self._terminal.reacquire_port(held, SettingsDialog.baud())
+            self._flash_held_port = ''
+            return
+        self._flash_out.clear()
+        self._bottom.setCurrentWidget(self._flash_out)
+        try:
+            self._flash_out.build_finished.disconnect(self._on_flash_finished)
+        except TypeError:
+            pass
+        self._flash_out.build_finished.connect(self._on_flash_finished)
+        # Give the OS a moment to actually release the port before the
+        # firmware uploader tries to open it.
+        QTimer.singleShot(500, lambda: self._flash_out.run_command(
+            sys.executable,
+            [str(uploader), str(v_file), held, '115200'],
+            cwd=str(self._workspace_root)))
+
+    def _on_flash_finished(self, _code: int):
+        try:
+            self._flash_out.build_finished.disconnect(self._on_flash_finished)
+        except TypeError:
+            pass
+        held = getattr(self, '_flash_held_port', '')
+        self._flash_held_port = ''
+        if held:
+            # Brief delay so the device is ready post-flash before we reopen.
+            QTimer.singleShot(
+                800,
+                lambda: self._terminal.reacquire_port(held, SettingsDialog.baud()))
 
     # ── Theme ─────────────────────────────────────────────────────────────────
 

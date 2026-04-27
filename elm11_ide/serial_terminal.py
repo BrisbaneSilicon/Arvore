@@ -299,6 +299,35 @@ class SerialTerminal(QWidget):
     def get_worker(self) -> SerialWorker | None:
         return self._worker
 
+    def release_port(self) -> str:
+        """Stop the worker and free the serial port for an external process
+        (e.g. firmware_uploader.py) without emitting `connected(False)` or
+        writing a disconnect banner. Returns the port name that was held,
+        or an empty string if nothing was held."""
+        if not self._worker:
+            return ''
+        port = self._worker.port
+        self._worker.stop()
+        self._worker = None
+        return port
+
+    def reacquire_port(self, port: str, baud: int = 115200):
+        """Re-open the serial port silently — no banner, no `connected`
+        signal. Pairs with `release_port()` to restore a connection that
+        was temporarily handed off to an external process."""
+        if not port or self._worker:
+            return
+        try:
+            tmp = serial.Serial(port, baud, timeout=0.05)
+            tmp.read(1024)
+            tmp.close()
+        except serial.SerialException:
+            pass
+        self._worker = SerialWorker(port, baud)
+        self._worker.data_received.connect(self._on_data)
+        self._worker.connection_lost.connect(self._on_lost)
+        self._worker.start()
+
     @property
     def is_connected(self) -> bool:
         return self._worker is not None and self._worker.isRunning()
