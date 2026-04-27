@@ -6,6 +6,8 @@
 
 #include "config.h"
 
+// --------------- Defines ----------------
+
 #define C_NULL                            (0x00)
 #define C_BACKSPACE                       (0x08)
 #define C_NEWLINE                         (0x0A)
@@ -158,6 +160,9 @@ extern const char *_ctype_;
    case ']': case '^': case '_': case '`':  \
    case '{': case '|': case '}': case '~'
 #define _C_CTYPE_UPPER _C_CTYPE_LOWER_N ('A' - 'a')
+
+
+// --------------- Function Prototypes ----------------
 
 int isalnum (int c) ATTRIB_F3CODE;
 int isalpha (int c) ATTRIB_F3CODE;

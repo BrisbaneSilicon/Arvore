@@ -10,11 +10,8 @@
 
 #include "global.h"
 #include "config.h"
-#if defined(TD_GW1NR_9_C6I5_S) || defined(TD_GW1NR_9_C7I6_B) || defined(TD_GW1NR_9_C7I6)
-    #include "memory_gowin.h"
-#else
-    #include "memory.h"
-#endif
+#include "memory_gowin.h"
+
 
 void init_mem_buf(void) ATTRIB_F1CODE;
 
@@ -66,16 +63,11 @@ char *strdup(const char *str) ATTRIB_F3CODE;
 void *memchr(const void *s, int c, size_t n) ATTRIB_F3CODE;
 void *memmove(void *dest, const void *src, size_t n) ATTRIB_F3CODE;
 
-
-//int setjmp(jmp_buf env) ATTRIB_F1CODE;
-//void longjmp(jmp_buf env, int val) ATTRIB_F1CODE;
-
 int setvbuf(FILE *stream, char *buf, int mode, size_t size) ATTRIB_F1CODE;
 
 int my_clock(void) ATTRIB_F1CODE;
 int my_time(char *t) ATTRIB_F1CODE;
 
 struct lconv *localeconv(void) ATTRIB_F1CODE;
-char lua_getlocaledecpoint(void) ATTRIB_F1CODE;
 
 #endif

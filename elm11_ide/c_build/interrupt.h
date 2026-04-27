@@ -1,10 +1,15 @@
 #ifndef INTERRUPT_H
 #define INTERRUPT_H
 
+
+// --------------------- Defines -----------------------
+
 #define SW_INTERRUPT_STR    "SW_INTRPTS"
 
 #define HW_BUFFER           "HW_BUFFER"
 
+
+// ----------------- Typedefs / Enums ------------------
 
 typedef enum {
     e_gpio_intrpt_btflg_gnd             = 0x01,

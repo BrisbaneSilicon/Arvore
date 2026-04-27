@@ -12,6 +12,8 @@
 #include "config.h"
 
 
+// --------------------- Defines -----------------------
+
 #define FLASH_STORAGE_ENABLE
 
 #define STR_DEVICE_NAME_CAPS                                    "EMBLUA"
@@ -139,6 +141,9 @@
 #define STACK_SIZE_SHIFT                                        (24)
 #define STACK_SIZE_BITMASK                                      (0xFF)
 
+
+// ----------------- Typedefs / Enums ------------------
+
 typedef struct {
     volatile uint32_t UNUSED_0;
     volatile uint32_t RXMODE_AND_CLKDIV_WO;
@@ -253,15 +258,6 @@ typedef struct {
     };
 
     volatile uint32_t UART_SHARED_COMMS;
-
-/*
-    volatile uint32_t ANALOG_SPI_WO;
-    volatile uint32_t ANALOG_ADC_AUTOSCAN_ENABLE_WO;
-    union {
-        volatile uint32_t ANALOG_ADC_AUTOSCAN_CHANNEL_READ_INDEX_WO;
-        volatile uint32_t ANALOG_ADC_AUTOSCAN_DATA_RO;
-    };
-*/
 
     volatile uint32_t XBAR_LOCK_WO;
     volatile uint32_t XBAR_LOCK_RO;
@@ -381,6 +377,9 @@ typedef enum e_cores
     e_core8
 } e_cores;
 
+
+// --------------------- Defines (enum dependent) -----------------------
+
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
@@ -390,23 +389,23 @@ typedef enum e_cores
     #define SOFTWARE_VERSION XSTR(VERSION)
 #endif
 
-#define SPI_XIP_BASE_ADDR       (0x00000000)
-#define SPI_CFG_BASE_ADDR       (0x20000000)
-#define IO_UTILS_BASE_ADDR      (0x40000000)
-#define BROM_BASE_ADDR          (0x60000000)
-#define FPGA_BUS_BASE_ADDR      (0x68000000)
-#define USER_COMMS_BASE_ADDR    (0x70000000)
-#define LVM_ADDR                (0x78000000)
+#define SPI_XIP_BASE_ADDR                                       (0x00000000)
+#define SPI_CFG_BASE_ADDR                                       (0x20000000)
+#define IO_UTILS_BASE_ADDR                                      (0x40000000)
+#define BROM_BASE_ADDR                                          (0x60000000)
+#define FPGA_BUS_BASE_ADDR                                      (0x68000000)
+#define USER_COMMS_BASE_ADDR                                    (0x70000000)
+#define LVM_ADDR                                                (0x78000000)
 
-#define SRAM_BASE_ADDR          (0x80000000)
-#define HEAP1_BASE_ADDR         (SRAM_BASE_ADDR + 0x20000000)
-#define HEAP2_BASE_ADDR         (SRAM_BASE_ADDR + 0x10000000)
-#define HEAP3_BASE_ADDR         (SRAM_BASE_ADDR + 0x08000000)
+#define SRAM_BASE_ADDR                                          (0x80000000)
+#define HEAP1_BASE_ADDR                                         (SRAM_BASE_ADDR + 0x20000000)
+#define HEAP2_BASE_ADDR                                         (SRAM_BASE_ADDR + 0x10000000)
+#define HEAP3_BASE_ADDR                                         (SRAM_BASE_ADDR + 0x08000000)
 
-#define MMAP_BASE_ADDR          (0x80000000)
-#define MMAP1_BASE_ADDR         (MMAP_BASE_ADDR + 0x00800000)
-#define MMAP2_BASE_ADDR         (MMAP_BASE_ADDR + 0x00400000)
-#define MMAP3_BASE_ADDR         (MMAP_BASE_ADDR + 0x00200000)
+#define MMAP_BASE_ADDR                                          (0x80000000)
+#define MMAP1_BASE_ADDR                                         (MMAP_BASE_ADDR + 0x00800000)
+#define MMAP2_BASE_ADDR                                         (MMAP_BASE_ADDR + 0x00400000)
+#define MMAP3_BASE_ADDR                                         (MMAP_BASE_ADDR + 0x00200000)
 
 #define NOOP                                                    (void)0
 
@@ -470,18 +469,13 @@ typedef enum e_cores
 #define COMMAND_MODE                                            (1)
 
 
+// --------------- Function Prototypes ----------------
 
 uint8_t user_exit_program_interrupt() ATTRIB_RUNTIMECODE;
 
-#ifdef DEBUG_VPRINT_CPU_ACCESS
-    uint32_t get_cpu_addr_access_low_water_mark(void) ATTRIB_RUNTIMECODE;
-    uint32_t get_cpu_addr_access_high_water_mark(void) ATTRIB_RUNTIMECODE;
-    uint8_t print_cpu_access_trace(void) ATTRIB_RUNTIMECODE;
-#else
-    uint32_t get_cpu_addr_access_low_water_mark(void);
-    uint32_t get_cpu_addr_access_high_water_mark(void);
-    uint8_t print_cpu_access_trace(void);
-#endif
+uint32_t get_cpu_addr_access_low_water_mark(void);
+uint32_t get_cpu_addr_access_high_water_mark(void);
+uint8_t print_cpu_access_trace(void);
 
 
 void init_globals(void);
