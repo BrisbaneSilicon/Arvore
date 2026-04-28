@@ -183,55 +183,6 @@
           "description": ""
         },
         {
-          "name": "C_ONE",
-          "args": "",
-          "value": "(0x31)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
-          "name": "C_TWO",
-          "args": "",
-          "value": "(0x32)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
-          "name": "C_THREE",
-          "args": "",
-          "value": "(0x33)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
-          "name": "C_UPPERCASE_A",
-          "args": "",
-          "value": "(0x41)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
-          "name": "C_UPPERCASE_B",
-          "args": "",
-          "value": "(0x42)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
-          "name": "C_UPPERCASE_C",
-          "args": "",
-          "value": "(0x43)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
-          "name": "C_UPPERCASE_D",
-          "args": "",
-          "value": "(0x44)",
-          "header": "ctype.h",
-          "description": ""
-        },
-        {
           "name": "C_SQUARE_BRACKET_OPEN",
           "args": "",
           "value": "(0x5B)",
@@ -569,7 +520,7 @@
         {
           "name": "PIN_CONFIG_END_ADDR",
           "args": "",
-          "value": "((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS + MAX_NUM_ADC_PINS + MAX_NUM_DAC_PINS) - 1)",
+          "value": "((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS) - 1)",
           "header": "flash.h",
           "description": ""
         },
@@ -585,12 +536,6 @@
     {
       "name": "global.h",
       "functions": [
-        {
-          "name": "user_exit_program_interrupt",
-          "signature": "uint8_t user_exit_program_interrupt() ATTRIB_RUNTIMECODE",
-          "header": "global.h",
-          "description": "Interrupt-context flag check: returns non-zero if the user has requested the running program to exit ('q'+enter)."
-        },
         {
           "name": "get_cpu_addr_access_low_water_mark",
           "signature": "uint32_t get_cpu_addr_access_low_water_mark(void)",
@@ -1232,167 +1177,13 @@
           "signature": "void enable_user_comms_rx_esc_seq_filter(void)",
           "header": "global.h",
           "description": "Enable the user-comms RX escape-sequence filter (strips ANSI codes from input)."
-        },
-        {
-          "name": "set_color_for_repl_mode",
-          "signature": "void set_color_for_repl_mode(void)",
-          "header": "global.h",
-          "description": "Apply ANSI colours appropriate for REPL output to the user-comms UART."
-        },
-        {
-          "name": "set_color_for_command_mode",
-          "signature": "void set_color_for_command_mode(void)",
-          "header": "global.h",
-          "description": "Apply the default command-mode ANSI colour scheme to the UART output."
-        },
-        {
-          "name": "set_color_for_command_mode_bright",
-          "signature": "void set_color_for_command_mode_bright(void)",
-          "header": "global.h",
-          "description": "Apply the bright/highlight command-mode ANSI colour to UART output."
-        },
-        {
-          "name": "set_color_for_command_mode_category",
-          "signature": "void set_color_for_command_mode_category(void)",
-          "header": "global.h",
-          "description": "Apply the category-heading colour for command-mode output."
-        },
-        {
-          "name": "set_color_for_command_mode_error",
-          "signature": "void set_color_for_command_mode_error(void)",
-          "header": "global.h",
-          "description": "Apply the error-message colour for command-mode output."
-        },
-        {
-          "name": "set_color_for_command_mode_command",
-          "signature": "void set_color_for_command_mode_command(void)",
-          "header": "global.h",
-          "description": "Apply the command-token colour for command-mode output."
-        },
-        {
-          "name": "set_color_for_command_mode_highlighting",
-          "signature": "void set_color_for_command_mode_highlighting(void)",
-          "header": "global.h",
-          "description": "Apply the value-highlight colour for command-mode output."
         }
       ],
       "macros": [
         {
-          "name": "globals_h",
-          "args": "",
-          "value": "",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "FLASH_STORAGE_ENABLE",
-          "args": "",
-          "value": "",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR_DEVICE_NAME_CAPS",
-          "args": "",
-          "value": "\"EMBLUA\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR_DEVICE_NAME",
-          "args": "",
-          "value": "\"embLua\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR_DEVICE_NAME_CAMELCASE",
-          "args": "",
-          "value": "\"embLua\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR_DEVICE_DESCRIPTION",
-          "args": "",
-          "value": "\"the worlds most accessible physical computing device\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR_CMD_UNSUPPORTED_FOR_STACK_SIZE_LESS_8K",
-          "args": "",
-          "value": "\"Command currently unsupported for stack size < 8192 bytes!\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "C_COMMAND_MODE_SEPARATOR",
-          "args": "",
-          "value": "'|'",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR_COMMAND_MODE_SEPARATOR",
-          "args": "",
-          "value": "\"|\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
           "name": "MAX_NUM_IO_PINS",
           "args": "",
           "value": "(32)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "MAX_NUM_ADC_PINS",
-          "args": "",
-          "value": "(8)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "MAX_NUM_DAC_PINS",
-          "args": "",
-          "value": "(8)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "NO_PRINT_PROGRESS",
-          "args": "",
-          "value": "(0)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "PRINT_PROGRESS",
-          "args": "",
-          "value": "(1)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "UNINTERRUPTIBLE_SLEEP",
-          "args": "",
-          "value": "(0)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "INTERRUPTIBLE_SLEEP",
-          "args": "",
-          "value": "(1)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "USER_CANCELLABLE_SLEEP",
-          "args": "",
-          "value": "(2)",
           "header": "global.h",
           "description": ""
         },
@@ -1421,13 +1212,6 @@
           "name": "SLEEP_REMAINING_TIMEOUT_BITFLAGS",
           "args": "",
           "value": "(0x03FF)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "USER_EXIT_PROGRAM_INTERRUPT_BITFLAGS",
-          "args": "",
-          "value": "(0x6000)",
           "header": "global.h",
           "description": ""
         },
@@ -1803,139 +1587,6 @@
           "description": ""
         },
         {
-          "name": "IO_NUM_ADC_SHIFT",
-          "args": "",
-          "value": "(6)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_NUM_ADC_MASK",
-          "args": "",
-          "value": "(0x1F)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_NUM_DAC_SHIFT",
-          "args": "",
-          "value": "(11)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_NUM_DAC_MASK",
-          "args": "",
-          "value": "(0x1F)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_ADC_PINS_ENABLED_SHIFT",
-          "args": "",
-          "value": "(16)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_ADC_PINS_ENABLED_MASK",
-          "args": "",
-          "value": "(0xFF)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_DAC_PINS_ENABLED_SHIFT",
-          "args": "",
-          "value": "(24)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "IO_DAC_PINS_ENABLED_MASK",
-          "args": "",
-          "value": "(0xFF)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ENABLED",
-          "args": "",
-          "value": "(9)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ADC_ANALOG_BUFFER_CONFIG_RD_INDEX",
-          "args": "",
-          "value": "(10)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ADC_ANALOG_SW_INT_CONFIG_RD_INDEX",
-          "args": "",
-          "value": "(11)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "DAC_ANALOG_BUFFER_CONFIG_RD_INDEX",
-          "args": "",
-          "value": "(12)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "DAC_ANALOG_SW_INT_CONFIG_RD_INDEX",
-          "args": "",
-          "value": "(13)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ENABLED_SHIFT",
-          "args": "",
-          "value": "(0)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ENABLED_BITMASK",
-          "args": "",
-          "value": "(0x1)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_DAC_ENABLED_SHIFT",
-          "args": "",
-          "value": "(1)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_DAC_ENABLED_BITMASK",
-          "args": "",
-          "value": "(0x1)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_ADC_ENABLED_SHIFT",
-          "args": "",
-          "value": "(2)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_ADC_ENABLED_BITMASK",
-          "args": "",
-          "value": "(0x1)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
           "name": "HEAP_SIZE_SHIFT",
           "args": "",
           "value": "(8)",
@@ -1960,20 +1611,6 @@
           "name": "STACK_SIZE_BITMASK",
           "args": "",
           "value": "(0xFF)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "XSTR",
-          "args": "(s)",
-          "value": "STR(s)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "STR",
-          "args": "(s)",
-          "value": "#s",
           "header": "global.h",
           "description": ""
         },
@@ -2132,13 +1769,6 @@
           "description": ""
         },
         {
-          "name": "FPGA_BUS_READ_PREVIOUS_TRANSACTION_RESULT_FLAG",
-          "args": "",
-          "value": "(0x02000000)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
           "name": "LVM",
           "args": "",
           "value": "((volatile uint32_t *)LVM_ADDR)",
@@ -2219,13 +1849,6 @@
           "name": "SPI_CLK_DIVIDER_FREQ_HZ",
           "args": "",
           "value": "(1000000)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "USER_EXIT_PROGRAM_INTERRUPT_MASK",
-          "args": "",
-          "value": "(0x00000006)",
           "header": "global.h",
           "description": ""
         },
@@ -2387,20 +2010,6 @@
           "name": "ANSI_BACKGROUND_COLOR_DARK",
           "args": "",
           "value": "\"\\x1b[48;5;232m\"",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "REPL_MODE",
-          "args": "",
-          "value": "(0)",
-          "header": "global.h",
-          "description": ""
-        },
-        {
-          "name": "COMMAND_MODE",
-          "args": "",
-          "value": "(1)",
           "header": "global.h",
           "description": ""
         }
@@ -2866,133 +2475,13 @@
           "signature": "uint8_t valid_user_analog_io_num(uint32_t user_io_num) ATTRIB_F1CODE",
           "header": "io.h",
           "description": "Return non-zero if `user_io_num` is a valid analog channel index."
-        },
-        {
-          "name": "set_adc_enabled_state",
-          "signature": "e_status set_adc_enabled_state(uint16_t adc_index, e_pin_enable_state enabled_state)",
-          "header": "io.h",
-          "description": "Enable or disable ADC channel `adc_index`."
-        },
-        {
-          "name": "set_dac_enabled_state",
-          "signature": "e_status set_dac_enabled_state(uint16_t dac_index, e_pin_enable_state enabled_state)",
-          "header": "io.h",
-          "description": "Enable or disable DAC channel `dac_index`."
-        },
-        {
-          "name": "set_analog_io_type",
-          "signature": "e_status set_analog_io_type(uint16_t io_index, e_analogtype analog_type) ATTRIB_F1CODE",
-          "header": "io.h",
-          "description": "Set the analog I/O type (ADC/DAC) for pin `io_index`."
-        },
-        {
-          "name": "set_analog_io_type_from_str",
-          "signature": "e_status set_analog_io_type_from_str(uint16_t io_index, char *io_type_str)",
-          "header": "io.h",
-          "description": "Set the analog I/O type for pin `io_index` from a string name."
-        },
-        {
-          "name": "set_dac",
-          "signature": "e_status set_dac(uint32_t analog_dac_user_io_num, float voltage) ATTRIB_F1CODE",
-          "header": "io.h",
-          "description": "Drive DAC channel `analog_dac_user_io_num` to `voltage` (volts)."
-        },
-        {
-          "name": "get_adc",
-          "signature": "e_status get_adc(uint32_t analog_adc_user_io_num, double *voltage) ATTRIB_F1CODE",
-          "header": "io.h",
-          "description": "Sample ADC channel `analog_adc_user_io_num` into `*voltage` (volts)."
         }
       ],
       "macros": [
         {
-          "name": "STR_ADC",
-          "args": "",
-          "value": "\"ADC\"",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "STR_DAC",
-          "args": "",
-          "value": "\"DAC\"",
-          "header": "io.h",
-          "description": ""
-        },
-        {
           "name": "PWM_VALUE_MAX",
           "args": "",
           "value": "(256)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "DAC_VOLTAGE_MIN",
-          "args": "",
-          "value": "(0.0)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "DAC_VOLTAGE_MAX",
-          "args": "",
-          "value": "(5.0)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "DAC_VALUE_MIN",
-          "args": "",
-          "value": "(0)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "DAC_VALUE_MAX",
-          "args": "",
-          "value": "(256)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ADC_VOLTAGE_MIN",
-          "args": "",
-          "value": "(0.0)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ADC_VOLTAGE_MAX",
-          "args": "",
-          "value": "(5.0)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ADC_VALUE_MIN",
-          "args": "",
-          "value": "(0)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ADC_VALUE_MAX",
-          "args": "",
-          "value": "(256)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_DAC_CHANNEL_SPI_VALUE_SHIFT",
-          "args": "",
-          "value": "(12)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_DAC_VALUE_SPI_VALUE_SHIFT",
-          "args": "",
-          "value": "(4)",
           "header": "io.h",
           "description": ""
         },
@@ -3070,62 +2559,6 @@
           "name": "FPGA_SHARED_SPI_PIN_ORDER_BITFLAG",
           "args": "",
           "value": "(1 << 1)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_DAC_SPI_WR",
-          "args": "",
-          "value": "(0x00000000)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ADC_SPI_WR",
-          "args": "",
-          "value": "(0x00010000)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_DAC_MODE_WRM_SPI_VAL",
-          "args": "",
-          "value": "(0x8000)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_DAC_MODE_WTM_SPI_VAL",
-          "args": "",
-          "value": "(0x9000)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ADC_ENTER_AUTO1_PROGRAM_SEQUENCE",
-          "args": "",
-          "value": "(0x8000)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ADC_AUTO1_MODE_SELECT_ALL_CHANNELS",
-          "args": "",
-          "value": "(0xFFFF)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ADC_AUTO1_MODE_SELECT_AND_RESET_SCAN",
-          "args": "",
-          "value": "(0x2C00)",
-          "header": "io.h",
-          "description": ""
-        },
-        {
-          "name": "ANALOG_IO_ADC_AUTO1_MODE_SELECT_AND_CLEAR_SCAN_RESET",
-          "args": "",
-          "value": "(0x2800)",
           "header": "io.h",
           "description": ""
         },

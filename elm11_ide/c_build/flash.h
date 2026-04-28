@@ -24,7 +24,7 @@
 
 // NOTE: addresses of data in flash
 #define PIN_CONFIG_START_ADDR                       (0x00)
-#define PIN_CONFIG_END_ADDR                         ((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS + MAX_NUM_ADC_PINS + MAX_NUM_DAC_PINS) - 1)
+#define PIN_CONFIG_END_ADDR                         ((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS) - 1)
     // REVISIT: for now, waste one page per I/O
     // pin...
 

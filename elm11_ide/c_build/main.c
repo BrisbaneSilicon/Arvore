@@ -55,7 +55,7 @@ int main(void)
     check_and_handle_terminal_init_due_to_reboot();
 
     uart_write_string("Initialize memory...");
-    initialise_memory(e_print_none, REPL_MODE);
+    initialise_memory(e_print_none, 0);
     uart_write_string("done."STR_NL_CR);
 
     uart_write_string("Initialize I/O...");
@@ -117,8 +117,6 @@ void set_leds_init_end_state(void)
 void init_user_comms(void)
 {
     uart_init();
-
-    set_color_for_repl_mode();
 }
 
 void irqCallback(void)

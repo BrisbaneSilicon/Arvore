@@ -11,23 +11,7 @@
 
 // ---------------------- Defines ----------------------
 
-#define STR_ADC                                                 "ADC"
-#define STR_DAC                                                 "DAC"
-
 #define PWM_VALUE_MAX                                           (256)
-
-#define DAC_VOLTAGE_MIN                                         (0.0)
-#define DAC_VOLTAGE_MAX                                         (5.0)
-#define DAC_VALUE_MIN                                           (0)
-#define DAC_VALUE_MAX                                           (256)
-
-#define ADC_VOLTAGE_MIN                                         (0.0)
-#define ADC_VOLTAGE_MAX                                         (5.0)
-#define ADC_VALUE_MIN                                           (0)
-#define ADC_VALUE_MAX                                           (256)
-
-#define ANALOG_DAC_CHANNEL_SPI_VALUE_SHIFT                      (12)
-#define ANALOG_DAC_VALUE_SPI_VALUE_SHIFT                        (4)
 
 #define DEFAULT_UART_BAUD                                       (9600)
 
@@ -45,18 +29,6 @@
 
 #define FPGA_SHARED_SPI_SUPPORTED_BITFLAG                       (1 << 0)
 #define FPGA_SHARED_SPI_PIN_ORDER_BITFLAG                       (1 << 1)
-
-
-#define ANALOG_IO_DAC_SPI_WR                                    (0x00000000)
-#define ANALOG_IO_ADC_SPI_WR                                    (0x00010000)
-
-#define ANALOG_IO_DAC_MODE_WRM_SPI_VAL                          (0x8000)
-#define ANALOG_IO_DAC_MODE_WTM_SPI_VAL                          (0x9000)
-
-#define ANALOG_IO_ADC_ENTER_AUTO1_PROGRAM_SEQUENCE              (0x8000)
-#define ANALOG_IO_ADC_AUTO1_MODE_SELECT_ALL_CHANNELS            (0xFFFF)
-#define ANALOG_IO_ADC_AUTO1_MODE_SELECT_AND_RESET_SCAN          (0x2C00)
-#define ANALOG_IO_ADC_AUTO1_MODE_SELECT_AND_CLEAR_SCAN_RESET    (0x2800)
 
 
 // ----------------- Typedefs / Enums ------------------
@@ -316,19 +288,5 @@ void save_io_config_as_start_on_boot(uint8_t print_progress);
 void load_start_on_boot_config_for_all_io(void);
 
 uint32_t get_default_spi_clock_divider(void);
-
-uint8_t valid_analog_io_type_as_str(char *analog_type_str) ATTRIB_F1CODE;
-uint8_t valid_analog_io_type(e_analogtype analog_type) ATTRIB_F1CODE;
-uint8_t valid_analog_dac_user_io_num(uint32_t analog_dac_user_io_num) ATTRIB_F1CODE;
-uint8_t valid_analog_adc_user_io_num(uint32_t analog_adc_user_io_num) ATTRIB_F1CODE;
-uint8_t valid_user_analog_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE;
-uint8_t valid_user_analog_io_num(uint32_t user_io_num) ATTRIB_F1CODE;
-
-e_status set_adc_enabled_state(uint16_t adc_index, e_pin_enable_state enabled_state);
-e_status set_dac_enabled_state(uint16_t dac_index, e_pin_enable_state enabled_state);
-e_status set_analog_io_type(uint16_t io_index, e_analogtype analog_type) ATTRIB_F1CODE;
-e_status set_analog_io_type_from_str(uint16_t io_index, char *io_type_str);
-e_status set_dac(uint32_t analog_dac_user_io_num, float voltage) ATTRIB_F1CODE;
-e_status get_adc(uint32_t analog_adc_user_io_num, double *voltage) ATTRIB_F1CODE;
 
 #endif
