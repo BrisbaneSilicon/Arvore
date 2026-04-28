@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
 
         self._editor_tabs = QTabWidget()
         self._editor_tabs.setTabsClosable(True)
+        self._editor_tabs.setMovable(True)
         self._editor_tabs.tabCloseRequested.connect(self._close_tab)
         self._editor_tabs.currentChanged.connect(self._on_tab_changed)
         centre.addWidget(self._editor_tabs)
