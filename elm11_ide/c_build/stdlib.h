@@ -13,6 +13,8 @@
 #include "memory_gowin.h"
 
 
+// ---------------------- Defines ----------------------
+
 void init_mem_buf(void) ATTRIB_F1CODE;
 
 int abs(int j) ATTRIB_F3CODE;
