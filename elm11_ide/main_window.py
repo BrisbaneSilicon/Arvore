@@ -350,6 +350,7 @@ class MainWindow(QMainWindow):
             self.statusBar().addPermanentWidget(self._sb_mode)
         self._sb_mode.setText(f'  {mode}  ')
         self._sb_mode.setVisible(True)
+        self._docs.set_mode(mode)
         self._update_device_buttons()
 
     def _update_device_buttons(self):

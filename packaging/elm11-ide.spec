@@ -18,7 +18,8 @@ a = Analysis(
     binaries=[],
     datas=[
         # Pre-extracted documentation data is loaded at runtime.
-        (str(ROOT / 'elm11_ide' / 'docs_data.json'), 'elm11_ide'),
+        (str(ROOT / 'elm11_ide' / 'docs_data.json'),   'elm11_ide'),
+        (str(ROOT / 'elm11_ide' / 'docs_c_data.json'), 'elm11_ide'),
         # Window / taskbar icon used by QApplication.setWindowIcon.
         (str(ROOT / 'elm11_ide' / 'elm11-ide.png'), 'elm11_ide'),
         # Bundled flash helper invoked by the toolbar Flash button.

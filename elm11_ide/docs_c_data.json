@@ -1,0 +1,3577 @@
+{
+  "headers": [
+    {
+      "name": "atof.h",
+      "functions": [
+        {
+          "name": "atof_float",
+          "signature": "float atof_float(const char *s) ATTRIB_F3CODE",
+          "header": "atof.h",
+          "description": "Parse a numeric string into a float (libc-style atof, no errno reporting)."
+        }
+      ]
+    },
+    {
+      "name": "config.h",
+      "functions": [],
+      "macros": [
+        {
+          "name": "ATTRIB_RUNTIMECODE",
+          "args": "",
+          "value": "__attribute__ ((section (\".runtimecode\")))",
+          "header": "config.h",
+          "description": "Any functions marked with this macro will be placed into PSRAM. Faster execution but slower boot time."
+        },
+        {
+          "name": "ATTRIB_F3CODE",
+          "args": "",
+          "value": "__attribute__ ((section (\".f3code\")))",
+          "header": "config.h",
+          "description": "Places function in RAM."
+        },
+        {
+          "name": "ATTRIB_F2CODE",
+          "args": "",
+          "value": "__attribute__ ((section (\".f2code\")))",
+          "header": "config.h",
+          "description": "Attempts to place function in RAM, if there is enough space after 'f3code' has been placed in RAM."
+        },
+        {
+          "name": "ATTRIB_F1CODE",
+          "args": "",
+          "value": "__attribute__ ((section (\".f1code\")))",
+          "header": "config.h",
+          "description": "Attempts to place function in RAM, if there is enough space after 'f3code' and 'f2code' (potentially) have been placed in RAM."
+        }
+      ]
+    },
+    {
+      "name": "ctype.h",
+      "functions": [
+        {
+          "name": "isalnum",
+          "signature": "int isalnum(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is alphanumeric (libc ctype)."
+        },
+        {
+          "name": "isalpha",
+          "signature": "int isalpha(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is alphabetic (libc ctype)."
+        },
+        {
+          "name": "isascii",
+          "signature": "int isascii(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a 7-bit ASCII character."
+        },
+        {
+          "name": "isblank",
+          "signature": "int isblank(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a blank character (space or tab)."
+        },
+        {
+          "name": "iscntrl",
+          "signature": "int iscntrl(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a control character."
+        },
+        {
+          "name": "isdigit",
+          "signature": "int isdigit(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a decimal digit."
+        },
+        {
+          "name": "isgraph",
+          "signature": "int isgraph(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a printable non-space character."
+        },
+        {
+          "name": "islower",
+          "signature": "int islower(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a lower-case letter."
+        },
+        {
+          "name": "isprint",
+          "signature": "int isprint(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is printable, including space."
+        },
+        {
+          "name": "ispunct",
+          "signature": "int ispunct(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a punctuation character."
+        },
+        {
+          "name": "isspace",
+          "signature": "int isspace(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is whitespace."
+        },
+        {
+          "name": "isupper",
+          "signature": "int isupper(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is an upper-case letter."
+        },
+        {
+          "name": "isxdigit",
+          "signature": "int isxdigit(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Return non-zero if `c` is a hexadecimal digit."
+        },
+        {
+          "name": "tolower",
+          "signature": "int tolower(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Convert `c` to lower-case if it's an upper-case letter; otherwise return unchanged."
+        },
+        {
+          "name": "toupper",
+          "signature": "int toupper(int c) ATTRIB_F3CODE",
+          "header": "ctype.h",
+          "description": "Convert `c` to upper-case if it's a lower-case letter; otherwise return unchanged."
+        }
+      ],
+      "macros": [
+        {
+          "name": "C_NULL",
+          "args": "",
+          "value": "(0x00)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_BACKSPACE",
+          "args": "",
+          "value": "(0x08)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_NEWLINE",
+          "args": "",
+          "value": "(0x0A)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CARRIAGE_RETURN",
+          "args": "",
+          "value": "(0x0D)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_ESCAPE",
+          "args": "",
+          "value": "(0x1B)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_SPACE",
+          "args": "",
+          "value": "(0x20)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_ONE",
+          "args": "",
+          "value": "(0x31)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_TWO",
+          "args": "",
+          "value": "(0x32)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_THREE",
+          "args": "",
+          "value": "(0x33)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_UPPERCASE_A",
+          "args": "",
+          "value": "(0x41)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_UPPERCASE_B",
+          "args": "",
+          "value": "(0x42)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_UPPERCASE_C",
+          "args": "",
+          "value": "(0x43)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_UPPERCASE_D",
+          "args": "",
+          "value": "(0x44)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_SQUARE_BRACKET_OPEN",
+          "args": "",
+          "value": "(0x5B)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_TILDA",
+          "args": "",
+          "value": "(0x7E)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_DEL",
+          "args": "",
+          "value": "(0x7F)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CUSTOM_LEFT_ARROW",
+          "args": "",
+          "value": "(0x11)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CUSTOM_RIGHT_ARROW",
+          "args": "",
+          "value": "(0x12)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CUSTOM_UP_ARROW",
+          "args": "",
+          "value": "(0x13)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CUSTOM_DOWN_ARROW",
+          "args": "",
+          "value": "(0x14)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CUSTOM_HOME",
+          "args": "",
+          "value": "(0x15)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "C_CUSTOM_END",
+          "args": "",
+          "value": "(0x16)",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_MOVE_CURSOR_LIMIT",
+          "args": "",
+          "value": "\"\\033[9999;9999H\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_QUERY_CURSOR_POSITION",
+          "args": "",
+          "value": "\"\\033[6n\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_CLEAR_SCREEN",
+          "args": "",
+          "value": "\"\\033[2J\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_CLEAR_SCROLLBACK_BUFFER",
+          "args": "",
+          "value": "\"\\033[3J\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_CLEAR_LINE",
+          "args": "",
+          "value": "\"\\033[2K\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_CLEAR_TO_END_OF_LINE",
+          "args": "",
+          "value": "\"\\033[K\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_MOVE_TO_0_0",
+          "args": "",
+          "value": "\"\\033[0;0H\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_MOVE_UP_ONE_LINE",
+          "args": "",
+          "value": "\"\\033[1A\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_MOVE_DOWN_ONE_LINE",
+          "args": "",
+          "value": "\"\\033[1B\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_MOVE_FORWARD_ONE_CHAR",
+          "args": "",
+          "value": "\"\\033[1C\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_MOVE_BACK_ONE_CHAR",
+          "args": "",
+          "value": "\"\\033[1D\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_FONT_BOLD",
+          "args": "",
+          "value": "\"\\033[1m\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_FONT_UNDERLINE",
+          "args": "",
+          "value": "\"\\033[4m\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_FONT_INVERT",
+          "args": "",
+          "value": "\"\\033[7m\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_FONT_RESET",
+          "args": "",
+          "value": "\"\\033[0m\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_EC_FONT_RST_INTENSITY",
+          "args": "",
+          "value": "\"\\033[22m\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_SPACE",
+          "args": "",
+          "value": "\"  \"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_NL",
+          "args": "",
+          "value": "\"\\n\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_CR",
+          "args": "",
+          "value": "\"\\r\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_NL_CR",
+          "args": "",
+          "value": "\"\\n\\r\"",
+          "header": "ctype.h",
+          "description": ""
+        },
+        {
+          "name": "STR_PIN",
+          "args": "",
+          "value": "\"PIN\"",
+          "header": "ctype.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "errno.h",
+      "functions": [],
+      "macros": [
+        {
+          "name": "ERANGE",
+          "args": "",
+          "value": "(0x1111)",
+          "header": "errno.h",
+          "description": ""
+        },
+        {
+          "name": "EINVAL",
+          "args": "",
+          "value": "(0x1112)",
+          "header": "errno.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "flash.h",
+      "functions": [
+        {
+          "name": "spi_flashio",
+          "signature": "void spi_flashio(volatile uint8_t *pdata, int length, int wren) ATTRIB_RUNTIMECODE_FLASHIO",
+          "header": "flash.h",
+          "description": "Low-level SPI flash transfer — exchanges `length` bytes through `pdata`; `wren` selects write-enable."
+        },
+        {
+          "name": "spi_flashio_wrapper",
+          "signature": "void spi_flashio_wrapper(volatile uint8_t *pdata, int length, int wren) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Build-switched wrapper around `spi_flashio` so call sites don't need to know which transfer implementation is active."
+        },
+        {
+          "name": "init_flash",
+          "signature": "void init_flash(void) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Initialise the on-board SPI flash interface and read its identification data."
+        },
+        {
+          "name": "read_board_id",
+          "signature": "uint8_t read_board_id(uint8_t *board_id) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Read the unique board identifier from flash into `*board_id`."
+        },
+        {
+          "name": "read_flash_page_byte",
+          "signature": "uint8_t read_flash_page_byte(uint16_t page_addr, volatile uint8_t *page_byte) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Read a single byte at `page_addr` from the flash into `*page_byte`."
+        },
+        {
+          "name": "read_flash_page",
+          "signature": "uint8_t read_flash_page(uint16_t page_addr, volatile uint8_t *page_data) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Read a full flash page at `page_addr` into the caller-supplied `page_data` buffer."
+        },
+        {
+          "name": "write_flash_page",
+          "signature": "uint8_t write_flash_page(uint16_t page_addr, volatile uint8_t *page_data) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Write a full flash page at `page_addr` from `page_data` (caller is responsible for prior erase if required)."
+        },
+        {
+          "name": "write_io_type_to_flash",
+          "signature": "uint8_t write_io_type_to_flash(uint8_t io_index, uint8_t io_config) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Persist the I/O-type setting for `io_index` (`io_config`) to non-volatile flash."
+        },
+        {
+          "name": "read_io_type_from_flash",
+          "signature": "uint8_t read_io_type_from_flash(uint8_t io_index) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Return the persisted I/O type stored in flash for `io_index`."
+        },
+        {
+          "name": "clear_storage_metadata_slot_for_addr",
+          "signature": "uint8_t clear_storage_metadata_slot_for_addr(uint16_t prog_addr) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Free the storage-metadata slot at `prog_addr`, marking it available for reuse."
+        },
+        {
+          "name": "set_storage_metadata_slot_for_addr",
+          "signature": "uint8_t set_storage_metadata_slot_for_addr(uint16_t prog_addr) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Mark the storage-metadata slot at `prog_addr` as occupied."
+        },
+        {
+          "name": "set_prompt_formats_start_on_boot",
+          "signature": "uint8_t set_prompt_formats_start_on_boot(e_time_prompt_format time_prompt_format, e_cpu_prompt_format cpu_prompt_format) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Persist the time and CPU prompt formats to use at boot."
+        },
+        {
+          "name": "get_time_prompt_format_start_on_boot",
+          "signature": "e_time_prompt_format get_time_prompt_format_start_on_boot(void) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Return the persisted boot-time time-prompt format."
+        },
+        {
+          "name": "get_cpu_prompt_format_start_on_boot",
+          "signature": "e_cpu_prompt_format get_cpu_prompt_format_start_on_boot(void) ATTRIB_F1CODE_BUILDSWITCH",
+          "header": "flash.h",
+          "description": "Return the persisted boot-time CPU-prompt format."
+        }
+      ],
+      "macros": [
+        {
+          "name": "FLASH_PAGE_BYTES",
+          "args": "",
+          "value": "(256)",
+          "header": "flash.h",
+          "description": ""
+        },
+        {
+          "name": "PIN_CONFIG_START_ADDR",
+          "args": "",
+          "value": "(0x00)",
+          "header": "flash.h",
+          "description": ""
+        },
+        {
+          "name": "PIN_CONFIG_END_ADDR",
+          "args": "",
+          "value": "((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS + MAX_NUM_ADC_PINS + MAX_NUM_DAC_PINS) - 1)",
+          "header": "flash.h",
+          "description": ""
+        },
+        {
+          "name": "BOARD_ID_BYTES",
+          "args": "",
+          "value": "(3)",
+          "header": "flash.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "global.h",
+      "functions": [
+        {
+          "name": "user_exit_program_interrupt",
+          "signature": "uint8_t user_exit_program_interrupt() ATTRIB_RUNTIMECODE",
+          "header": "global.h",
+          "description": "Interrupt-context flag check: returns non-zero if the user has requested the running program to exit ('q'+enter)."
+        },
+        {
+          "name": "get_cpu_addr_access_low_water_mark",
+          "signature": "uint32_t get_cpu_addr_access_low_water_mark(void)",
+          "header": "global.h",
+          "description": "Return the lowest CPU memory address recently accessed (used for memory-usage tracing)."
+        },
+        {
+          "name": "get_cpu_addr_access_high_water_mark",
+          "signature": "uint32_t get_cpu_addr_access_high_water_mark(void)",
+          "header": "global.h",
+          "description": "Return the highest CPU memory address recently accessed."
+        },
+        {
+          "name": "print_cpu_access_trace",
+          "signature": "uint8_t print_cpu_access_trace(void)",
+          "header": "global.h",
+          "description": "Print the captured CPU memory-access trace to the output stream."
+        },
+        {
+          "name": "init_globals",
+          "signature": "void init_globals(void)",
+          "header": "global.h",
+          "description": "Initialise core global state — IDs, timers, I/O config — at boot."
+        },
+        {
+          "name": "read_cpu_freq",
+          "signature": "void read_cpu_freq(void)",
+          "header": "global.h",
+          "description": "Read and cache the CPU clock frequency from the FPGA fabric."
+        },
+        {
+          "name": "read_core_info",
+          "signature": "void read_core_info(void)",
+          "header": "global.h",
+          "description": "Read and cache per-core identification data."
+        },
+        {
+          "name": "get_num_cores",
+          "signature": "uint8_t get_num_cores(void)",
+          "header": "global.h",
+          "description": "Return the total number of CPU cores configured in the build."
+        },
+        {
+          "name": "get_core_id",
+          "signature": "uint8_t get_core_id(void)",
+          "header": "global.h",
+          "description": "Return the ID of the currently executing core (0-based)."
+        },
+        {
+          "name": "get_cpu_freq_hz",
+          "signature": "uint32_t get_cpu_freq_hz(void)",
+          "header": "global.h",
+          "description": "Return the cached CPU frequency in Hz."
+        },
+        {
+          "name": "get_cpu_freq_khz",
+          "signature": "uint32_t get_cpu_freq_khz(void)",
+          "header": "global.h",
+          "description": "Return the cached CPU frequency in kHz."
+        },
+        {
+          "name": "get_cpu_freq_mhz",
+          "signature": "uint32_t get_cpu_freq_mhz(void)",
+          "header": "global.h",
+          "description": "Return the cached CPU frequency in MHz."
+        },
+        {
+          "name": "was_reboot_due_to_stack_overflow",
+          "signature": "uint8_t was_reboot_due_to_stack_overflow(void)",
+          "header": "global.h",
+          "description": "Return non-zero if the most recent reboot was triggered by a stack-overflow trap."
+        },
+        {
+          "name": "read_uart_cfg",
+          "signature": "void read_uart_cfg(void)",
+          "header": "global.h",
+          "description": "Read and cache the user-comms UART configuration from the FPGA."
+        },
+        {
+          "name": "uart_init",
+          "signature": "void uart_init(void)",
+          "header": "global.h",
+          "description": "Initialise the user-comms UART (baud, parity, etc.) using the cached config."
+        },
+        {
+          "name": "user_comms_enable_rx_interrupt_mode",
+          "signature": "void user_comms_enable_rx_interrupt_mode(void)",
+          "header": "global.h",
+          "description": "Switch the user-comms UART receiver to interrupt-driven mode."
+        },
+        {
+          "name": "user_comms_disable_rx_interrupt_mode",
+          "signature": "void user_comms_disable_rx_interrupt_mode(void)",
+          "header": "global.h",
+          "description": "Switch the user-comms UART receiver back to polling mode."
+        },
+        {
+          "name": "uart_read_char",
+          "signature": "uint8_t uart_read_char()",
+          "header": "global.h",
+          "description": "Non-blocking poll: return the next character from the UART, or 0 if none waiting."
+        },
+        {
+          "name": "uart_read_char_blocking",
+          "signature": "uint8_t uart_read_char_blocking()",
+          "header": "global.h",
+          "description": "Block until a character arrives on the UART and return it."
+        },
+        {
+          "name": "uart_read_char_maxwait_ms",
+          "signature": "char uart_read_char_maxwait_ms(uint16_t ms)",
+          "header": "global.h",
+          "description": "Block for at most `ms` milliseconds waiting for a UART character; 0 on timeout."
+        },
+        {
+          "name": "uart_write_char",
+          "signature": "void uart_write_char(int c)",
+          "header": "global.h",
+          "description": "Send a single character `c` over the user-comms UART."
+        },
+        {
+          "name": "uart_write_string",
+          "signature": "void uart_write_string(const char *p)",
+          "header": "global.h",
+          "description": "Send the null-terminated string `p` over the user-comms UART."
+        },
+        {
+          "name": "uart_write_hexidecimal",
+          "signature": "void uart_write_hexidecimal(uint32_t v, int digits)",
+          "header": "global.h",
+          "description": "Print `v` as a `digits`-wide hexadecimal value over the UART."
+        },
+        {
+          "name": "uart_write_ptr_hexidecimal",
+          "signature": "void uart_write_ptr_hexidecimal(void *v, int digits)",
+          "header": "global.h",
+          "description": "Print the address held by `v` as a `digits`-wide hex value."
+        },
+        {
+          "name": "uart_write_uint32_t",
+          "signature": "void uart_write_uint32_t(uint32_t v)",
+          "header": "global.h",
+          "description": "Print `v` as an unsigned 32-bit decimal over the UART."
+        },
+        {
+          "name": "uart_write_float",
+          "signature": "void uart_write_float(float f)",
+          "header": "global.h",
+          "description": "Print floating-point value `f` over the UART."
+        },
+        {
+          "name": "uart_write_string_with_prompts",
+          "signature": "void uart_write_string_with_prompts(e_cpu_prompt_format pf_cpu, e_time_prompt_format pf_time, const char *str, uint8_t in_command_mode)",
+          "header": "global.h",
+          "description": "Print `str` to the UART, prefixed by the configured CPU/time prompts; honours command-mode formatting."
+        },
+        {
+          "name": "delay_milliseconds",
+          "signature": "void delay_milliseconds(uint16_t milliseconds)",
+          "header": "global.h",
+          "description": "Busy-wait for `milliseconds` (uses the general timer; not interruptible)."
+        },
+        {
+          "name": "get_uart_cfg",
+          "signature": "uint8_t get_uart_cfg(void)",
+          "header": "global.h",
+          "description": "Return the cached user-comms UART configuration register value."
+        },
+        {
+          "name": "get_xbar_lock_cfg",
+          "signature": "uint32_t get_xbar_lock_cfg(void)",
+          "header": "global.h",
+          "description": "Return the configured cross-bar lock-channel mask for the current core."
+        },
+        {
+          "name": "get_xbar_lock_tx_fifo_depth",
+          "signature": "uint32_t get_xbar_lock_tx_fifo_depth(uint32_t core_id)",
+          "header": "global.h",
+          "description": "Return the lock-channel TX FIFO depth between this core and `core_id`."
+        },
+        {
+          "name": "get_xbar_unlock_cfg",
+          "signature": "uint32_t get_xbar_unlock_cfg(void)",
+          "header": "global.h",
+          "description": "Return the configured cross-bar unlock-channel mask for the current core."
+        },
+        {
+          "name": "get_xbar_lock_rx_fifo_depth",
+          "signature": "uint32_t get_xbar_lock_rx_fifo_depth(uint32_t core_id)",
+          "header": "global.h",
+          "description": "Return the lock-channel RX FIFO depth between this core and `core_id`."
+        },
+        {
+          "name": "get_xbar_data_tx_cfg",
+          "signature": "uint32_t get_xbar_data_tx_cfg(void)",
+          "header": "global.h",
+          "description": "Return the configured cross-bar data-TX channel mask for the current core."
+        },
+        {
+          "name": "get_xbar_data_tx_fifo_depth",
+          "signature": "uint32_t get_xbar_data_tx_fifo_depth(uint32_t core_id)",
+          "header": "global.h",
+          "description": "Return the data-TX FIFO depth from this core to `core_id`."
+        },
+        {
+          "name": "get_xbar_data_rx_cfg",
+          "signature": "uint32_t get_xbar_data_rx_cfg(void)",
+          "header": "global.h",
+          "description": "Return the configured cross-bar data-RX channel mask for the current core."
+        },
+        {
+          "name": "get_xbar_data_rx_fifo_depth",
+          "signature": "uint32_t get_xbar_data_rx_fifo_depth(uint32_t core_id)",
+          "header": "global.h",
+          "description": "Return the data-RX FIFO depth from `core_id` to this core."
+        },
+        {
+          "name": "xbar_lock",
+          "signature": "uint8_t xbar_lock(uint8_t core)",
+          "header": "global.h",
+          "description": "Block until the cross-bar lock barrier with `core` is unlocked, then re-lock it."
+        },
+        {
+          "name": "xbar_lock_nonblocking",
+          "signature": "uint8_t xbar_lock_nonblocking(uint8_t core, uint8_t *success)",
+          "header": "global.h",
+          "description": "Attempt to lock the cross-bar barrier with `core`; sets `*success` to indicate result."
+        },
+        {
+          "name": "xbar_unlock",
+          "signature": "uint8_t xbar_unlock(uint8_t core)",
+          "header": "global.h",
+          "description": "Block until the cross-bar lock barrier with `core` is locked, then unlock it."
+        },
+        {
+          "name": "xbar_unlock_nonblocking",
+          "signature": "uint8_t xbar_unlock_nonblocking(uint8_t core, uint8_t *success)",
+          "header": "global.h",
+          "description": "Attempt to unlock the cross-bar barrier with `core`; sets `*success` to indicate result."
+        },
+        {
+          "name": "xbar_data_tx",
+          "signature": "uint8_t xbar_data_tx(uint8_t core, uint8_t byte)",
+          "header": "global.h",
+          "description": "Block until the cross-bar data channel to `core` is ready, then send `byte`."
+        },
+        {
+          "name": "xbar_data_tx_nonblocking",
+          "signature": "uint8_t xbar_data_tx_nonblocking(uint8_t core, uint8_t byte, uint8_t *success)",
+          "header": "global.h",
+          "description": "Attempt to send `byte` over the cross-bar data channel to `core`; sets `*success` to indicate result."
+        },
+        {
+          "name": "xbar_data_rx",
+          "signature": "uint8_t xbar_data_rx(uint8_t core, uint8_t *byte)",
+          "header": "global.h",
+          "description": "Block until a byte arrives from `core` over the cross-bar; stores it in `*byte`."
+        },
+        {
+          "name": "xbar_data_rx_nonblocking",
+          "signature": "uint8_t xbar_data_rx_nonblocking(uint8_t core, uint8_t *byte, uint8_t *success)",
+          "header": "global.h",
+          "description": "Attempt to receive a byte from `core` over the cross-bar; sets `*success` if data was available."
+        },
+        {
+          "name": "init_cpu_prompt_format_for_repl",
+          "signature": "void init_cpu_prompt_format_for_repl(void)",
+          "header": "global.h",
+          "description": "Reset the CPU prompt format to the REPL default at session start."
+        },
+        {
+          "name": "increment_cpu_prompt_format",
+          "signature": "void increment_cpu_prompt_format(void)",
+          "header": "global.h",
+          "description": "Cycle the CPU prompt to the next configured format."
+        },
+        {
+          "name": "get_time_prompt_format",
+          "signature": "e_time_prompt_format get_time_prompt_format(void)",
+          "header": "global.h",
+          "description": "Return the currently active time-prompt format."
+        },
+        {
+          "name": "get_cpu_prompt_format",
+          "signature": "e_cpu_prompt_format get_cpu_prompt_format(void)",
+          "header": "global.h",
+          "description": "Return the currently active CPU-prompt format."
+        },
+        {
+          "name": "set_time_prompt_format",
+          "signature": "void set_time_prompt_format(e_time_prompt_format pf)",
+          "header": "global.h",
+          "description": "Set the active time-prompt format to `pf`."
+        },
+        {
+          "name": "set_cpu_prompt_format",
+          "signature": "void set_cpu_prompt_format(e_cpu_prompt_format cpu_prompt_format)",
+          "header": "global.h",
+          "description": "Set the active CPU-prompt format to `cpu_prompt_format`."
+        },
+        {
+          "name": "increment_time_prompt_format",
+          "signature": "void increment_time_prompt_format(void)",
+          "header": "global.h",
+          "description": "Cycle the time prompt to the next configured format."
+        },
+        {
+          "name": "is_valid_time_prompt_format",
+          "signature": "uint8_t is_valid_time_prompt_format(e_time_prompt_format pf)",
+          "header": "global.h",
+          "description": "Return non-zero if `pf` is one of the recognised time-prompt formats."
+        },
+        {
+          "name": "time_prompt_format_to_string",
+          "signature": "const char* time_prompt_format_to_string(e_time_prompt_format pf)",
+          "header": "global.h",
+          "description": "Return a human-readable name for time-prompt format `pf`."
+        },
+        {
+          "name": "cpu_prompt_format_to_string",
+          "signature": "const char* cpu_prompt_format_to_string(e_cpu_prompt_format pf)",
+          "header": "global.h",
+          "description": "Return a human-readable name for CPU-prompt format `pf`."
+        },
+        {
+          "name": "read_performance_timer_cfg",
+          "signature": "void read_performance_timer_cfg(void)",
+          "header": "global.h",
+          "description": "Read and cache the performance-timer presence/config from the FPGA."
+        },
+        {
+          "name": "get_performance_timer_cfg",
+          "signature": "uint8_t get_performance_timer_cfg(void)",
+          "header": "global.h",
+          "description": "Return the cached performance-timer configuration value."
+        },
+        {
+          "name": "clear_system_time_caches",
+          "signature": "void clear_system_time_caches(void) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Invalidate cached system-time values so the next read fetches fresh data."
+        },
+        {
+          "name": "trigger_caching_of_system_time",
+          "signature": "void trigger_caching_of_system_time(e_system_time_cache cache) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Capture the current system time into the named cache slot."
+        },
+        {
+          "name": "read_general_timer_cfg",
+          "signature": "void read_general_timer_cfg(void)",
+          "header": "global.h",
+          "description": "Read and cache the general-timer presence/config from the FPGA."
+        },
+        {
+          "name": "get_general_timer_cfg",
+          "signature": "uint8_t get_general_timer_cfg(void)",
+          "header": "global.h",
+          "description": "Return the cached general-timer configuration value."
+        },
+        {
+          "name": "cancel_interruptible_sleep",
+          "signature": "void cancel_interruptible_sleep(void)",
+          "header": "global.h",
+          "description": "Wake any in-progress interruptible sleep on this core."
+        },
+        {
+          "name": "doing_interruptible_sleep",
+          "signature": "uint8_t doing_interruptible_sleep(void)",
+          "header": "global.h",
+          "description": "Return non-zero if the current core is presently inside an interruptible sleep."
+        },
+        {
+          "name": "sleep_milliseconds",
+          "signature": "e_sleep_end_cause sleep_milliseconds(uint16_t ms, uint8_t interruptible_options) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Sleep for `ms` milliseconds; honours `interruptible_options` to allow user-interrupt cancellation."
+        },
+        {
+          "name": "continue_sleep_milliseconds",
+          "signature": "e_sleep_end_cause continue_sleep_milliseconds(uint8_t interruptible_options) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Resume an interrupted millisecond sleep with the same options."
+        },
+        {
+          "name": "sleep_microseconds",
+          "signature": "e_sleep_end_cause sleep_microseconds(uint16_t microsec, uint8_t interruptible_options) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Sleep for `microsec` microseconds; honours `interruptible_options`."
+        },
+        {
+          "name": "continue_sleep_microseconds",
+          "signature": "e_sleep_end_cause continue_sleep_microseconds(uint8_t interruptible_options) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Resume an interrupted microsecond sleep with the same options."
+        },
+        {
+          "name": "set_board_leds_state",
+          "signature": "uint8_t set_board_leds_state(const e_led_st *led_st, uint8_t num_leds)",
+          "header": "global.h",
+          "description": "Apply a vector of LED states (`led_st[]`, length `num_leds`) to the on-board LEDs."
+        },
+        {
+          "name": "set_board_led_state",
+          "signature": "uint8_t set_board_led_state(e_board_led board_led, e_led_st led_st)",
+          "header": "global.h",
+          "description": "Set a single on-board LED `board_led` to state `led_st`."
+        },
+        {
+          "name": "get_board_led_state",
+          "signature": "uint8_t get_board_led_state(e_board_led board_led)",
+          "header": "global.h",
+          "description": "Return the current state of on-board LED `board_led`."
+        },
+        {
+          "name": "toggle_board_led_state",
+          "signature": "uint8_t toggle_board_led_state(e_board_led board_led)",
+          "header": "global.h",
+          "description": "Invert the state of on-board LED `board_led`."
+        },
+        {
+          "name": "set_all_board_leds_off",
+          "signature": "uint8_t set_all_board_leds_off(void)",
+          "header": "global.h",
+          "description": "Force every on-board LED to the off state."
+        },
+        {
+          "name": "set_board_leds_hw_mode",
+          "signature": "uint8_t set_board_leds_hw_mode(void)",
+          "header": "global.h",
+          "description": "Hand on-board LED control back to the FPGA hardware (no longer driven by software)."
+        },
+        {
+          "name": "set_board_leds_sw_mode",
+          "signature": "uint8_t set_board_leds_sw_mode(void)",
+          "header": "global.h",
+          "description": "Take software control of the on-board LEDs (overrides hardware-driven patterns)."
+        },
+        {
+          "name": "set_software_interrupt_enabled_state",
+          "signature": "void set_software_interrupt_enabled_state(e_global_interrupt_st state) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Enable or disable the global software-interrupt master switch."
+        },
+        {
+          "name": "software_interrupts_enabled",
+          "signature": "uint8_t software_interrupts_enabled(void) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Return non-zero if global software interrupts are currently enabled."
+        },
+        {
+          "name": "set_repl_interrupt_mode",
+          "signature": "void set_repl_interrupt_mode(e_global_repl_interrupt_mode state) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Enable or disable REPL-interrupt mode for the current session."
+        },
+        {
+          "name": "repl_interrupt_mode_enabled",
+          "signature": "uint8_t repl_interrupt_mode_enabled(void) ATTRIB_F1CODE",
+          "header": "global.h",
+          "description": "Return non-zero if REPL interrupts are currently active."
+        },
+        {
+          "name": "remove_trailing_nl_and_cr",
+          "signature": "void remove_trailing_nl_and_cr(char *str)",
+          "header": "global.h",
+          "description": "Strip any trailing CR/LF characters from `str` in place."
+        },
+        {
+          "name": "set_successfully_booted_hardware_flag",
+          "signature": "void set_successfully_booted_hardware_flag(void)",
+          "header": "global.h",
+          "description": "Mark the boot sequence as having reached a known-good state."
+        },
+        {
+          "name": "get_successfully_booted_hardware_flag",
+          "signature": "uint8_t get_successfully_booted_hardware_flag(void)",
+          "header": "global.h",
+          "description": "Return non-zero if the boot sequence completed successfully."
+        },
+        {
+          "name": "valid_hardware_id",
+          "signature": "uint8_t valid_hardware_id(void)",
+          "header": "global.h",
+          "description": "Return non-zero if the cached hardware ID matches an expected value."
+        },
+        {
+          "name": "reboot_board",
+          "signature": "void reboot_board(void)",
+          "header": "global.h",
+          "description": "Trigger a hardware reboot of the board."
+        },
+        {
+          "name": "get_hardware_watchdog_timer_ms",
+          "signature": "uint32_t get_hardware_watchdog_timer_ms(void)",
+          "header": "global.h",
+          "description": "Return the current watchdog timer countdown value in milliseconds."
+        },
+        {
+          "name": "get_hardware_watchdog_timeout_ms",
+          "signature": "uint32_t get_hardware_watchdog_timeout_ms(void)",
+          "header": "global.h",
+          "description": "Return the configured watchdog timeout value in milliseconds."
+        },
+        {
+          "name": "reset_hardware_watchdog_ms",
+          "signature": "void reset_hardware_watchdog_ms(void)",
+          "header": "global.h",
+          "description": "Pet the hardware watchdog (resets its countdown to the configured timeout)."
+        },
+        {
+          "name": "get_memory_trace_enabled",
+          "signature": "uint32_t get_memory_trace_enabled(void)",
+          "header": "global.h",
+          "description": "Return non-zero if memory access tracing is currently enabled."
+        },
+        {
+          "name": "read_fpga_io_bus_enabled",
+          "signature": "uint32_t read_fpga_io_bus_enabled(void)",
+          "header": "global.h",
+          "description": "Return non-zero if the FPGA fabric I/O bus is enabled in this build."
+        },
+        {
+          "name": "get_stack_memory_total_kb",
+          "signature": "uint32_t get_stack_memory_total_kb(void)",
+          "header": "global.h",
+          "description": "Return the total stack memory size in kilobytes."
+        },
+        {
+          "name": "get_stack_low_water_mark",
+          "signature": "uint32_t get_stack_low_water_mark(void)",
+          "header": "global.h",
+          "description": "Return the lowest free-stack value observed since the last reset."
+        },
+        {
+          "name": "reset_stack_low_water_mark",
+          "signature": "void reset_stack_low_water_mark(void)",
+          "header": "global.h",
+          "description": "Reset the stack low-water-mark tracking to current free-stack size."
+        },
+        {
+          "name": "enable_stack_overflow_trace",
+          "signature": "void enable_stack_overflow_trace(void)",
+          "header": "global.h",
+          "description": "Enable hardware-assisted stack-overflow trace logging."
+        },
+        {
+          "name": "reset_stack_overflow_occurred_flag",
+          "signature": "void reset_stack_overflow_occurred_flag(void)",
+          "header": "global.h",
+          "description": "Clear the latched 'stack overflow occurred' flag."
+        },
+        {
+          "name": "set_out_of_heap_memory_flag",
+          "signature": "void set_out_of_heap_memory_flag(void)",
+          "header": "global.h",
+          "description": "Latch a flag indicating heap exhaustion was encountered (called by allocators)."
+        },
+        {
+          "name": "get_heap_memory_total_kb",
+          "signature": "uint32_t get_heap_memory_total_kb(void)",
+          "header": "global.h",
+          "description": "Return total configured heap size in kilobytes."
+        },
+        {
+          "name": "get_heap_memory_free",
+          "signature": "uint32_t get_heap_memory_free(void)",
+          "header": "global.h",
+          "description": "Return the current number of free bytes in the heap."
+        },
+        {
+          "name": "get_heap_memory_free_low_water_mark",
+          "signature": "uint32_t get_heap_memory_free_low_water_mark(void)",
+          "header": "global.h",
+          "description": "Return the smallest free-heap value observed since the last reset."
+        },
+        {
+          "name": "reset_heap_low_water_mark",
+          "signature": "void reset_heap_low_water_mark(void)",
+          "header": "global.h",
+          "description": "Reset the heap low-water-mark tracking to current free-heap size."
+        },
+        {
+          "name": "fgets_with_history",
+          "signature": "uint8_t fgets_with_history(uint8_t in_command_mode, const char *prmt, char *buffer, size_t size, char **history_line_buffer, uint8_t history_wr_index, uint8_t max_history_lines)",
+          "header": "global.h",
+          "description": "Read a line into `buffer` (max `size` bytes) with up/down arrow history support; updates the history buffer."
+        },
+        {
+          "name": "get_cursor_position",
+          "signature": "uint8_t get_cursor_position(uint16_t *row, uint16_t *col)",
+          "header": "global.h",
+          "description": "Query the terminal for cursor position via ANSI escape; returns it via `*row` and `*col`."
+        },
+        {
+          "name": "get_console_rows_with_default_on_failure",
+          "signature": "uint8_t get_console_rows_with_default_on_failure(uint16_t *console_rows)",
+          "header": "global.h",
+          "description": "Return the terminal row count, falling back to a built-in default on query failure."
+        },
+        {
+          "name": "get_console_cols_with_default_on_failure",
+          "signature": "uint8_t get_console_cols_with_default_on_failure(uint16_t *cursor_cols)",
+          "header": "global.h",
+          "description": "Return the terminal column count, falling back to a built-in default on query failure."
+        },
+        {
+          "name": "clear_console_and_history_and_reset_cursor",
+          "signature": "uint8_t clear_console_and_history_and_reset_cursor(void)",
+          "header": "global.h",
+          "description": "Clear screen + scrollback and move cursor to origin via ANSI escapes."
+        },
+        {
+          "name": "move_cursor_to_top_of_screen",
+          "signature": "uint8_t move_cursor_to_top_of_screen(void)",
+          "header": "global.h",
+          "description": "Move the terminal cursor to row 1, column 1."
+        },
+        {
+          "name": "move_cursor_to_bottom_of_screen",
+          "signature": "uint8_t move_cursor_to_bottom_of_screen(void)",
+          "header": "global.h",
+          "description": "Move the terminal cursor to the bottom row."
+        },
+        {
+          "name": "print_full_page_print_footer",
+          "signature": "void print_full_page_print_footer(const char *page_type, const char *page_name, uint16_t total_lines, uint16_t curr_line)",
+          "header": "global.h",
+          "description": "Render a paginated 'page X of Y' footer for long output listings."
+        },
+        {
+          "name": "disable_user_comms_rx_esc_seq_filter",
+          "signature": "void disable_user_comms_rx_esc_seq_filter(void)",
+          "header": "global.h",
+          "description": "Disable the user-comms RX escape-sequence filter (lets escape codes pass through)."
+        },
+        {
+          "name": "enable_user_comms_rx_esc_seq_filter",
+          "signature": "void enable_user_comms_rx_esc_seq_filter(void)",
+          "header": "global.h",
+          "description": "Enable the user-comms RX escape-sequence filter (strips ANSI codes from input)."
+        },
+        {
+          "name": "set_color_for_repl_mode",
+          "signature": "void set_color_for_repl_mode(void)",
+          "header": "global.h",
+          "description": "Apply ANSI colours appropriate for REPL output to the user-comms UART."
+        },
+        {
+          "name": "set_color_for_command_mode",
+          "signature": "void set_color_for_command_mode(void)",
+          "header": "global.h",
+          "description": "Apply the default command-mode ANSI colour scheme to the UART output."
+        },
+        {
+          "name": "set_color_for_command_mode_bright",
+          "signature": "void set_color_for_command_mode_bright(void)",
+          "header": "global.h",
+          "description": "Apply the bright/highlight command-mode ANSI colour to UART output."
+        },
+        {
+          "name": "set_color_for_command_mode_category",
+          "signature": "void set_color_for_command_mode_category(void)",
+          "header": "global.h",
+          "description": "Apply the category-heading colour for command-mode output."
+        },
+        {
+          "name": "set_color_for_command_mode_error",
+          "signature": "void set_color_for_command_mode_error(void)",
+          "header": "global.h",
+          "description": "Apply the error-message colour for command-mode output."
+        },
+        {
+          "name": "set_color_for_command_mode_command",
+          "signature": "void set_color_for_command_mode_command(void)",
+          "header": "global.h",
+          "description": "Apply the command-token colour for command-mode output."
+        },
+        {
+          "name": "set_color_for_command_mode_highlighting",
+          "signature": "void set_color_for_command_mode_highlighting(void)",
+          "header": "global.h",
+          "description": "Apply the value-highlight colour for command-mode output."
+        }
+      ],
+      "macros": [
+        {
+          "name": "globals_h",
+          "args": "",
+          "value": "",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FLASH_STORAGE_ENABLE",
+          "args": "",
+          "value": "",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR_DEVICE_NAME_CAPS",
+          "args": "",
+          "value": "\"EMBLUA\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR_DEVICE_NAME",
+          "args": "",
+          "value": "\"embLua\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR_DEVICE_NAME_CAMELCASE",
+          "args": "",
+          "value": "\"embLua\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR_DEVICE_DESCRIPTION",
+          "args": "",
+          "value": "\"the worlds most accessible physical computing device\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR_CMD_UNSUPPORTED_FOR_STACK_SIZE_LESS_8K",
+          "args": "",
+          "value": "\"Command currently unsupported for stack size < 8192 bytes!\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "C_COMMAND_MODE_SEPARATOR",
+          "args": "",
+          "value": "'|'",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR_COMMAND_MODE_SEPARATOR",
+          "args": "",
+          "value": "\"|\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MAX_NUM_IO_PINS",
+          "args": "",
+          "value": "(32)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MAX_NUM_ADC_PINS",
+          "args": "",
+          "value": "(8)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MAX_NUM_DAC_PINS",
+          "args": "",
+          "value": "(8)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "NO_PRINT_PROGRESS",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "PRINT_PROGRESS",
+          "args": "",
+          "value": "(1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "UNINTERRUPTIBLE_SLEEP",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "INTERRUPTIBLE_SLEEP",
+          "args": "",
+          "value": "(1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "USER_CANCELLABLE_SLEEP",
+          "args": "",
+          "value": "(2)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "USER_COMMS_RX_INTERRUPT_INTERRUPTIBLE_SLEEP_BITFLAG",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_SOFTWARE_INTERRUPT_INTERRUPTIBLE_SLEEP_BITFLAG",
+          "args": "",
+          "value": "(0x2)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SLEEP_IS_MICROSECONDS_BITFLAG",
+          "args": "",
+          "value": "(0x4)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SLEEP_REMAINING_TIMEOUT_BITFLAGS",
+          "args": "",
+          "value": "(0x03FF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "USER_EXIT_PROGRAM_INTERRUPT_BITFLAGS",
+          "args": "",
+          "value": "(0x6000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "COMMAND_MODE_DUMMY_ROWS_AT_TOP",
+          "args": "",
+          "value": "(2)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "PRINT_CODE_MODE_MIN_CONSOLE_HEIGHT",
+          "args": "",
+          "value": "(20)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CORE_INFO_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "NUM_CORES_M1_SHIFT",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "NUM_CORES_M1_MASK",
+          "args": "",
+          "value": "(0xF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CORE_ID_SHIFT",
+          "args": "",
+          "value": "(4)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CORE_ID_MASK",
+          "args": "",
+          "value": "(0xF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_CFG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_TX_CFG_SHIFT",
+          "args": "",
+          "value": "(16)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_TX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_RX_CFG_SHIFT",
+          "args": "",
+          "value": "(24)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_RX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_FIFO_TX_CFG_SHIFT",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_FIFO_TX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_FIFO_RX_CFG_SHIFT",
+          "args": "",
+          "value": "(8)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_LOCK_FIFO_RX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_CFG_RD_INDEX",
+          "args": "",
+          "value": "(15)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_TX_CFG_SHIFT",
+          "args": "",
+          "value": "(16)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_TX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_RX_CFG_SHIFT",
+          "args": "",
+          "value": "(24)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_RX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_FIFO_TX_CFG_SHIFT",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_FIFO_TX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_FIFO_RX_CFG_SHIFT",
+          "args": "",
+          "value": "(8)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_DATA_FIFO_RX_CFG_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_FREQ_MHZ_RD_INDEX",
+          "args": "",
+          "value": "(15)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_FREQ_MHZ_MASK",
+          "args": "",
+          "value": "(0xFFFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "UART_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "UART_SHARED_COMMS_SHIFT",
+          "args": "",
+          "value": "(8)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "UART_SHARED_COMMS_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "TIMER_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "TIMER_ENABLE_SHIFT",
+          "args": "",
+          "value": "(9)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "TIMER_ENABLE_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CLOCK_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CLOCK_ENABLE_SHIFT",
+          "args": "",
+          "value": "(10)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CLOCK_ENABLE_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MEMORY_TRACE_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MEMORY_TRACE_ENABLE_SHIFT",
+          "args": "",
+          "value": "(11)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MEMORY_TRACE_ENABLE_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_BUS_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_BUS_ENABLE_SHIFT",
+          "args": "",
+          "value": "(12)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_BUS_ENABLE_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_TRACE_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_TRACE_ENABLE_SHIFT",
+          "args": "",
+          "value": "(13)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_TRACE_ENABLE_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "REBOOT_WAS_STACK_OVERFLOW_RD_INDEX",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "REBOOT_WAS_STACK_OVERFLOW_SHIFT",
+          "args": "",
+          "value": "(14)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "REBOOT_WAS_STACK_OVERFLOW_MASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_CORE1_BITFLAG",
+          "args": "",
+          "value": "(0x00000100)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "CPU_CORE1_BITFLAG_SLR1",
+          "args": "",
+          "value": "(CPU_CORE1_BITFLAG >> 1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XBAR_TRANSACTION_NONBLOCKING",
+          "args": "",
+          "value": "(0x00010000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_NUM_DIGITAL_PINS_SHIFT",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_NUM_DIGITAL_PINS_MASK",
+          "args": "",
+          "value": "(0x3F)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_NUM_ADC_SHIFT",
+          "args": "",
+          "value": "(6)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_NUM_ADC_MASK",
+          "args": "",
+          "value": "(0x1F)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_NUM_DAC_SHIFT",
+          "args": "",
+          "value": "(11)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_NUM_DAC_MASK",
+          "args": "",
+          "value": "(0x1F)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_ADC_PINS_ENABLED_SHIFT",
+          "args": "",
+          "value": "(16)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_ADC_PINS_ENABLED_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_DAC_PINS_ENABLED_SHIFT",
+          "args": "",
+          "value": "(24)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_DAC_PINS_ENABLED_MASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ENABLED",
+          "args": "",
+          "value": "(9)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ADC_ANALOG_BUFFER_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(10)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ADC_ANALOG_SW_INT_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(11)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "DAC_ANALOG_BUFFER_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(12)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "DAC_ANALOG_SW_INT_CONFIG_RD_INDEX",
+          "args": "",
+          "value": "(13)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ENABLED_SHIFT",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ENABLED_BITMASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_DAC_ENABLED_SHIFT",
+          "args": "",
+          "value": "(1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_DAC_ENABLED_BITMASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_ADC_ENABLED_SHIFT",
+          "args": "",
+          "value": "(2)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_ADC_ENABLED_BITMASK",
+          "args": "",
+          "value": "(0x1)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "HEAP_SIZE_SHIFT",
+          "args": "",
+          "value": "(8)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "HEAP_SIZE_BITMASK",
+          "args": "",
+          "value": "(0xFFFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STACK_SIZE_SHIFT",
+          "args": "",
+          "value": "(24)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STACK_SIZE_BITMASK",
+          "args": "",
+          "value": "(0xFF)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "XSTR",
+          "args": "(s)",
+          "value": "STR(s)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STR",
+          "args": "(s)",
+          "value": "#s",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SOFTWARE_VERSION",
+          "args": "",
+          "value": "\"Undefined!\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SOFTWARE_VERSION",
+          "args": "",
+          "value": "XSTR(VERSION)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SPI_XIP_BASE_ADDR",
+          "args": "",
+          "value": "(0x00000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SPI_CFG_BASE_ADDR",
+          "args": "",
+          "value": "(0x20000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "IO_UTILS_BASE_ADDR",
+          "args": "",
+          "value": "(0x40000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "BROM_BASE_ADDR",
+          "args": "",
+          "value": "(0x60000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_BUS_BASE_ADDR",
+          "args": "",
+          "value": "(0x68000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "USER_COMMS_BASE_ADDR",
+          "args": "",
+          "value": "(0x70000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "LVM_ADDR",
+          "args": "",
+          "value": "(0x78000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SRAM_BASE_ADDR",
+          "args": "",
+          "value": "(0x80000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "HEAP1_BASE_ADDR",
+          "args": "",
+          "value": "(SRAM_BASE_ADDR + 0x20000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "HEAP2_BASE_ADDR",
+          "args": "",
+          "value": "(SRAM_BASE_ADDR + 0x10000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "HEAP3_BASE_ADDR",
+          "args": "",
+          "value": "(SRAM_BASE_ADDR + 0x08000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MMAP_BASE_ADDR",
+          "args": "",
+          "value": "(0x80000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MMAP1_BASE_ADDR",
+          "args": "",
+          "value": "(MMAP_BASE_ADDR + 0x00800000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MMAP2_BASE_ADDR",
+          "args": "",
+          "value": "(MMAP_BASE_ADDR + 0x00400000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "MMAP3_BASE_ADDR",
+          "args": "",
+          "value": "(MMAP_BASE_ADDR + 0x00200000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "NOOP",
+          "args": "",
+          "value": "(void)0",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "UTILS0",
+          "args": "",
+          "value": "((volatile UTILS *)IO_UTILS_BASE_ADDR)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "UART0",
+          "args": "",
+          "value": "((volatile PICOUART *)USER_COMMS_BASE_ADDR)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_BUS0",
+          "args": "",
+          "value": "((volatile uint32_t *)FPGA_BUS_BASE_ADDR)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_BUS_NONBLOCKING_FLAG",
+          "args": "",
+          "value": "(0x01000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_BUS_READ_PREVIOUS_TRANSACTION_RESULT_FLAG",
+          "args": "",
+          "value": "(0x02000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "LVM",
+          "args": "",
+          "value": "((volatile uint32_t *)LVM_ADDR)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SYSTEM_TIMER_CTRL_LOCK_BITFLAG",
+          "args": "",
+          "value": "(0x01)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SYSTEM_TIMER_CTRL_RD_MILLISECONDS_BITFLAG",
+          "args": "",
+          "value": "(0x02)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SYSTEM_TIMER_CACHE_CTRL_TRIG_CACHING_CACHE1_BITFLAG",
+          "args": "",
+          "value": "(0x01)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SYSTEM_TIMER_CACHE_CTRL_TRIG_CACHING_CACHE2_BITFLAG",
+          "args": "",
+          "value": "(0x02)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SYSTEM_TIMER_CACHE_CTRL_CLEAR_CACHES_BITFLAG",
+          "args": "",
+          "value": "(0x04)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SYSTEM_TIMER_CACHE_CTRL_RD_MILLISECONDS_BITFLAG",
+          "args": "",
+          "value": "(0x08)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STACK_HIGH_WATER_MARK_TRACE_RESET_BITFLAG",
+          "args": "",
+          "value": "(0x10000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "HEAP_OUT_OF_MEMORY_BITFLAG",
+          "args": "",
+          "value": "(0x20000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STACK_OVERFLOW_OCCURRED_RESET_BITFLAG",
+          "args": "",
+          "value": "(0x40000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "STACK_OVERFLOW_TRACE_ENABLE_BITFLAG",
+          "args": "",
+          "value": "(0x80000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "SPI_CLK_DIVIDER_FREQ_HZ",
+          "args": "",
+          "value": "(1000000)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "USER_EXIT_PROGRAM_INTERRUPT_MASK",
+          "args": "",
+          "value": "(0x00000006)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "QSPI_IN_CFG_MODE_FLAG",
+          "args": "",
+          "value": "(0x20)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_RED",
+          "args": "",
+          "value": "\"\\x1b[31m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_GREEN",
+          "args": "",
+          "value": "\"\\x1b[32m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_YELLOW",
+          "args": "",
+          "value": "\"\\x1b[33m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_BLUE",
+          "args": "",
+          "value": "\"\\x1b[34m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_MAGENTA",
+          "args": "",
+          "value": "\"\\x1b[35m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CYAN",
+          "args": "",
+          "value": "\"\\x1b[36m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_WHITE",
+          "args": "",
+          "value": "\"\\x1b[37m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_BRIGHT_RED",
+          "args": "",
+          "value": "\"\\x1b[91m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_RESET",
+          "args": "",
+          "value": "\"\\x1b[0m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_REPL_YELLOW",
+          "args": "",
+          "value": "\"\\x1b[38;5;222m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_GRAY",
+          "args": "",
+          "value": "\"\\x1b[38;5;252m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE1",
+          "args": "",
+          "value": "\"\\x1b[38;5;159m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE2",
+          "args": "",
+          "value": "\"\\x1b[38;5;157m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE3",
+          "args": "",
+          "value": "\"\\x1b[38;5;155m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE4",
+          "args": "",
+          "value": "\"\\x1b[38;5;148m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE5",
+          "args": "",
+          "value": "\"\\x1b[38;5;150m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE6",
+          "args": "",
+          "value": "\"\\x1b[38;5;152m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE7",
+          "args": "",
+          "value": "\"\\x1b[38;5;147m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_CORE8",
+          "args": "",
+          "value": "\"\\x1b[38;5;144m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_LIGHT_BLUE",
+          "args": "",
+          "value": "\"\\x1b[38;5;75m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_COLOR_LIGHT_CYAN",
+          "args": "",
+          "value": "\"\\x1b[38;5;66m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "ANSI_BACKGROUND_COLOR_DARK",
+          "args": "",
+          "value": "\"\\x1b[48;5;232m\"",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "REPL_MODE",
+          "args": "",
+          "value": "(0)",
+          "header": "global.h",
+          "description": ""
+        },
+        {
+          "name": "COMMAND_MODE",
+          "args": "",
+          "value": "(1)",
+          "header": "global.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "interrupt.h",
+      "functions": [],
+      "macros": [
+        {
+          "name": "SW_INTERRUPT_STR",
+          "args": "",
+          "value": "\"SW_INTRPTS\"",
+          "header": "interrupt.h",
+          "description": ""
+        },
+        {
+          "name": "HW_BUFFER",
+          "args": "",
+          "value": "\"HW_BUFFER\"",
+          "header": "interrupt.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "io.h",
+      "functions": [
+        {
+          "name": "init_io",
+          "signature": "void init_io(void)",
+          "header": "io.h",
+          "description": "Initialise all I/O pin state at boot, applying any persisted configuration."
+        },
+        {
+          "name": "io_get_num_pins",
+          "signature": "uint8_t io_get_num_pins(void)",
+          "header": "io.h",
+          "description": "Return the number of physical I/O pins this build supports."
+        },
+        {
+          "name": "update_io_type",
+          "signature": "uint8_t update_io_type(uint16_t io_index, e_iotype io_type)",
+          "header": "io.h",
+          "description": "Apply a new I/O type to `io_index` immediately (without persisting to flash)."
+        },
+        {
+          "name": "get_io_type_as_str",
+          "signature": "const char* get_io_type_as_str(uint16_t io_index)",
+          "header": "io.h",
+          "description": "Return the active I/O type for `io_index` as a printable string (e.g. \"GPIO_OUT\")."
+        },
+        {
+          "name": "user_io_num_from_str",
+          "signature": "uint16_t user_io_num_from_str(char *user_io_num_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Parse a user-facing PIN string (e.g. \"PIN3\") into its integer pin index."
+        },
+        {
+          "name": "is_hardware_shared_spi_config",
+          "signature": "uint8_t is_hardware_shared_spi_config(void) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if the hardware uses the shared-SPI configuration variant."
+        },
+        {
+          "name": "get_smallest_index_dynamic_iotype_offset",
+          "signature": "e_iotype get_smallest_index_dynamic_iotype_offset(void) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the lowest enum value reserved for dynamic (shared-SPI) IO types."
+        },
+        {
+          "name": "get_max_iotypes",
+          "signature": "e_iotype get_max_iotypes(void) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the highest valid I/O type enum value for this build."
+        },
+        {
+          "name": "get_io_type",
+          "signature": "e_iotype get_io_type(uint32_t user_io_num) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the currently configured I/O type for `user_io_num`."
+        },
+        {
+          "name": "valid_user_io_num",
+          "signature": "uint8_t valid_user_io_num(uint16_t user_io_num) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `user_io_num` is a valid pin index for this build."
+        },
+        {
+          "name": "valid_user_io_num_as_str",
+          "signature": "uint8_t valid_user_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `user_io_num_str` parses as a valid pin (\"PIN<n>\")."
+        },
+        {
+          "name": "valid_formatting_for_user_io_num_as_str",
+          "signature": "uint8_t valid_formatting_for_user_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `user_io_num_str` matches the expected PIN<n> format (regardless of range)."
+        },
+        {
+          "name": "valid_io_type_as_str",
+          "signature": "uint8_t valid_io_type_as_str(char *io_type_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `io_type_str` names a recognised I/O type."
+        },
+        {
+          "name": "valid_standalone_io_type",
+          "signature": "uint8_t valid_standalone_io_type(e_iotype io_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `io_type` is a standalone (non-shared-SPI) IO type."
+        },
+        {
+          "name": "valid_io_baud",
+          "signature": "uint8_t valid_io_baud(uint32_t baud_rate) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `baud_rate` is one of the supported UART baud rates."
+        },
+        {
+          "name": "can_set_baud_for_io_type",
+          "signature": "uint8_t can_set_baud_for_io_type(e_iotype iotype) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `iotype` is a UART variant that accepts a baud setting."
+        },
+        {
+          "name": "is_baud_config_applicable_to_io",
+          "signature": "uint8_t is_baud_config_applicable_to_io(uint32_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if pin `io_index` is currently configured as UART (so baud applies)."
+        },
+        {
+          "name": "get_baud_config_for_io",
+          "signature": "uint32_t get_baud_config_for_io(uint32_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the active UART baud rate for pin `io_index`."
+        },
+        {
+          "name": "set_baud_config_for_io",
+          "signature": "uint8_t set_baud_config_for_io(uint32_t io_index, uint32_t baud) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the UART baud rate of pin `io_index` to `baud`."
+        },
+        {
+          "name": "valid_io_pwm_freq",
+          "signature": "uint8_t valid_io_pwm_freq(uint32_t pwm_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `pwm_freq_khz` is within the supported PWM frequency range."
+        },
+        {
+          "name": "get_pwm_clock_divider",
+          "signature": "uint32_t get_pwm_clock_divider(uint8_t pwm_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the FPGA clock divider corresponding to `pwm_freq_khz`."
+        },
+        {
+          "name": "is_pwm_config_applicable_to_io",
+          "signature": "uint8_t is_pwm_config_applicable_to_io(uint32_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if pin `io_index` is currently configured as PWM."
+        },
+        {
+          "name": "get_pwm_config_for_io",
+          "signature": "uint8_t get_pwm_config_for_io(uint32_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the active PWM frequency setting (kHz) for pin `io_index`."
+        },
+        {
+          "name": "set_pwm_config_for_io",
+          "signature": "uint8_t set_pwm_config_for_io(uint32_t io_index, uint8_t pwm_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the PWM frequency for pin `io_index` to `pwm_freq_khz`."
+        },
+        {
+          "name": "get_spi_freq_from_clock_divider",
+          "signature": "uint32_t get_spi_freq_from_clock_divider(uint32_t spi_clock_divider) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Convert an FPGA clock divider value back to its equivalent SPI frequency (kHz)."
+        },
+        {
+          "name": "get_spi_clock_divider",
+          "signature": "uint32_t get_spi_clock_divider(uint8_t spi_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the FPGA clock divider corresponding to `spi_freq_khz`."
+        },
+        {
+          "name": "is_spi_config_applicable_to_io",
+          "signature": "uint8_t is_spi_config_applicable_to_io(uint32_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if pin `io_index` is currently configured for SPI."
+        },
+        {
+          "name": "get_spi_config_for_io",
+          "signature": "uint8_t get_spi_config_for_io(uint32_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the active SPI frequency setting (kHz) for pin `io_index`."
+        },
+        {
+          "name": "set_spi_config_for_standalone_spi_io",
+          "signature": "uint8_t set_spi_config_for_standalone_spi_io(uint32_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set SPI frequency for an independently-clocked SPI pin."
+        },
+        {
+          "name": "set_spi_config_for_io",
+          "signature": "uint8_t set_spi_config_for_io(uint32_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the SPI frequency for pin `io_index` to `spi_freq_khz`."
+        },
+        {
+          "name": "valid_io_spi_freq",
+          "signature": "uint8_t valid_io_spi_freq(uint32_t spi_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `spi_freq_khz` is within the supported SPI frequency range."
+        },
+        {
+          "name": "configure_spi_out_for_shared_spi_config_hardware",
+          "signature": "uint8_t configure_spi_out_for_shared_spi_config_hardware(uint16_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Apply shared-SPI hardware configuration for an output-direction pin."
+        },
+        {
+          "name": "configure_spi_in_for_shared_spi_config_hardware",
+          "signature": "uint8_t configure_spi_in_for_shared_spi_config_hardware(uint16_t io_index, uint8_t spi_freq_khz) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Apply shared-SPI hardware configuration for an input-direction pin."
+        },
+        {
+          "name": "get_software_interrupt_types_for_io",
+          "signature": "uint8_t get_software_interrupt_types_for_io(uint16_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the bitmask of currently-enabled software interrupt types on pin `io_index`."
+        },
+        {
+          "name": "set_software_interrupt_types_for_io",
+          "signature": "e_status set_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Replace the enabled software-interrupt-type bitmask on pin `io_index`."
+        },
+        {
+          "name": "enable_software_interrupt_types_for_io",
+          "signature": "e_status enable_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "OR `interrupt_mask` into the enabled software-interrupt-type set on pin `io_index`."
+        },
+        {
+          "name": "disable_software_interrupt_types_for_io",
+          "signature": "e_status disable_software_interrupt_types_for_io(uint16_t io_index, uint8_t interrupt_mask) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Clear the bits in `interrupt_mask` from the enabled set on pin `io_index`."
+        },
+        {
+          "name": "get_software_interrupt_vector",
+          "signature": "volatile uint32_t get_software_interrupt_vector(void) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the global vector of pending software interrupts (one bit per pin)."
+        },
+        {
+          "name": "get_software_interrupts_for_io",
+          "signature": "volatile uint32_t get_software_interrupts_for_io(uint16_t io_index) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the bitmask of currently-pending interrupts on pin `io_index`."
+        },
+        {
+          "name": "acknowledge_software_interrupts_for_io",
+          "signature": "e_status acknowledge_software_interrupts_for_io(uint16_t io_index, uint8_t interrupts) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Acknowledge (clear) the bits in `interrupts` for pin `io_index`."
+        },
+        {
+          "name": "set_io_type",
+          "signature": "e_status set_io_type(uint16_t io_index, e_iotype io_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the I/O type for pin `io_index` to `io_type`."
+        },
+        {
+          "name": "set_io_type_from_str",
+          "signature": "e_status set_io_type_from_str(uint16_t io_index, char *io_type_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the I/O type for pin `io_index` from a string name (e.g. \"GPIO_OUT\")."
+        },
+        {
+          "name": "set_gpio",
+          "signature": "e_status set_gpio(uint32_t user_io_num, uint32_t gpio_val) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Drive the GPIO output of `user_io_num` to `gpio_val` (LOW/HIGH/TOGGLE)."
+        },
+        {
+          "name": "get_gpio",
+          "signature": "e_status get_gpio(uint32_t user_io_num, uint32_t *gpio_val) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Read the current GPIO input level on `user_io_num` into `*gpio_val`."
+        },
+        {
+          "name": "set_pwm",
+          "signature": "e_status set_pwm(uint32_t user_io_num, uint32_t pwm_val) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the PWM duty cycle of `user_io_num` to `pwm_val` (0..PWM_VALUE_MAX)."
+        },
+        {
+          "name": "spi_tx_char",
+          "signature": "e_status spi_tx_char(uint32_t user_io_num, char tx_char) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Transmit one byte (`tx_char`) over the SPI master on `user_io_num`."
+        },
+        {
+          "name": "spi_tx_byte",
+          "signature": "e_status spi_tx_byte(uint32_t user_io_num, uint32_t tx_byte) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Transmit one byte (`tx_byte`) over the SPI master on `user_io_num`."
+        },
+        {
+          "name": "spi_tx_int",
+          "signature": "e_status spi_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Transmit a 32-bit word (`tx_word`) over the SPI master on `user_io_num`."
+        },
+        {
+          "name": "spi_rx_byte",
+          "signature": "e_status spi_rx_byte(uint32_t user_io_num, volatile uint8_t *rx_byte) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Receive a single byte from the SPI slave on `user_io_num` into `*rx_byte`."
+        },
+        {
+          "name": "uart_tx_char",
+          "signature": "e_status uart_tx_char(uint32_t user_io_num, char tx_char) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Transmit one byte (`tx_char`) over the UART on `user_io_num`."
+        },
+        {
+          "name": "uart_tx_byte",
+          "signature": "e_status uart_tx_byte(uint32_t user_io_num, uint32_t tx_byte) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Transmit one byte (`tx_byte`) over the UART on `user_io_num`."
+        },
+        {
+          "name": "uart_tx_int",
+          "signature": "e_status uart_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Transmit a 32-bit word (`tx_word`) over the UART on `user_io_num`."
+        },
+        {
+          "name": "uart_rx_byte",
+          "signature": "e_status uart_rx_byte(uint32_t user_io_num, volatile uint8_t *uart_rx_val) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Block-receive one byte from the UART on `user_io_num` into `*uart_rx_val`."
+        },
+        {
+          "name": "uart_rx_byte_nonblocking",
+          "signature": "e_status uart_rx_byte_nonblocking(uint32_t user_io_num, volatile uint8_t *uart_rx_val, uint8_t *uart_rx_val_valid) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Non-blocking receive: returns the next UART byte if available, with `*uart_rx_val_valid` set accordingly."
+        },
+        {
+          "name": "standalone_io_type_tostring",
+          "signature": "const char* standalone_io_type_tostring(e_iotype io_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the string name for a standalone I/O type enum value."
+        },
+        {
+          "name": "relational_io_type_tostring",
+          "signature": "const char* relational_io_type_tostring(e_relational_iotype rel_io_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the string name for a relational (paired) I/O type enum value."
+        },
+        {
+          "name": "analog_io_type_tostring",
+          "signature": "const char* analog_io_type_tostring(e_analogtype analog_io_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return the string name for an analog I/O type enum value."
+        },
+        {
+          "name": "reset_io_type_config",
+          "signature": "e_status reset_io_type_config(uint32_t io_index)",
+          "header": "io.h",
+          "description": "Reset pin `io_index` to type NONE (releases any active configuration)."
+        },
+        {
+          "name": "reset_all_io_config",
+          "signature": "void reset_all_io_config(void)",
+          "header": "io.h",
+          "description": "Reset every pin to type NONE."
+        },
+        {
+          "name": "print_io_type_config",
+          "signature": "void print_io_type_config(void)",
+          "header": "io.h",
+          "description": "Print the I/O type configuration of every pin."
+        },
+        {
+          "name": "print_io_baud_config",
+          "signature": "void print_io_baud_config(void)",
+          "header": "io.h",
+          "description": "Print the UART baud configuration for every UART-configured pin."
+        },
+        {
+          "name": "print_io_pwm_config",
+          "signature": "void print_io_pwm_config(void)",
+          "header": "io.h",
+          "description": "Print the PWM frequency for every PWM-configured pin."
+        },
+        {
+          "name": "print_io_spi_config",
+          "signature": "void print_io_spi_config(void)",
+          "header": "io.h",
+          "description": "Print the SPI frequency for every SPI-configured pin."
+        },
+        {
+          "name": "print_io_capabilities",
+          "signature": "void print_io_capabilities(void)",
+          "header": "io.h",
+          "description": "Print the per-pin capability matrix (which I/O types each pin supports)."
+        },
+        {
+          "name": "save_io_config_as_start_on_boot",
+          "signature": "void save_io_config_as_start_on_boot(uint8_t print_progress)",
+          "header": "io.h",
+          "description": "Persist the active I/O configuration to flash for use on next boot."
+        },
+        {
+          "name": "load_start_on_boot_config_for_all_io",
+          "signature": "void load_start_on_boot_config_for_all_io(void)",
+          "header": "io.h",
+          "description": "Apply the persisted boot-time I/O configuration to every pin."
+        },
+        {
+          "name": "get_default_spi_clock_divider",
+          "signature": "uint32_t get_default_spi_clock_divider(void)",
+          "header": "io.h",
+          "description": "Return the FPGA clock divider used at the default SPI frequency."
+        },
+        {
+          "name": "valid_analog_io_type_as_str",
+          "signature": "uint8_t valid_analog_io_type_as_str(char *analog_type_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `analog_type_str` names a recognised analog I/O type."
+        },
+        {
+          "name": "valid_analog_io_type",
+          "signature": "uint8_t valid_analog_io_type(e_analogtype analog_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `analog_type` is a recognised analog I/O type enum."
+        },
+        {
+          "name": "valid_analog_dac_user_io_num",
+          "signature": "uint8_t valid_analog_dac_user_io_num(uint32_t analog_dac_user_io_num) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `analog_dac_user_io_num` is a valid DAC channel index."
+        },
+        {
+          "name": "valid_analog_adc_user_io_num",
+          "signature": "uint8_t valid_analog_adc_user_io_num(uint32_t analog_adc_user_io_num) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `analog_adc_user_io_num` is a valid ADC channel index."
+        },
+        {
+          "name": "valid_user_analog_io_num_as_str",
+          "signature": "uint8_t valid_user_analog_io_num_as_str(char *user_io_num_str) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `user_io_num_str` parses as a valid analog channel."
+        },
+        {
+          "name": "valid_user_analog_io_num",
+          "signature": "uint8_t valid_user_analog_io_num(uint32_t user_io_num) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Return non-zero if `user_io_num` is a valid analog channel index."
+        },
+        {
+          "name": "set_adc_enabled_state",
+          "signature": "e_status set_adc_enabled_state(uint16_t adc_index, e_pin_enable_state enabled_state)",
+          "header": "io.h",
+          "description": "Enable or disable ADC channel `adc_index`."
+        },
+        {
+          "name": "set_dac_enabled_state",
+          "signature": "e_status set_dac_enabled_state(uint16_t dac_index, e_pin_enable_state enabled_state)",
+          "header": "io.h",
+          "description": "Enable or disable DAC channel `dac_index`."
+        },
+        {
+          "name": "set_analog_io_type",
+          "signature": "e_status set_analog_io_type(uint16_t io_index, e_analogtype analog_type) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Set the analog I/O type (ADC/DAC) for pin `io_index`."
+        },
+        {
+          "name": "set_analog_io_type_from_str",
+          "signature": "e_status set_analog_io_type_from_str(uint16_t io_index, char *io_type_str)",
+          "header": "io.h",
+          "description": "Set the analog I/O type for pin `io_index` from a string name."
+        },
+        {
+          "name": "set_dac",
+          "signature": "e_status set_dac(uint32_t analog_dac_user_io_num, float voltage) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Drive DAC channel `analog_dac_user_io_num` to `voltage` (volts)."
+        },
+        {
+          "name": "get_adc",
+          "signature": "e_status get_adc(uint32_t analog_adc_user_io_num, double *voltage) ATTRIB_F1CODE",
+          "header": "io.h",
+          "description": "Sample ADC channel `analog_adc_user_io_num` into `*voltage` (volts)."
+        }
+      ],
+      "macros": [
+        {
+          "name": "STR_ADC",
+          "args": "",
+          "value": "\"ADC\"",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "STR_DAC",
+          "args": "",
+          "value": "\"DAC\"",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "PWM_VALUE_MAX",
+          "args": "",
+          "value": "(256)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DAC_VOLTAGE_MIN",
+          "args": "",
+          "value": "(0.0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DAC_VOLTAGE_MAX",
+          "args": "",
+          "value": "(5.0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DAC_VALUE_MIN",
+          "args": "",
+          "value": "(0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DAC_VALUE_MAX",
+          "args": "",
+          "value": "(256)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ADC_VOLTAGE_MIN",
+          "args": "",
+          "value": "(0.0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ADC_VOLTAGE_MAX",
+          "args": "",
+          "value": "(5.0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ADC_VALUE_MIN",
+          "args": "",
+          "value": "(0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ADC_VALUE_MAX",
+          "args": "",
+          "value": "(256)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_DAC_CHANNEL_SPI_VALUE_SHIFT",
+          "args": "",
+          "value": "(12)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_DAC_VALUE_SPI_VALUE_SHIFT",
+          "args": "",
+          "value": "(4)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DEFAULT_UART_BAUD",
+          "args": "",
+          "value": "(9600)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "PMW_FREQ_KHZ_MAX",
+          "args": "",
+          "value": "(255)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DEFAULT_PWM_FREQ_KHZ",
+          "args": "",
+          "value": "(10)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "SPI_FREQ_KHZ_MAX",
+          "args": "",
+          "value": "(255)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "DEFAULT_SPI_FREQ_KHZ",
+          "args": "",
+          "value": "(10)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SPI_ORDER_BITFLAG",
+          "args": "",
+          "value": "(1 << 13)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_SOFTWARE_INTERRUPTS_BITFLAG",
+          "args": "",
+          "value": "(1 << 16)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_SMALL_HARDWARE_BUFFER_BITFLAG",
+          "args": "",
+          "value": "(1 << 17)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_LARGE_HARDWARE_BUFFER_BITFLAG",
+          "args": "",
+          "value": "(1 << 18)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_SHARED_SPI_SUPPORTED_BITFLAG",
+          "args": "",
+          "value": "(1 << 0)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_SHARED_SPI_PIN_ORDER_BITFLAG",
+          "args": "",
+          "value": "(1 << 1)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_DAC_SPI_WR",
+          "args": "",
+          "value": "(0x00000000)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ADC_SPI_WR",
+          "args": "",
+          "value": "(0x00010000)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_DAC_MODE_WRM_SPI_VAL",
+          "args": "",
+          "value": "(0x8000)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_DAC_MODE_WTM_SPI_VAL",
+          "args": "",
+          "value": "(0x9000)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ADC_ENTER_AUTO1_PROGRAM_SEQUENCE",
+          "args": "",
+          "value": "(0x8000)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ADC_AUTO1_MODE_SELECT_ALL_CHANNELS",
+          "args": "",
+          "value": "(0xFFFF)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ADC_AUTO1_MODE_SELECT_AND_RESET_SCAN",
+          "args": "",
+          "value": "(0x2C00)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "ANALOG_IO_ADC_AUTO1_MODE_SELECT_AND_CLEAR_SCAN_RESET",
+          "args": "",
+          "value": "(0x2800)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_GPIO_OUT_BITFLAG",
+          "args": "",
+          "value": "(1 << e_gpio_out)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_GPIO_IN_BITFLAG",
+          "args": "",
+          "value": "(1 << e_gpio_in)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_PWM_BITFLAG",
+          "args": "",
+          "value": "(1 << e_pwm)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_UART_OUT_BITFLAG",
+          "args": "",
+          "value": "(1 << e_uart_out)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_UART_IN_BITFLAG",
+          "args": "",
+          "value": "(1 << e_uart_in)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_SPI_OUT_BITFLAG",
+          "args": "",
+          "value": "(1 << e_spi_out)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_SPI_IN_BITFLAG",
+          "args": "",
+          "value": "(1 << e_spi_in)",
+          "header": "io.h",
+          "description": ""
+        },
+        {
+          "name": "FPGA_IO_CONF_SUPPORTS_I2C_BITFLAG",
+          "args": "",
+          "value": "(1 << e_i2c)",
+          "header": "io.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "memory_gowin.h",
+      "functions": [
+        {
+          "name": "initialise_memory",
+          "signature": "uint8_t initialise_memory(e_print_level print_level, uint8_t in_command_mode)",
+          "header": "memory_gowin.h",
+          "description": "Initialise the heap allocator and memory metadata at boot."
+        },
+        {
+          "name": "get_memory_total_bytes",
+          "signature": "uint32_t get_memory_total_bytes(void)",
+          "header": "memory_gowin.h",
+          "description": "Return the total heap size in bytes."
+        },
+        {
+          "name": "get_memory_free_bytes",
+          "signature": "uint32_t get_memory_free_bytes(void)",
+          "header": "memory_gowin.h",
+          "description": "Return the current free heap in bytes."
+        },
+        {
+          "name": "free",
+          "signature": "void free(void *ptr) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Standard free() — release the allocation pointed to by `ptr`."
+        },
+        {
+          "name": "memcmp",
+          "signature": "int memcmp(const void *s1, const void *s2, size_t n) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Standard memcmp() — compare `n` bytes between `s1` and `s2`."
+        },
+        {
+          "name": "get_memory_usage_trace_enabled",
+          "signature": "uint8_t get_memory_usage_trace_enabled(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Return non-zero if memory-usage tracing is currently enabled."
+        },
+        {
+          "name": "enable_memory_usage_trace",
+          "signature": "void enable_memory_usage_trace(void)",
+          "header": "memory_gowin.h",
+          "description": "Begin recording per-allocation memory usage for diagnostics."
+        },
+        {
+          "name": "disable_memory_usage_trace",
+          "signature": "void disable_memory_usage_trace(void)",
+          "header": "memory_gowin.h",
+          "description": "Stop recording memory usage."
+        },
+        {
+          "name": "reset_memory_free_bytes_min_observed",
+          "signature": "void reset_memory_free_bytes_min_observed(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Reset the lowest-observed free-bytes counter to the current value."
+        },
+        {
+          "name": "get_memory_free_bytes_min_observed",
+          "signature": "uint32_t get_memory_free_bytes_min_observed(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Return the smallest free-heap size observed since boot/reset."
+        },
+        {
+          "name": "allow_only_fast_heap_large_regions",
+          "signature": "void allow_only_fast_heap_large_regions(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Restrict the fast-heap allocator to large regions only."
+        },
+        {
+          "name": "allow_all_fast_heap_regions",
+          "signature": "void allow_all_fast_heap_regions(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Allow the fast-heap allocator to use any region size."
+        },
+        {
+          "name": "report_memory_layout",
+          "signature": "void report_memory_layout(void)",
+          "header": "memory_gowin.h",
+          "description": "Print a summary of the heap region layout to the output stream."
+        },
+        {
+          "name": "set_memory_alloc_size_occurances_track_accumulated",
+          "signature": "void set_memory_alloc_size_occurances_track_accumulated(void)",
+          "header": "memory_gowin.h",
+          "description": "Switch the alloc-size occurrence counter to accumulating mode (counts persist)."
+        },
+        {
+          "name": "set_memory_alloc_size_occurances_track_nonaccumulated",
+          "signature": "void set_memory_alloc_size_occurances_track_nonaccumulated(void)",
+          "header": "memory_gowin.h",
+          "description": "Switch the alloc-size occurrence counter to non-accumulating mode."
+        },
+        {
+          "name": "print_memory_alloc_size_occurances",
+          "signature": "void print_memory_alloc_size_occurances(void)",
+          "header": "memory_gowin.h",
+          "description": "Print the table of allocation-size occurrence counts."
+        },
+        {
+          "name": "reset_memory_alloc_size_occurances",
+          "signature": "void reset_memory_alloc_size_occurances(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Clear the allocation-size occurrence counters."
+        },
+        {
+          "name": "print_fast_memory_state",
+          "signature": "void print_fast_memory_state(void)",
+          "header": "memory_gowin.h",
+          "description": "Print the current state of the fast-heap allocator (region usage)."
+        },
+        {
+          "name": "print_fast_memory_alloc_size_occurances",
+          "signature": "void print_fast_memory_alloc_size_occurances(void)",
+          "header": "memory_gowin.h",
+          "description": "Print the fast-heap allocation-size occurrence counts."
+        },
+        {
+          "name": "reset_fast_memory_alloc_size_occurances",
+          "signature": "void reset_fast_memory_alloc_size_occurances(void) ATTRIB_F3CODE",
+          "header": "memory_gowin.h",
+          "description": "Clear the fast-heap allocation-size occurrence counters."
+        }
+      ]
+    },
+    {
+      "name": "precompiler_macros.h",
+      "functions": [],
+      "macros": [
+        {
+          "name": "assert_defined_type_size_equal_or_less_than",
+          "args": "( what, what_limit )",
+          "value": "\\",
+          "header": "precompiler_macros.h",
+          "description": ""
+        },
+        {
+          "name": "assert_defined_type_size_equal_to",
+          "args": "( what, what_equal )",
+          "value": "\\",
+          "header": "precompiler_macros.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "printf.h",
+      "functions": [
+        {
+          "name": "sprintf",
+          "signature": "int sprintf_(char* buffer, const char* format, ...) ATTRIB_F3CODE",
+          "header": "printf.h",
+          "description": "Compact-printf sprintf — format into `buffer` (no overflow check)."
+        },
+        {
+          "name": "snprintf",
+          "signature": "int snprintf_(char* buffer, size_t count, const char* format, ...) ATTRIB_F3CODE",
+          "header": "printf.h",
+          "description": "Compact-printf snprintf — format into `buffer` with at most `count` bytes written."
+        },
+        {
+          "name": "vsnprintf",
+          "signature": "int vsnprintf_(char* buffer, size_t count, const char* format, va_list va) ATTRIB_F3CODE",
+          "header": "printf.h",
+          "description": "Compact-printf vsnprintf — variadic-list version of snprintf."
+        }
+      ],
+      "macros": [
+        {
+          "name": "SPACE_CHAR",
+          "args": "",
+          "value": "' '",
+          "header": "printf.h",
+          "description": ""
+        },
+        {
+          "name": "NEWLINE_CHAR",
+          "args": "",
+          "value": "'\\n'",
+          "header": "printf.h",
+          "description": ""
+        },
+        {
+          "name": "CARRIAGE_RETURN_CHAR",
+          "args": "",
+          "value": "'\\r'",
+          "header": "printf.h",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "stdlib.h",
+      "functions": [
+        {
+          "name": "init_mem_buf",
+          "signature": "void init_mem_buf(void) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Initialise the standard-library file-buffering memory pool."
+        },
+        {
+          "name": "abs",
+          "signature": "int abs(int j) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Return the absolute value of `j`."
+        },
+        {
+          "name": "abort",
+          "signature": "void abort(void) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Abnormal termination — does not return."
+        },
+        {
+          "name": "system",
+          "signature": "int system(const char *command) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Pass `command` to the host shell. Stub on this platform; returns -1 if unsupported."
+        },
+        {
+          "name": "printf",
+          "signature": "int printf(const char *format, ...) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Standard printf — write a formatted string to stdout."
+        },
+        {
+          "name": "fclose",
+          "signature": "int fclose(FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Close the file `stream` and release its buffers."
+        },
+        {
+          "name": "fflush",
+          "signature": "int fflush(FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Flush any buffered output for `stream`."
+        },
+        {
+          "name": "fread",
+          "signature": "size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Read `nmemb` items of `size` bytes from `stream` into `ptr`."
+        },
+        {
+          "name": "fwrite",
+          "signature": "size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Write `nmemb` items of `size` bytes from `ptr` to `stream`."
+        },
+        {
+          "name": "fwrite_hex_linewidth8bytes",
+          "signature": "size_t fwrite_hex_linewidth8bytes(const void *ptr, size_t size, size_t nmemb, FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Write `ptr` to `stream` as a hex dump, eight bytes per line."
+        },
+        {
+          "name": "fgetc",
+          "signature": "int fgetc(FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Read the next character from `stream` (EOF on end-of-file)."
+        },
+        {
+          "name": "fseek",
+          "signature": "int fseek(FILE *stream, long offset, int whence) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Reposition the file pointer of `stream` to `offset` bytes from `whence`."
+        },
+        {
+          "name": "ftell",
+          "signature": "long ftell(FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Return the current byte offset of `stream` from its start."
+        },
+        {
+          "name": "getc",
+          "signature": "int getc(FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Read the next character from `stream` (typically a macro alias for fgetc)."
+        },
+        {
+          "name": "getchar",
+          "signature": "int getchar(void) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Read the next character from stdin."
+        },
+        {
+          "name": "putchar",
+          "signature": "int putchar(int c) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Write character `c` to stdout."
+        },
+        {
+          "name": "puts",
+          "signature": "int puts(const char *s) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Write `s` followed by a newline to stdout."
+        },
+        {
+          "name": "ungetc",
+          "signature": "int ungetc(int c, FILE *stream) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Push character `c` back onto `stream` so the next read returns it."
+        },
+        {
+          "name": "strcmp",
+          "signature": "int strcmp(const char *s1, const char *s2) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Lexicographic compare of null-terminated strings `s1` and `s2`."
+        },
+        {
+          "name": "strcmp_volatile",
+          "signature": "int strcmp_volatile(volatile const char *s1, volatile const char *s2) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Volatile-pointer variant of strcmp; safe against concurrently-modified buffers."
+        },
+        {
+          "name": "strlen",
+          "signature": "size_t strlen(const char *s) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Return the length (in bytes) of the null-terminated string `s`."
+        },
+        {
+          "name": "strlen_volatile",
+          "signature": "size_t strlen_volatile(const volatile char *s) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Volatile-pointer variant of strlen."
+        },
+        {
+          "name": "strcoll",
+          "signature": "int strcoll(const char *s1, const char *s2) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Locale-aware compare of `s1` and `s2`. On this platform behaves identically to strcmp."
+        },
+        {
+          "name": "strspn",
+          "signature": "size_t strspn(const char *s, const char *accept) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Return the length of the prefix of `s` made up of characters in `accept`."
+        },
+        {
+          "name": "strncmp",
+          "signature": "int strncmp(const char *s1, const char *s2, size_t n) ATTRIB_F3CODE",
+          "header": "stdlib.h",
+          "description": "Compare up to `n` bytes of `s1` and `s2` lexicographically."
+        },
+        {
+          "name": "setvbuf",
+          "signature": "int setvbuf(FILE *stream, char *buf, int mode, size_t size) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Configure buffering for `stream` (mode = _IOFBF / _IOLBF / _IONBF)."
+        },
+        {
+          "name": "my_clock",
+          "signature": "int my_clock(void) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Return a free-running clock-tick count (board-specific replacement for clock())."
+        },
+        {
+          "name": "my_time",
+          "signature": "int my_time(char *t) ATTRIB_F1CODE",
+          "header": "stdlib.h",
+          "description": "Read the current system time into the caller-supplied buffer (board-specific replacement for time())."
+        }
+      ]
+    },
+    {
+      "name": "strtod.h",
+      "functions": [
+        {
+          "name": "strtod_f",
+          "signature": "float strtod_f(const char *nptr, char **endptr) ATTRIB_F3CODE",
+          "header": "strtod.h",
+          "description": "Parse a float from `nptr`; if `endptr` is non-NULL, sets it to the first unparsed character."
+        }
+      ]
+    },
+    {
+      "name": "strtol.h",
+      "functions": [
+        {
+          "name": "strtol",
+          "signature": "long strtol(const char *nptr, char **endptr, int base) ATTRIB_F3CODE",
+          "header": "strtol.h",
+          "description": "Parse a signed long from `nptr` in the given `base` (or auto-detect when base is 0)."
+        }
+      ]
+    }
+  ]
+}

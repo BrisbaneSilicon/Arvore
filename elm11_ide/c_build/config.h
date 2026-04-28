@@ -9,11 +9,8 @@
 #define ATTRIB_F2CODE                   __attribute__ ((section (".f2code")))
 #define ATTRIB_F1CODE                   __attribute__ ((section (".f1code")))
 
-#define ATTRIB_RUNTIMECODE_BUILDSWITCH  __attribute__ ((section (".runtimecode")))
 #define ATTRIB_F1CODE_BUILDSWITCH       __attribute__ ((section (".f1code")))
 
 #define ATTRIB_RUNTIMECODE_FLASHIO      __attribute__ ((section (".runtimecode"))) __attribute__ ((noinline))
-
-#define LUA_STATE_IN_RAM
 
 #endif

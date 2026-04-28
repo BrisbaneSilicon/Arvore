@@ -23,16 +23,26 @@ from .settings import SettingsDialog
 from .highlighter import LuaHighlighter
 
 
-_DATA_FILE = Path(__file__).resolve().parent / 'docs_data.json'
+_LUA_DATA_FILE = Path(__file__).resolve().parent / 'docs_data.json'
+_C_DATA_FILE   = Path(__file__).resolve().parent / 'docs_c_data.json'
 
 
-def _load_data() -> dict:
-    if not _DATA_FILE.is_file():
+def _load_lua_data() -> dict:
+    if not _LUA_DATA_FILE.is_file():
         return {'api': [], 'examples': [], 'usage': []}
     try:
-        return json.loads(_DATA_FILE.read_text(encoding='utf-8'))
+        return json.loads(_LUA_DATA_FILE.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError):
         return {'api': [], 'examples': [], 'usage': []}
+
+
+def _load_c_data() -> dict:
+    if not _C_DATA_FILE.is_file():
+        return {'headers': []}
+    try:
+        return json.loads(_C_DATA_FILE.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return {'headers': []}
 
 
 # ── HTML rendering ──────────────────────────────────────────────────────────
@@ -84,6 +94,37 @@ def _render_usage(u: dict) -> str:
     )
 
 
+def _render_c_function(entry: dict, t: dict) -> str:
+    desc = entry.get('description', '')
+    body = (
+        f'<h2>{html.escape(entry["name"])}</h2>'
+        f'<p style="color:{t["syn_comment"]};font-size:9pt;">'
+        f'Function · {html.escape(entry.get("header", ""))}</p>'
+        f'<pre>{html.escape(entry.get("signature", ""))}</pre>'
+    )
+    if desc:
+        body += _render_description(desc)
+    return body
+
+
+def _render_c_macro(entry: dict, t: dict) -> str:
+    desc = entry.get('description', '')
+    args = entry.get('args', '')
+    value = entry.get('value', '')
+    rendered = f'#define {entry["name"]}{args}'
+    if value:
+        rendered = f'{rendered}  {value}'
+    body = (
+        f'<h2>{html.escape(entry["name"])}</h2>'
+        f'<p style="color:{t["syn_comment"]};font-size:9pt;">'
+        f'Macro · {html.escape(entry.get("header", ""))}</p>'
+        f'<pre>{html.escape(rendered)}</pre>'
+    )
+    if desc:
+        body += _render_description(desc)
+    return body
+
+
 def _page_css(t: dict) -> str:
     font = SettingsDialog.editor_font_family()
     return f"""
@@ -107,11 +148,21 @@ class DocsPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._data = _load_data()
+        self._lua_data = _load_lua_data()
+        self._c_data   = _load_c_data()
+        self._mode     = 'Lua'   # flips to 'C' via set_mode()
         self._current_example: dict | None = None
         self._build_ui()
         self._populate()
         self.apply_theme()
+
+    def set_mode(self, mode: str):
+        """Switch between Lua and C documentation. Called by MainWindow
+        whenever the workspace mode changes."""
+        if mode == self._mode:
+            return
+        self._mode = 'C' if mode == 'C' else 'Lua'
+        self._populate()
 
     # ── UI ─────────────────────────────────────────────────────────────────
 
@@ -157,13 +208,20 @@ class DocsPanel(QWidget):
 
     def _populate(self):
         self._tree.clear()
+        self._current_example = None
+        self._open_btn.setEnabled(False)
+        if self._mode == 'C':
+            self._populate_c()
+        else:
+            self._populate_lua()
 
+    def _populate_lua(self):
         # API, nested by category path (`Functions › Base Library › GPIO` →
         # API Reference / Functions / Base Library / GPIO)
         api_root = QTreeWidgetItem(self._tree, ['API Reference'])
         api_root.setExpanded(True)
         path_items: dict[tuple[str, ...], QTreeWidgetItem] = {(): api_root}
-        for entry in self._data.get('api', []):
+        for entry in self._lua_data.get('api', []):
             segments = tuple(s.strip() for s in entry['category'].split('›') if s.strip())
             parent = api_root
             for i in range(1, len(segments) + 1):
@@ -176,7 +234,7 @@ class DocsPanel(QWidget):
             item = QTreeWidgetItem(parent, [entry['name']])
             item.setData(0, Qt.ItemDataRole.UserRole, ('api', entry))
 
-        usage = self._data.get('usage', [])
+        usage = self._lua_data.get('usage', [])
         if usage:
             usage_root = QTreeWidgetItem(self._tree, ['Example Usage'])
             for u in usage:
@@ -184,9 +242,37 @@ class DocsPanel(QWidget):
                 item.setData(0, Qt.ItemDataRole.UserRole, ('usage', u))
 
         ex_root = QTreeWidgetItem(self._tree, ['Example Programs'])
-        for ex in self._data.get('examples', []):
+        for ex in self._lua_data.get('examples', []):
             item = QTreeWidgetItem(ex_root, [ex['title']])
             item.setData(0, Qt.ItemDataRole.UserRole, ('example', ex))
+
+    def _populate_c(self):
+        # C API, grouped by header file. Each header contains Functions
+        # and Macros sub-nodes.
+        api_root = QTreeWidgetItem(self._tree, ['C API'])
+        api_root.setExpanded(True)
+        for header in self._c_data.get('headers', []):
+            hname = header.get('name', '?')
+            functions = header.get('functions', [])
+            macros    = header.get('macros',    [])
+            if not functions and not macros:
+                continue
+            h_node = QTreeWidgetItem(api_root, [hname])
+            if functions:
+                fn_node = QTreeWidgetItem(h_node, [f'Functions ({len(functions)})'])
+                for fn in functions:
+                    item = QTreeWidgetItem(fn_node, [fn['name']])
+                    item.setData(0, Qt.ItemDataRole.UserRole, ('c_fn', fn))
+            if macros:
+                mc_node = QTreeWidgetItem(h_node, [f'Macros ({len(macros)})'])
+                for mc in macros:
+                    item = QTreeWidgetItem(mc_node, [mc['name']])
+                    item.setData(0, Qt.ItemDataRole.UserRole, ('c_macro', mc))
+
+    def _data(self) -> dict:
+        """Active data dict — lets the search filter cover whichever
+        documentation source is currently loaded."""
+        return self._c_data if self._mode == 'C' else self._lua_data
 
     # ── Behaviour ──────────────────────────────────────────────────────────
 
@@ -208,9 +294,16 @@ class DocsPanel(QWidget):
             self._view_code.setPlainText(obj.get('code', ''))
             self._stack.setCurrentWidget(self._view_code)
             return
-        body = _render_api_entry(obj, t) if kind == 'api' \
-            else _render_usage(obj) if kind == 'usage' \
-            else ''
+        if kind == 'api':
+            body = _render_api_entry(obj, t)
+        elif kind == 'usage':
+            body = _render_usage(obj)
+        elif kind == 'c_fn':
+            body = _render_c_function(obj, t)
+        elif kind == 'c_macro':
+            body = _render_c_macro(obj, t)
+        else:
+            body = ''
         self._view_html.setHtml(self._wrap(body, t))
         self._stack.setCurrentWidget(self._view_html)
 
@@ -226,9 +319,16 @@ class DocsPanel(QWidget):
                 # Category item — visible if any descendant matches
                 return False
             kind, obj = payload
-            blob = obj.get('name', '') + ' ' + obj.get('title', '') + ' ' \
-                + obj.get('description', '') + ' ' + obj.get('body', '') \
-                + ' ' + obj.get('category', '')
+            blob = ' '.join([
+                obj.get('name', ''),
+                obj.get('title', ''),
+                obj.get('description', ''),
+                obj.get('body', ''),
+                obj.get('category', ''),
+                obj.get('signature', ''),
+                obj.get('header', ''),
+                obj.get('value', ''),
+            ])
             return needle in blob.lower()
 
         def filter_tree(item: QTreeWidgetItem) -> bool:
