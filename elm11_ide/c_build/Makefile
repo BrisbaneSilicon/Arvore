@@ -48,8 +48,18 @@ EELF_PATH           := $(UTIL_DIR)/eelf.py
 VDUMP_PATH          := $(UTIL_DIR)/vdump8to32.py
 
 # ── Sources ───────────────────────────────────────────────────────────────
-SRCS                := $(wildcard $(WORKSPACE)/*.c) \
-                       $(wildcard $(WORKSPACE)/*.S)
+# Recursive directory walker — returns every subdirectory beneath $1.
+_all_dirs            = $(foreach d,$(wildcard $(1)/*/), \
+                          $(d:%/=%) $(call _all_dirs,$(d:%/=%)))
+# Workspace directories that contain user code (workspace root + every
+# nested subdirectory) — the `build/` tree of generated artefacts is
+# explicitly excluded so its files don't end up double-compiled.
+USER_DIRS           := $(WORKSPACE) \
+                       $(filter-out $(WORKSPACE)/build $(WORKSPACE)/build/%, \
+                                    $(call _all_dirs,$(WORKSPACE)))
+
+SRCS                := $(foreach d,$(USER_DIRS), \
+                          $(wildcard $(d)/*.c) $(wildcard $(d)/*.S))
 # Startup / bootstrap assembly files bundled with the Makefile itself
 # (e.g. crt_flash.S).
 STARTUP_SRCS        := $(wildcard *.S)
@@ -88,7 +98,7 @@ LDFLAGS := -march=$(MARCH) -mabi=$(MABI) -mcmodel=medany \
            -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(BUILDDIR)/$(PROJ_NAME).map,--print-memory-usage \
            -lm -lgcc -lc_nano
 
-INC     := -I$(WORKSPACE) -I$(HEADER_DIR)
+INC     := -I$(HEADER_DIR) $(foreach d,$(USER_DIRS),-I$(d))
 
 # ── Version stamp (git-aware; falls back cleanly if no git available) ─────
 GIT_SHORTREV      := $(shell git -C $(WORKSPACE) rev-parse --short HEAD 2>/dev/null || echo nogit)

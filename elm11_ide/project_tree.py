@@ -3,7 +3,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from PyQt6.QtWidgets import (
-    QTreeView, QMenu, QMessageBox,
+    QTreeView, QMenu, QMessageBox, QAbstractItemView,
     QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox,
 )
 from PyQt6.QtGui import QFileSystemModel
@@ -81,6 +81,10 @@ class ProjectTree(QTreeView):
         self._model.setFilter(
             QDir.Filter.NoDotAndDotDot | QDir.Filter.Files | QDir.Filter.Dirs
         )
+        # Read-write so QFileSystemModel.dropMimeData can perform real
+        # filesystem moves; inline rename-by-editing is suppressed below
+        # via setEditTriggers so the user still goes through our own dialog.
+        self._model.setReadOnly(False)
         self._model.setRootPath('')
 
         self._proxy = _WorkspaceProxy(self)
@@ -94,6 +98,15 @@ class ProjectTree(QTreeView):
         self.setHeaderHidden(True)
         self.setAnimated(True)
         self.setIndentation(16)
+
+        # Drag-and-drop file moves between directories.
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        # Suppress inline name-editing — user still uses the Rename dialog.
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._context_menu)
