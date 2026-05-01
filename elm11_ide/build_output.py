@@ -4,7 +4,7 @@ log = logging.getLogger(__name__)
 
 import sys
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPlainTextEdit
-from PyQt6.QtCore import QProcess, pyqtSignal
+from PyQt6.QtCore import QProcess, QProcessEnvironment, pyqtSignal
 from PyQt6.QtGui import QColor, QPalette, QFont, QTextCursor, QTextCharFormat
 
 from . import theme
@@ -42,15 +42,26 @@ class BuildOutput(QWidget):
 
     # ── Public API ────────────────────────────────────────────────────────
 
-    def run_command(self, program: str, args: list[str], cwd: str | None = None):
-        log.debug('run_command: %s %s  cwd=%s', program, args, cwd)
-        """Start an external command and stream its output here."""
+    def run_command(self, program: str, args: list[str],
+                    cwd: str | None = None,
+                    env: dict[str, str] | None = None,
+                    clear: bool = True):
+        log.debug('run_command: %s %s  cwd=%s  env=%s  clear=%s',
+                  program, args, cwd, list((env or {}).keys()), clear)
+        """Start an external command and stream its output here.
+
+        `env`   — optional dict of environment-variable overrides applied
+                   on top of the inherited process environment.
+        `clear` — when False, keep existing output visible (useful for
+                   retries so the previous attempt's log stays on screen).
+        """
         t = theme.current()
         if self._process and self._process.state() != QProcess.ProcessState.NotRunning:
             self._append('A build is already running.\n', t['term_warning'])
             return
 
-        self.clear()
+        if clear:
+            self.clear()
         self._append(f'$ {program} {" ".join(args)}\n', t['term_info'])
 
         self._process = QProcess(self)
@@ -58,6 +69,11 @@ class BuildOutput(QWidget):
         self._process.setArguments(args)
         if cwd:
             self._process.setWorkingDirectory(cwd)
+        if env:
+            penv = QProcessEnvironment.systemEnvironment()
+            for k, v in env.items():
+                penv.insert(k, v)
+            self._process.setProcessEnvironment(penv)
         self._process.readyReadStandardOutput.connect(self._on_stdout)
         self._process.readyReadStandardError.connect(self._on_stderr)
         self._process.finished.connect(self._on_finished)

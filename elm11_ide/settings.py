@@ -53,6 +53,22 @@ class SettingsDialog(QDialog):
         self._cflags.setPlaceholderText('-O2 -Wall')
         f.addRow('Compiler flags:', self._cflags)
 
+        # `MSYS2 Path` is Windows-only — Linux/macOS users always have GNU
+        # make + the standard Unix utilities on $PATH, so the field would
+        # be needless clutter. The widget is still created (for
+        # _load/_save symmetry) but only shown on Windows. The IDE
+        # appends `<msys2>/usr/bin` to the subprocess PATH when invoking
+        # make so its recipes can find mkdir / rm / cp / date / etc.
+        self._msys2 = QLineEdit()
+        self._msys2.setPlaceholderText('e.g. C:\\msys64')
+        if sys.platform.startswith('win'):
+            browse_msys2 = QPushButton('Browse…')
+            browse_msys2.clicked.connect(self._browse_msys2)
+            row_msys2 = QHBoxLayout()
+            row_msys2.addWidget(self._msys2)
+            row_msys2.addWidget(browse_msys2)
+            f.addRow('MSYS2 Path:', row_msys2)
+
         tabs.addTab(c_w, 'C')
 
         # ── Editor ────────────────────────────────────────────────────
@@ -103,6 +119,11 @@ class SettingsDialog(QDialog):
         if path:
             self._compiler.setText(path)
 
+    def _browse_msys2(self):
+        path = QFileDialog.getExistingDirectory(self, 'Select MSYS2 install root')
+        if path:
+            self._msys2.setText(path)
+
     def _load(self):
         saved_font = self._s.value('editor/font_family', _default_mono_font())
         idx = self._font_combo.findText(saved_font)
@@ -112,6 +133,7 @@ class SettingsDialog(QDialog):
         self._baud.setValue(int(self._s.value('serial/baud', 115200)))
         self._compiler.setText(self._s.value('c/compiler_path', ''))
         self._cflags.setText(self._s.value('c/compiler_flags', ''))
+        self._msys2.setText(self._s.value('c/msys2_path', ''))
 
     def _save(self):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
@@ -119,6 +141,7 @@ class SettingsDialog(QDialog):
         self._s.setValue('serial/baud',           self._baud.value())
         self._s.setValue('c/compiler_path',       self._compiler.text())
         self._s.setValue('c/compiler_flags',      self._cflags.text())
+        self._s.setValue('c/msys2_path',          self._msys2.text())
 
     # ── Static helpers used by MainWindow ─────────────────────────────
     @staticmethod
@@ -141,3 +164,12 @@ class SettingsDialog(QDialog):
     def compiler_flags() -> list[str]:
         raw = QSettings().value('c/compiler_flags', '')
         return raw.split() if raw else []
+
+    @staticmethod
+    def msys2_path() -> str:
+        """Return the configured MSYS2 install root. Windows-only setting —
+        on Linux/macOS we always defer to `$PATH`. Empty string means
+        'use whatever `make` is on PATH'."""
+        if not sys.platform.startswith('win'):
+            return ''
+        return QSettings().value('c/msys2_path', '')

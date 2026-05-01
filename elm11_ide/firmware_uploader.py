@@ -63,7 +63,7 @@ def isp_exec_wpag(ser, addr):
     pageWrPass, rxval = isp_wait_byte(ser, 0x42)
     if not pageWrPass:
         print(" - Page write failed! Exit.")
-        sys.exit()
+        sys.exit(2)
 
 
 def isp_exec_rst(ser):
@@ -76,7 +76,7 @@ def isp_exec_rst(ser):
 if __name__ == '__main__':
     if len(sys.argv) < 4 or '-h' in sys.argv:
         print("Usage: python pico-programmer.py FIRMWARE_FILE_PATH SERIAL_PORT SERIAL_PORT_BAUD [PAGE_WRITE (default=True)] [SECTOR_ERASE (default=True)]")
-        sys.exit()
+        sys.exit(3)
 
     print("Firmware updater begin")
         
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     print('    ', end='', flush=True)
 
     ack_count = 0
-    for i in range(100):
+    for i in range(50):
         ser.reset_input_buffer()
         ser.write(bytes([0x07]))
         ser.flush()
@@ -162,7 +162,7 @@ if __name__ == '__main__':
         print("Failed to establish comms with firmware updater")
         print("Please power cycle board with user-button pressed")
         ser.close()
-        sys.exit()
+        sys.exit(1)
     else:
         print("Comms established.")
 

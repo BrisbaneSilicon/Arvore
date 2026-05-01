@@ -1,5 +1,6 @@
 """Main application window."""
 import logging
+import os
 import re
 log = logging.getLogger(__name__)
 
@@ -51,6 +52,33 @@ def _port_is_acceptable(port: str) -> bool:
     if not sys.platform.startswith('linux'):
         return True
     return Path(port).name.startswith('ttyUSB')
+
+
+def _msys_path(p) -> str:
+    """Convert a path to POSIX-style (forward slashes). Make on MSYS2
+    treats backslashes as escape characters and several built-in
+    functions (`wildcard`, `subst`) misbehave on backslash paths, so
+    every absolute path we pass on the make command line goes through
+    here. On Linux/macOS this is a no-op."""
+    return str(p).replace('\\', '/')
+
+
+def _make_invocation() -> tuple[str, dict[str, str] | None]:
+    """Return `(program, env_overrides)` for invoking GNU make.
+
+    On Linux/macOS this is just `('make', None)` — we trust `$PATH`. On
+    Windows we look at the configured MSYS2 install root: the make binary
+    lives at `<msys2>/usr/bin/make.exe`, and `<msys2>/usr/bin` is also
+    prepended to the subprocess PATH so the recipes' Unix utilities
+    (mkdir, rm, cp, date, …) resolve correctly. If MSYS2 isn't
+    configured we fall back to plain `make` from PATH."""
+    msys2 = SettingsDialog.msys2_path()
+    if not (sys.platform.startswith('win') and msys2):
+        return 'make', None
+    bin_dir = str(Path(msys2) / 'usr' / 'bin')
+    make    = str(Path(bin_dir) / 'make.exe')
+    env = {'PATH': bin_dir + os.pathsep + os.environ.get('PATH', '')}
+    return make, env
 
 
 def _resolve_upload_port(intended: str) -> str:
@@ -794,13 +822,15 @@ class MainWindow(QMainWindow):
                 'Set the compiler path in Settings → C.')
             return
 
-        toolchain_root = str(Path(compiler).resolve())
+        toolchain_root = _msys_path(Path(compiler).resolve())
+        make_prog, make_env = _make_invocation()
         self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
         self._build_out.run_command(
-            'make',
-            ['-C', str(make_dir), f'RISCV_PATH={toolchain_root}'],
-            cwd=str(self._workspace_root))
+            make_prog,
+            ['-C', _msys_path(make_dir), f'RISCV_PATH={toolchain_root}'],
+            cwd=str(self._workspace_root),
+            env=make_env)
 
     def _clean(self):
         if self._workspace_mode != 'C' or self._workspace_root is None:
@@ -813,11 +843,14 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Missing Makefile',
                 f'No Makefile found at:\n{makefile}')
             return
+        make_prog, make_env = _make_invocation()
         self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
         self._build_out.run_command(
-            'make', ['-C', str(make_dir), 'clean'],
-            cwd=str(self._workspace_root))
+            make_prog,
+            ['-C', _msys_path(make_dir), 'clean'],
+            cwd=str(self._workspace_root),
+            env=make_env)
 
     def _flash(self):
         if self._workspace_mode != 'C' or self._workspace_root is None:
@@ -834,6 +867,22 @@ class MainWindow(QMainWindow):
                 f'The firmware uploader only supports /dev/ttyUSB* on Linux.\n'
                 f'Currently connected to: {worker.port}')
             return
+        # Disconnect the USB / COM port immediately — as soon as Flash is
+        # clicked, the IDE should let go so the user can begin the
+        # unplug/replug cycle. Subsequent file-existence checks reacquire
+        # the port silently if they bail out.
+        held = self._terminal.release_port()
+        if not held:
+            QMessageBox.warning(self, 'Not Connected',
+                'Connection dropped before flashing could start. '
+                'Reconnect and try again.')
+            return
+        self._flash_held_port = held
+
+        def _abort_and_reacquire():
+            self._terminal.reacquire_port(held, SettingsDialog.baud())
+            self._flash_held_port = ''
+
         # Locate the bundled firmware uploader and the Memory image.
         if hasattr(sys, '_MEIPASS'):
             uploader = Path(sys._MEIPASS) / 'elm11_ide' / 'firmware_uploader.py'
@@ -842,6 +891,7 @@ class MainWindow(QMainWindow):
         if not uploader.is_file():
             QMessageBox.warning(self, 'Missing Firmware Uploader',
                 f'firmware_uploader.py not found at:\n{uploader}')
+            _abort_and_reacquire()
             return
         v_file = (self._workspace_root / 'build' / 'out'
                   / f'{self._workspace_root.name}.v')
@@ -849,16 +899,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'No Build Output',
                 f'Memory image not found:\n{v_file}\n\n'
                 'Run Build first.')
+            _abort_and_reacquire()
             return
-        # Disconnect the USB port immediately — the user is about to
-        # unplug/replug the board, so the IDE shouldn't be holding it.
-        held = self._terminal.release_port()
-        if not held:
-            QMessageBox.warning(self, 'Not Connected',
-                'Connection dropped before flashing could start. '
-                'Reconnect and try again.')
-            return
-        self._flash_held_port = held
         # Walk the user through putting the board in flash-mode.
         reply = QMessageBox.information(
             self, 'Prepare ELM11 for Flash',
@@ -868,18 +910,74 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Ok)
         if reply != QMessageBox.StandardButton.Ok:
             # Cancel: silently restore the connection we just released.
-            self._terminal.reacquire_port(held, SettingsDialog.baud())
-            self._flash_held_port = ''
+            _abort_and_reacquire()
             return
-        # Now that the user has performed the unplug/replug, look for
-        # whichever ttyUSB the device has come back as.
-        target_port = _resolve_upload_port(held)
-        if not target_port:
+        # Wait for the device to re-enumerate as a USB serial port. The
+        # dialog blocks the next step (the firmware uploader subprocess)
+        # while polling, but the user can cancel; a 5 s timeout protects
+        # against forgotten replugs.
+        self._wait_for_target_port(uploader, v_file)
+
+    _FLASH_MAX_ATTEMPTS    = 2
+    _FLASH_RETRY_DELAY_MS  = 1000
+    _PORT_WAIT_TIMEOUT_MS  = 5000
+    _PORT_WAIT_POLL_MS     = 250
+
+    def _wait_for_target_port(self, uploader: Path, v_file: Path):
+        """Poll for an acceptable USB port. Show a modal dialog with a
+        Cancel button while waiting; on success, kick off the firmware
+        uploader; on cancel/timeout, warn the user and reacquire the
+        previously-held port."""
+        held = getattr(self, '_flash_held_port', '')
+
+        # Modal dialog with a Cancel button. We poll outside the dialog
+        # via a QTimer so the dialog can be dismissed asynchronously.
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout
+        dlg = QDialog(self)
+        dlg.setWindowTitle('Waiting for ELM11')
+        dlg.setStyleSheet(theme.dialog_stylesheet(theme.current()))
+        v = QVBoxLayout(dlg)
+        v.addWidget(QLabel('Waiting for the ELM11 to enumerate as a serial port…'))
+        cancel_btn = QPushButton('Cancel')
+        cancel_btn.clicked.connect(dlg.reject)
+        v.addWidget(cancel_btn)
+
+        timer = QTimer(self)
+        elapsed = [0]
+        outcome: dict = {'kind': None, 'port': ''}
+
+        def _poll():
+            target = _resolve_upload_port(held)
+            if target:
+                outcome['kind'], outcome['port'] = 'ok', target
+                timer.stop()
+                dlg.accept()
+                return
+            elapsed[0] += self._PORT_WAIT_POLL_MS
+            if elapsed[0] >= self._PORT_WAIT_TIMEOUT_MS:
+                outcome['kind'] = 'timeout'
+                timer.stop()
+                dlg.reject()
+
+        timer.timeout.connect(_poll)
+        timer.start(self._PORT_WAIT_POLL_MS)
+        dlg.exec()
+        timer.stop()
+
+        if outcome['kind'] == 'ok':
+            self._proceed_with_flash(uploader, v_file, outcome['port'])
+            return
+
+        # Cancel or timeout — silently restore the connection.
+        if outcome['kind'] == 'timeout':
             QMessageBox.warning(self, 'No USB Port',
-                'No /dev/ttyUSB* device is currently present.')
+                f'No acceptable USB serial port appeared within '
+                f'{self._PORT_WAIT_TIMEOUT_MS // 1000}s.')
+        if held:
             self._terminal.reacquire_port(held, SettingsDialog.baud())
-            self._flash_held_port = ''
-            return
+        self._flash_held_port = ''
+
+    def _proceed_with_flash(self, uploader: Path, v_file: Path, target_port: str):
         self._flash_out.clear()
         self._bottom.setCurrentWidget(self._flash_out)
         try:
@@ -887,18 +985,42 @@ class MainWindow(QMainWindow):
         except TypeError:
             pass
         self._flash_out.build_finished.connect(self._on_flash_finished)
-        # Give the OS a moment to actually release the port before the
-        # firmware uploader tries to open it.
-        QTimer.singleShot(500, lambda: self._flash_out.run_command(
+        # Cache the args so retries can re-issue the same call.
+        self._flash_attempt = 0
+        self._flash_run_args = (
             sys.executable,
             [str(uploader), str(v_file), target_port, '115200'],
-            cwd=str(self._workspace_root)))
+            str(self._workspace_root),
+        )
+        # Give the OS a moment to actually release the port before the
+        # firmware uploader tries to open it.
+        QTimer.singleShot(500, self._invoke_firmware_uploader)
 
-    def _on_flash_finished(self, _code: int):
+    def _invoke_firmware_uploader(self):
+        if not getattr(self, '_flash_run_args', None):
+            return
+        self._flash_attempt += 1
+        prog, args, cwd = self._flash_run_args
+        # First attempt clears the panel; retries keep the previous
+        # attempt's failure log visible.
+        self._flash_out.run_command(
+            prog, args, cwd=cwd, clear=(self._flash_attempt == 1))
+
+    def _on_flash_finished(self, code: int):
+        # Retry up to MAX_ATTEMPTS times on a non-zero exit.
+        if code != 0 and self._flash_attempt < self._FLASH_MAX_ATTEMPTS:
+            log.debug('Flash attempt %d failed (exit %d) — retrying',
+                      self._flash_attempt, code)
+            QTimer.singleShot(self._FLASH_RETRY_DELAY_MS,
+                              self._invoke_firmware_uploader)
+            return
+
+        # Final outcome — disconnect the hook and reacquire the port.
         try:
             self._flash_out.build_finished.disconnect(self._on_flash_finished)
         except TypeError:
             pass
+        self._flash_run_args = None
         held = getattr(self, '_flash_held_port', '')
         self._flash_held_port = ''
         if not held:
