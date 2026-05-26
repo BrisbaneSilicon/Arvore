@@ -439,6 +439,12 @@ class MainWindow(QMainWindow):
         self._flash_btn.setEnabled(is_c_mode and has_workspace and usable)
 
     def _on_cmd_btn_toggled(self, checked: bool):
+        # When the user activates Command Mode, make sure the side panel
+        # is visible so they can actually interact with it. The View-menu
+        # action's `toggled` signal drives `_toggle_cmd_mode`, which
+        # handles pane sizing and persists the visibility setting.
+        if checked and not self._cmd_toggle.isChecked():
+            self._cmd_toggle.setChecked(True)
         self._cmd_mode.set_active(checked)
 
     def _on_cmd_mode_active_changed(self, active: bool):
