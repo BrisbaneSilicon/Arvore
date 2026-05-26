@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract C API documentation from `brs_ide/elm11/build/*.h`.
+"""Extract C API documentation from `brs_ide/elm11/c/build/*.h`.
 
 Run after editing the bundled headers:
 
@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 
 ROOT        = Path(__file__).resolve().parent.parent
-HEADERS_DIR = ROOT / 'brs_ide' / 'elm11' / 'build'
-DESCRS      = ROOT / 'brs_ide' / 'elm11' / 'build' / 'c_descriptions.json'
+HEADERS_DIR = ROOT / 'brs_ide' / 'elm11' / 'c' / 'build'
+DESCRS      = ROOT / 'brs_ide' / 'elm11' / 'c' / 'build' / 'c_descriptions.json'
 OUT         = ROOT / 'brs_ide' / 'docs_c_data.json'
 
 

@@ -26,10 +26,10 @@ a = Analysis(
         (str(ROOT / 'brs_ide' / 'firmware_uploader.py'), 'brs_ide'),
         # Pre-built ELM11 C runtime objects — every user C program links
         # against these.
-        (str(ROOT / 'brs_ide' / 'elm11' / 'runtime'), 'brs_ide/elm11/runtime'),
+        (str(ROOT / 'brs_ide' / 'elm11' / 'c' / 'runtime'), 'brs_ide/elm11/c/runtime'),
         # Makefile + linker script + helper tools deployed into each new
         # C workspace.
-        (str(ROOT / 'brs_ide' / 'elm11' / 'build'), 'brs_ide/elm11/build'),
+        (str(ROOT / 'brs_ide' / 'elm11' / 'c' / 'build'), 'brs_ide/elm11/c/build'),
     ],
     hiddenimports=['serial.tools.list_ports_linux'],
     hookspath=[],

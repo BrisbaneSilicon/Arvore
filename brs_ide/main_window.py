@@ -36,8 +36,8 @@ def _ide_data_dir(name: str) -> Path:
 
 
 def _c_runtime_objects() -> list[str]:
-    """Return every `*.o` file shipped in `brs_ide/elm11/runtime/`."""
-    base = _ide_data_dir('elm11/runtime')
+    """Return every `*.o` file shipped in `brs_ide/elm11/c/runtime/`."""
+    base = _ide_data_dir('elm11/c/runtime')
     if not base.is_dir():
         return []
     return sorted(str(p) for p in base.glob('*.o'))
@@ -1219,12 +1219,12 @@ class MainWindow(QMainWindow):
             return workspace / 'build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
-        build_src = _ide_data_dir('elm11/build')
+        build_src = _ide_data_dir('elm11/c/build')
         if build_src.is_dir():
             for src in build_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, _target_for(src)))
-        runtime_src = _ide_data_dir('elm11/runtime')
+        runtime_src = _ide_data_dir('elm11/c/runtime')
         if runtime_src.is_dir():
             for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
