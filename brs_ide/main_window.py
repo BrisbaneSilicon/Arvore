@@ -28,16 +28,16 @@ from . import theme
 
 
 def _ide_data_dir(name: str) -> Path:
-    """Resolve a bundled data directory (`elm11_ide/<name>/`) for dev,
+    """Resolve a bundled data directory (`brs_ide/<name>/`) for dev,
     PyInstaller, and system-install layouts."""
     if hasattr(sys, '_MEIPASS'):
-        return Path(sys._MEIPASS) / 'elm11_ide' / name
+        return Path(sys._MEIPASS) / 'brs_ide' / name
     return Path(__file__).resolve().parent / name
 
 
 def _c_runtime_objects() -> list[str]:
-    """Return every `*.o` file shipped in `elm11_ide/c_runtime/`."""
-    base = _ide_data_dir('c_runtime')
+    """Return every `*.o` file shipped in `brs_ide/elm11/runtime/`."""
+    base = _ide_data_dir('elm11/runtime')
     if not base.is_dir():
         return []
     return sorted(str(p) for p in base.glob('*.o'))
@@ -928,7 +928,7 @@ class MainWindow(QMainWindow):
 
         # Locate the bundled firmware uploader and the Memory image.
         if hasattr(sys, '_MEIPASS'):
-            uploader = Path(sys._MEIPASS) / 'elm11_ide' / 'firmware_uploader.py'
+            uploader = Path(sys._MEIPASS) / 'brs_ide' / 'firmware_uploader.py'
         else:
             uploader = Path(__file__).resolve().parent / 'firmware_uploader.py'
         if not uploader.is_file():
@@ -1207,7 +1207,7 @@ class MainWindow(QMainWindow):
         import shutil
 
         def _target_for(src: Path) -> Path:
-            """Where does a c_build file go? Rooted on `workspace`."""
+            """Where does a build-template file go? Rooted on `workspace`."""
             if src.suffix == '.c':
                 return workspace / src.name
             if src.suffix == '.py':
@@ -1219,14 +1219,14 @@ class MainWindow(QMainWindow):
             return workspace / 'build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
-        c_build = _ide_data_dir('c_build')
-        if c_build.is_dir():
-            for src in c_build.iterdir():
+        build_src = _ide_data_dir('elm11/build')
+        if build_src.is_dir():
+            for src in build_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, _target_for(src)))
-        c_runtime = _ide_data_dir('c_runtime')
-        if c_runtime.is_dir():
-            for src in c_runtime.iterdir():
+        runtime_src = _ide_data_dir('elm11/runtime')
+        if runtime_src.is_dir():
+            for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, workspace / 'build' / 'runtime' / src.name))
 

@@ -5,7 +5,7 @@ REM
 REM  Prerequisites:
 REM    * Python 3.10+ with PyQt6, pyserial, pyinstaller (pip install).
 REM    * Inno Setup 6 (iscc.exe on PATH, or adjust the INNO variable below).
-REM    * elm11_ide\elm11-ide.ico present.
+REM    * brs_ide\elm11-ide.ico present.
 
 setlocal
 set HERE=%~dp0
@@ -26,14 +26,14 @@ if errorlevel 1 (
     )
 )
 
-if not exist "%ROOT%\elm11_ide\elm11-ide.png" (
-    echo error: %ROOT%\elm11_ide\elm11-ide.png missing.
+if not exist "%ROOT%\brs_ide\elm11-ide.png" (
+    echo error: %ROOT%\brs_ide\elm11-ide.png missing.
     exit /b 1
 )
 
 if not exist "%HERE%elm11-ide.ico" (
     echo error: %HERE%elm11-ide.ico missing — convert the PNG to ICO first,
-    echo   e.g.  magick elm11_ide\elm11-ide.png -define icon:auto-resize ^
+    echo   e.g.  magick brs_ide\elm11-ide.png -define icon:auto-resize ^
 packaging\elm11-ide.ico
     exit /b 1
 )

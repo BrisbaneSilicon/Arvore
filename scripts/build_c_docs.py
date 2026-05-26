@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Extract C API documentation from `elm11_ide/c_build/*.h`.
+"""Extract C API documentation from `brs_ide/elm11/build/*.h`.
 
 Run after editing the bundled headers:
 
     python3 scripts/build_c_docs.py
 
-Output is written to `elm11_ide/docs_c_data.json` and consumed by the
+Output is written to `brs_ide/docs_c_data.json` and consumed by the
 runtime DocsPanel when the active workspace is in C mode.
 """
 import json
@@ -14,9 +14,9 @@ import sys
 from pathlib import Path
 
 ROOT        = Path(__file__).resolve().parent.parent
-HEADERS_DIR = ROOT / 'elm11_ide' / 'c_build'
-DESCRS      = ROOT / 'elm11_ide' / 'c_build' / 'c_descriptions.json'
-OUT         = ROOT / 'elm11_ide' / 'docs_c_data.json'
+HEADERS_DIR = ROOT / 'brs_ide' / 'elm11' / 'build'
+DESCRS      = ROOT / 'brs_ide' / 'elm11' / 'build' / 'c_descriptions.json'
+OUT         = ROOT / 'brs_ide' / 'docs_c_data.json'
 
 
 # Strip block + line comments before structural parsing.

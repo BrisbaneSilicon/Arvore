@@ -7,7 +7,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QIcon
-from elm11_ide.main_window import MainWindow
+from brs_ide.main_window import MainWindow
 
 
 def _icon_path() -> Path:
@@ -15,7 +15,7 @@ def _icon_path() -> Path:
     PyInstaller bundle, or a system install."""
     # PyInstaller sets sys._MEIPASS to the bundle root at runtime.
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
-    for rel in ('elm11_ide/elm11-ide.png', 'elm11-ide.png'):
+    for rel in ('brs_ide/elm11-ide.png', 'elm11-ide.png'):
         p = base / rel
         if p.is_file():
             return p
@@ -28,7 +28,7 @@ def main():
                         help='Enable verbose debug logging to stdout')
     args, remaining = parser.parse_known_args()
 
-    log = logging.getLogger('elm11_ide')
+    log = logging.getLogger('brs_ide')
     if args.debug:
         logging.basicConfig(
             level=logging.DEBUG,

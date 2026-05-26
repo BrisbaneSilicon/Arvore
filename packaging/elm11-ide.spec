@@ -18,18 +18,18 @@ a = Analysis(
     binaries=[],
     datas=[
         # Pre-extracted documentation data is loaded at runtime.
-        (str(ROOT / 'elm11_ide' / 'docs_data.json'),   'elm11_ide'),
-        (str(ROOT / 'elm11_ide' / 'docs_c_data.json'), 'elm11_ide'),
+        (str(ROOT / 'brs_ide' / 'docs_data.json'),   'brs_ide'),
+        (str(ROOT / 'brs_ide' / 'docs_c_data.json'), 'brs_ide'),
         # Window / taskbar icon used by QApplication.setWindowIcon.
-        (str(ROOT / 'elm11_ide' / 'elm11-ide.png'), 'elm11_ide'),
+        (str(ROOT / 'brs_ide' / 'elm11-ide.png'), 'brs_ide'),
         # Bundled flash helper invoked by the toolbar Flash button.
-        (str(ROOT / 'elm11_ide' / 'firmware_uploader.py'), 'elm11_ide'),
+        (str(ROOT / 'brs_ide' / 'firmware_uploader.py'), 'brs_ide'),
         # Pre-built ELM11 C runtime objects — every user C program links
         # against these.
-        (str(ROOT / 'elm11_ide' / 'c_runtime'), 'elm11_ide/c_runtime'),
+        (str(ROOT / 'brs_ide' / 'elm11' / 'runtime'), 'brs_ide/elm11/runtime'),
         # Makefile + linker script + helper tools deployed into each new
         # C workspace.
-        (str(ROOT / 'elm11_ide' / 'c_build'), 'elm11_ide/c_build'),
+        (str(ROOT / 'brs_ide' / 'elm11' / 'build'), 'brs_ide/elm11/build'),
     ],
     hiddenimports=['serial.tools.list_ports_linux'],
     hookspath=[],
