@@ -104,12 +104,13 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         log.debug('MainWindow init')
-        self.setWindowTitle('ELM11 IDE')
+        self.setWindowTitle('BrisbaneSilicon IDE')
         self.setMinimumSize(1100, 720)
         self.setStyleSheet(theme.main_stylesheet(theme.current()))
 
         self._workspace_root: Path | None = None
         self._workspace_mode: str = 'Lua'
+        self._workspace_target: str = 'ELM11'
 
         # Build central UI first so _terminal etc. exist before menu is wired
         log.debug('Setting up central UI')
@@ -267,8 +268,18 @@ class MainWindow(QMainWindow):
         spacer.setStyleSheet('background: transparent;')
         tb.addWidget(spacer)
 
+        # Right-side toolbar label. Shows the workspace's target board
+        # (always when a workspace is open) and, when relevant, prefixes
+        # it with the device state ('REPL' / 'COMMAND MODE').
+        # Fixed width sized to "COMMAND MODE — ELM11-Feather" plus
+        # padding so toolbar layout doesn't shift as state changes.
         self._cmd_status = QLabel('')
         self._cmd_status.setStyleSheet('padding-right:8px;')
+        self._cmd_status.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._cmd_status.setFixedWidth(
+            self._cmd_status.fontMetrics().horizontalAdvance(
+                'COMMAND MODE — ELM11-Feather') + 24)
         tb.addWidget(self._cmd_status)
 
     # ── Menu ──────────────────────────────────────────────────────────────────
@@ -381,6 +392,30 @@ class MainWindow(QMainWindow):
         self._docs.set_mode(mode)
         self._update_device_buttons()
 
+    def _set_target(self, target: str):
+        """Update the active workspace's target board. The toolbar
+        status label is refreshed via `_update_device_buttons` to keep
+        device-state / target-board composition in one place."""
+        self._workspace_target = target
+        self._refresh_status_label()
+
+    def _refresh_status_label(self):
+        """Compose the right-side toolbar label from (device state) and
+        (target board). Either part may be empty."""
+        connected = self._terminal.is_connected
+        cmd_active = getattr(self, '_cmd_mode', None) and self._cmd_mode.is_active
+        is_c_mode = self._workspace_mode == 'C'
+        has_workspace = self._workspace_root is not None
+        if connected and not is_c_mode:
+            state = 'COMMAND MODE' if cmd_active else 'REPL'
+        else:
+            state = ''
+        target = self._workspace_target if has_workspace else ''
+        if state and target:
+            self._cmd_status.setText(f'{state} — {target}')
+        else:
+            self._cmd_status.setText(state or target)
+
     def _update_device_buttons(self):
         connected = self._terminal.is_connected
         cmd_active = getattr(self, '_cmd_mode', None) and self._cmd_mode.is_active
@@ -393,12 +428,7 @@ class MainWindow(QMainWindow):
         self._stop_btn.setEnabled(lua_usable)
         # Command Mode is a Lua-only concept — disabled entirely in C mode.
         self._cmd_btn.setEnabled(connected and not is_c_mode)
-        if not connected or is_c_mode:
-            self._cmd_status.setText('')
-        elif cmd_active:
-            self._cmd_status.setText('COMMAND MODE')
-        else:
-            self._cmd_status.setText('REPL')
+        self._refresh_status_label()
         # C-workflow buttons — enabled whenever a C workspace is open.
         # The handlers themselves check for a loaded file and warn if needed.
         has_workspace = self._workspace_root is not None
@@ -443,7 +473,7 @@ class MainWindow(QMainWindow):
             p = Path(path)
             self._workspace_root = None
             self._tree.set_root(p)
-            self.setWindowTitle('ELM11 IDE')
+            self.setWindowTitle('BrisbaneSilicon IDE')
 
     def _open_path(self, path: Path):
         log.debug('Open path: %s', path)
@@ -1084,7 +1114,7 @@ class MainWindow(QMainWindow):
         self._save_workspace_tabs()
         self._workspace_root = path
         self._tree.set_root(path, is_workspace=True)
-        self.setWindowTitle(f'ELM11 IDE — {path.name}')
+        self.setWindowTitle(f'BrisbaneSilicon IDE — {path.name}')
 
         s = QSettings()
         raw = s.value('workspaces/history', [])
@@ -1097,22 +1127,19 @@ class MainWindow(QMainWindow):
         history = history[:10]          # keep the 10 most recent
         s.setValue('workspaces/history', history)
 
-        # Restore or choose mode for this workspace
+        # Restore or choose mode + target board for this workspace
         mode_key = f'workspaces/mode/{path}'
+        target_key = f'workspaces/target/{path}'
         saved_mode = s.value(mode_key, None)
         is_new_workspace = saved_mode is None
         if is_new_workspace:
-            # New workspace — ask the user to pick a language mode
-            items = ['Lua', 'C']
-            from PyQt6.QtWidgets import QInputDialog
-            mode, ok = QInputDialog.getItem(
-                self, 'Workspace Language',
-                f'Select language mode for  {path.name}:',
-                items, 0, False)
-            if not ok:
-                mode = 'Lua'
+            target, mode = self._prompt_new_workspace_config(path.name)
             s.setValue(mode_key, mode)
+            s.setValue(target_key, target)
             saved_mode = mode
+        else:
+            target = s.value(target_key, 'ELM11')
+        self._set_target(target)
         self._set_mode(saved_mode)
 
         # Deploy the C build-system templates into a brand-new C workspace.
@@ -1121,6 +1148,43 @@ class MainWindow(QMainWindow):
 
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
+
+    def _prompt_new_workspace_config(self, name: str) -> tuple[str, str]:
+        """Ask the user to pick a Target Board and Language Mode for a
+        freshly-opened workspace. Returns `(target_board, mode)`.
+        Cancelling the dialog falls back to the safe defaults
+        (`ELM11`, `Lua`)."""
+        from PyQt6.QtWidgets import (
+            QDialog, QVBoxLayout, QFormLayout, QComboBox,
+            QDialogButtonBox, QLabel,
+        )
+        dlg = QDialog(self)
+        dlg.setWindowTitle('New Workspace')
+        dlg.setStyleSheet(theme.dialog_stylesheet(theme.current()))
+        dlg.setMinimumWidth(360)
+        root = QVBoxLayout(dlg)
+        root.addWidget(QLabel(f'Configure workspace  {name}:'))
+
+        form = QFormLayout()
+        target_combo = QComboBox()
+        target_combo.addItems(['ELM11', 'ELM11-Feather'])
+        form.addRow('Target Board:', target_combo)
+
+        mode_combo = QComboBox()
+        mode_combo.addItems(['Lua', 'C'])
+        form.addRow('Language Mode:', mode_combo)
+        root.addLayout(form)
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        root.addWidget(btns)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return ('ELM11', 'Lua')
+        return (target_combo.currentText(), mode_combo.currentText())
 
     def _deploy_c_build_templates(self, workspace: Path):
         """Seed a freshly-created C workspace with the bundled templates,
@@ -1267,9 +1331,11 @@ class MainWindow(QMainWindow):
         self._save_workspace_tabs()
         self._workspace_root = None
         self._tree.set_root(Path.home())
-        self.setWindowTitle('ELM11 IDE')
+        self.setWindowTitle('BrisbaneSilicon IDE')
         if self._sb_mode:
             self._sb_mode.setVisible(False)
+        self._workspace_target = ''
+        self._refresh_status_label()
         self._update_device_buttons()
         # Tear down any active serial connection and clear the editor.
         # Disconnect first — the resulting `_on_connection_changed(False)`
@@ -1294,6 +1360,7 @@ class MainWindow(QMainWindow):
             history.remove(entry)
         s.setValue('workspaces/history', history)
         s.remove(f'workspaces/mode/{entry}')
+        s.remove(f'workspaces/target/{entry}')
         s.remove(f'workspaces/open_files/{entry}')
         s.remove(f'workspaces/active_tab/{entry}')
         # Close if it's the current workspace, and clear out its open tabs.
@@ -1311,6 +1378,7 @@ class MainWindow(QMainWindow):
         history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
         for entry in history:
             s.remove(f'workspaces/mode/{entry}')
+            s.remove(f'workspaces/target/{entry}')
             s.remove(f'workspaces/open_files/{entry}')
             s.remove(f'workspaces/active_tab/{entry}')
         s.remove('workspaces/history')
@@ -1348,8 +1416,9 @@ class MainWindow(QMainWindow):
                 log.debug('Restoring workspace: %s', p)
                 self._workspace_root = p
                 self._tree.set_root(p, is_workspace=True)
-                self.setWindowTitle(f'ELM11 IDE — {p.name}')
+                self.setWindowTitle(f'BrisbaneSilicon IDE — {p.name}')
                 saved_mode = s.value(f'workspaces/mode/{p}', 'Lua')
+                self._set_target(s.value(f'workspaces/target/{p}', 'ELM11'))
                 self._set_mode(saved_mode)
                 self._restore_workspace_tabs(p)
             else:
