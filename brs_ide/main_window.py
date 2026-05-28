@@ -1114,15 +1114,25 @@ class MainWindow(QMainWindow):
     # ── Workspaces ────────────────────────────────────────────────────────────
 
     def _load_workspace(self, path: Path):
-        log.debug('Load workspace: %s', path)
         """Switch the tree root to path and persist it in the workspace history."""
+        log.debug('Load workspace: %s', path)
         # Persist the outgoing workspace's open files before we swap roots.
         self._save_workspace_tabs()
         self._workspace_root = path
-        self._tree.set_root(path, is_workspace=True)
-        self.setWindowTitle(f'BrisbaneSilicon IDE — {path.name}')
 
         s = QSettings()
+        mode_key = f'workspaces/mode/{path}'
+        target_key = f'workspaces/target/{path}'
+        saved_mode = s.value(mode_key, None)
+        is_new_workspace = saved_mode is None
+
+        # A freshly-created workspace opens with its root expanded but every
+        # nested folder collapsed; re-opened workspaces keep the full
+        # auto-expand cascade.
+        self._tree.set_root(path, is_workspace=True,
+                            auto_expand=not is_new_workspace)
+        self.setWindowTitle(f'BrisbaneSilicon IDE — {path.name}')
+
         raw = s.value('workspaces/history', [])
         # QSettings may return a string instead of list when there's only one entry
         history: list[str] = list(raw) if isinstance(raw, (list, tuple)) else ([raw] if raw else [])
@@ -1134,10 +1144,6 @@ class MainWindow(QMainWindow):
         s.setValue('workspaces/history', history)
 
         # Restore or choose mode + target board for this workspace
-        mode_key = f'workspaces/mode/{path}'
-        target_key = f'workspaces/target/{path}'
-        saved_mode = s.value(mode_key, None)
-        is_new_workspace = saved_mode is None
         if is_new_workspace:
             target, mode = self._prompt_new_workspace_config(path.name)
             s.setValue(mode_key, mode)
@@ -1148,9 +1154,11 @@ class MainWindow(QMainWindow):
         self._set_target(target)
         self._set_mode(saved_mode)
 
-        # Deploy the C build-system templates into a brand-new C workspace.
-        if is_new_workspace and saved_mode == 'C':
-            self._deploy_c_build_templates(path)
+        # Deploy the build-system templates into a brand-new workspace.
+        # Both Lua and C workspaces get their language-specific build/ and
+        # runtime/ trees seeded from the IDE's bundle.
+        if is_new_workspace:
+            self._deploy_build_templates(path, saved_mode.lower())
 
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
@@ -1192,13 +1200,14 @@ class MainWindow(QMainWindow):
             return ('ELM11', 'Lua')
         return (target_combo.currentText(), mode_combo.currentText())
 
-    def _deploy_c_build_templates(self, workspace: Path):
-        """Seed a freshly-created C workspace with the bundled templates,
-        laid out as:
+    def _deploy_build_templates(self, workspace: Path, lang: str):
+        """Seed a freshly-created workspace with the bundled templates for
+        `lang` ('c' or 'lua'), sourced from `brs_ide/elm11/<lang>/`. Files
+        are laid out as:
 
-          * `<workspace>/main.c`            — starter user source
+          * `<workspace>/*.c`               — starter user source
           * `<workspace>/build/runtime/`    — prebuilt runtime objects
-          * `<workspace>/build/make/`       — Makefile + linker script
+          * `<workspace>/build/make/`       — Makefile / linker / startup
           * `<workspace>/build/header/`     — bundled C headers
           * `<workspace>/build/utilities/`  — helper Python scripts
 
@@ -1206,29 +1215,33 @@ class MainWindow(QMainWindow):
         deployed templates always reflect the IDE's current bundle."""
         import shutil
 
+        # Lua workspaces nest every deployed artefact under an `embLua/`
+        # subdirectory; C workspaces deploy straight into the workspace root.
+        dest_root = workspace / 'embLua' if lang == 'lua' else workspace
+
         def _target_for(src: Path) -> Path:
-            """Where does a build-template file go? Rooted on `workspace`."""
+            """Where does a build-template file go? Rooted on `dest_root`."""
             if src.suffix == '.c':
-                return workspace / src.name
+                return dest_root / src.name
             if src.suffix == '.py':
-                return workspace / 'build' / 'utilities' / src.name
+                return dest_root / 'build' / 'utilities' / src.name
             if src.suffix == '.h':
-                return workspace / 'build' / 'header' / src.name
+                return dest_root / 'build' / 'header' / src.name
             # `.S` startup files, Makefile, linker script, etc. all sit in
             # the make/ directory.
-            return workspace / 'build' / 'make' / src.name
+            return dest_root / 'build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
-        build_src = _ide_data_dir('elm11/c/build')
+        build_src = _ide_data_dir(f'elm11/{lang}/build')
         if build_src.is_dir():
             for src in build_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, _target_for(src)))
-        runtime_src = _ide_data_dir('elm11/c/runtime')
+        runtime_src = _ide_data_dir(f'elm11/{lang}/runtime')
         if runtime_src.is_dir():
             for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
-                    plan.append((src, workspace / 'build' / 'runtime' / src.name))
+                    plan.append((src, dest_root / 'build' / 'runtime' / src.name))
 
         import re
         for src, dst in plan:

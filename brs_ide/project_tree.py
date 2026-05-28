@@ -158,10 +158,12 @@ class ProjectTree(QTreeView):
         path = self._source_path(index)
         return path if path.is_dir() else path.parent
 
-    def set_root(self, path: Path, is_workspace: bool = False):
-        log.debug('set_root: path=%s  parent=%s  workspace=%s',
-                  path, path.parent, is_workspace)
-        self._auto_expand = is_workspace
+    def set_root(self, path: Path, is_workspace: bool = False,
+                 auto_expand: bool = True):
+        log.debug('set_root: path=%s  parent=%s  workspace=%s  auto_expand=%s',
+                  path, path.parent, is_workspace, auto_expand)
+        deep_expand = is_workspace and auto_expand
+        self._auto_expand = deep_expand
         self._proxy.set_workspace(path)
         parent_path = path.parent if path.parent != path else path
         parent_source = self._model.index(str(parent_path))
@@ -169,14 +171,17 @@ class ProjectTree(QTreeView):
         log.debug('set_root: parent_source valid=%s  proxy_root valid=%s',
                   parent_source.isValid(), proxy_root.isValid())
         self.setRootIndex(proxy_root)
-        # Auto-expand and select the workspace folder
+        # Always expand & select the workspace folder itself so its
+        # top-level contents are visible.
         ws_proxy = self._proxy.mapFromSource(self._model.index(str(path)))
         log.debug('set_root: ws_proxy valid=%s', ws_proxy.isValid())
         self.expand(ws_proxy)
         self.setCurrentIndex(ws_proxy)
-        # Only deep-expand for real workspaces — the home fallback would
-        # otherwise open the user's whole home tree.
-        if is_workspace:
+        # Deep-expand every subfolder only for real workspaces that opt in.
+        # The home fallback would otherwise open the user's whole home tree,
+        # and a freshly-created workspace opts out so it opens with the root
+        # expanded but all nested folders collapsed.
+        if deep_expand:
             self._expand_all_loaded(ws_proxy)
             # Disarm the lazy-cascade after the initial load window. Without
             # this, later filesystem rescans (e.g. _refresh_parent toggling
