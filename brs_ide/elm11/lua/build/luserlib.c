@@ -58,7 +58,7 @@ static int luaU_pin1_4xtoggle (lua_State *L) {
     for (i = 0; i < 4; ++i) {
         ret = set_gpio(c_pin1, e_level_toggle);
         if(ret != e_success) {
-            luaL_error(L, "failed to toggle PIN1. Reason: %s. Iteration: %d", e_status_to_str(ret), i);
+            luaL_error(L, "failed to toggle PIN1. Reason: %s. Iteration: %d", status_to_str(ret), i);
         }
     }
 

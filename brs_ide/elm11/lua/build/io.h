@@ -298,6 +298,7 @@ e_status uart_rx_byte_nonblocking(uint32_t user_io_num, volatile uint8_t *uart_r
 const char* standalone_io_type_tostring(e_iotype io_type) ATTRIB_F1CODE;
 const char* relational_io_type_tostring(e_relational_iotype rel_io_type) ATTRIB_F1CODE;
 const char* analog_io_type_tostring(e_analogtype analog_io_type) ATTRIB_F1CODE;
+const char* status_to_str(e_status status);
 
 e_status reset_io_type_config(uint32_t io_index);
 void reset_all_io_config(void);
