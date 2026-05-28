@@ -58,6 +58,8 @@ static const luaL_Reg user_funcs_dynamic[] = {
 **
 ** NOTE: assumes PIN1 is already configured as
 ** a GPIO_OUT, throws an error otherwise.
+**
+** Returns nothing.
 */
 static int luaU_pin1_4xtoggle (lua_State *L) {
     const int c_pin1 = 1;
@@ -92,6 +94,8 @@ static int luaU_pin1_4xtoggle (lua_State *L) {
 /*
 ** Calculate and return 32-bit LFSR
 ** of the input integer argument.
+**
+** Returns the 32-bit LFSR result.
 */
 static int luaU_lfsr32_next (lua_State *L) {
     lua_Integer lfsr_val;
@@ -125,6 +129,16 @@ static int luaU_lfsr32_next (lua_State *L) {
 }
 
 
+/*
+** Calculate if the first arg is even. Takes
+** two possible responses as second and third
+** arguments.
+**
+** Returns:
+**  - True / False if the first arg is even
+**  - Either the first response (if even) or
+**      second (if odd).
+*/
 static int luaU_even (lua_State *L) {
     const char *pass_str;
     const char *fail_str;
