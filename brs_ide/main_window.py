@@ -235,6 +235,8 @@ class MainWindow(QMainWindow):
         self._flash_btn.setEnabled(False)
         tb.addWidget(self._flash_btn)
 
+        tb.addWidget(self._toolbar_spacer())
+
         self._upload_btn = QPushButton('Upload')
         self._upload_btn.setToolTip('Upload Lua program to ELM11')
         self._upload_btn.clicked.connect(self._upload)
@@ -252,6 +254,8 @@ class MainWindow(QMainWindow):
         self._stop_btn.clicked.connect(self._stop_program)
         self._stop_btn.setEnabled(False)
         tb.addWidget(self._stop_btn)
+
+        tb.addWidget(self._toolbar_spacer())
 
         self._cmd_btn = QPushButton('Command Mode')
         self._cmd_btn.setCheckable(True)
@@ -279,6 +283,16 @@ class MainWindow(QMainWindow):
             self._cmd_status.fontMetrics().horizontalAdvance(
                 'COMMAND MODE — ELM11-Feather') + 24)
         tb.addWidget(self._cmd_status)
+
+    @staticmethod
+    def _toolbar_spacer(width: int = 12) -> QWidget:
+        """A small fixed-width transparent gap for visually grouping toolbar
+        buttons. Transparent so it blends with the toolbar background, which
+        differs from the default widget background."""
+        w = QWidget()
+        w.setFixedWidth(width)
+        w.setStyleSheet('background: transparent;')
+        return w
 
     # ── Menu ──────────────────────────────────────────────────────────────────
 

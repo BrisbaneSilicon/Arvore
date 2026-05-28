@@ -16,64 +16,152 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
-#include "stdlib.h"
-#include "memory_gowin.h"
+
+// Function prototypes
+
+static int luaU_pin1_4xtoggle (lua_State *L);
+static int luaU_lfsr32_next (lua_State *L);
+static int luaU_even (lua_State *L);
 
 
-static int luaU_lfsr32_next (lua_State *L) {
-    lua_Integer lfsr_val;
-    char c;
+// Implementation
 
-    lfsr_val = luaL_checkinteger(L, 1);
 
-    int n = lua_gettop(L);
-    if (n != 1) {
-        luaL_error(L, "unexpected argument");
-    }
+/* ------------------ Users Lua API ----------------------  */
 
-    c = (char)(lfsr_val >> 23) ^ (char)(lfsr_val >> 21);
-    c ^= (char)(lfsr_val >>  7) ^  (char)lfsr_val;
-    c &= 1u;
 
-    lua_pushinteger(L, (lfsr_val << 1) | c);
+    // NOTE: User to add any custom API
+    // functions here.
 
-    return 1;
-}
 
+
+static const luaL_Reg user_funcs_dynamic[] = {
+    // NOTE: ensure you add any new custom API
+    // functions to this array in order to ensure
+    // they can be imported from the Lua Interpreter.
+
+    // NOTE: the below function Names, Pointers
+    // are from the examples below.
+
+    {"pin1_4xtoggle", luaU_pin1_4xtoggle},
+    {"lfsr32_next", luaU_lfsr32_next},
+    {"even", luaU_even},
+
+    {NULL, NULL}
+};
+
+
+/* --------------- Example Users Lua API -------------------  */
 
 /*
+** Toggle PIN1 four times as quickly as possible.
+**
 ** NOTE: assumes PIN1 is already configured as
-** a GPIO_OUT.
+** a GPIO_OUT, throws an error otherwise.
 */
 static int luaU_pin1_4xtoggle (lua_State *L) {
     const int c_pin1 = 1;
+
     e_status ret;
     int i;
 
     int n = lua_gettop(L);
     if (n != 0) {
+        // NOTE: verify no arguments have
+        // been passed to the function.
+
         luaL_error(L, "unexpected argument");
     }
 
     for (i = 0; i < 4; ++i) {
         ret = set_gpio(c_pin1, e_level_toggle);
+            // NOTE: function 'set_gpio' is defined
+            // in 'io.h'
+
         if(ret != e_success) {
-            luaL_error(L, "failed to toggle PIN1. Reason: %s. Iteration: %d", status_to_str(ret), i);
+            luaL_error(L, "failed to toggle PIN1. Reason: %s. "
+                            "Iteration: %d", status_to_str(ret), i);
         }
     }
 
     return 0;
+        // NOTE: no results were pushed onto the
+        // the Lua stack.
+}
+
+/*
+** Calculate and return 32-bit LFSR
+** of the input integer argument.
+*/
+static int luaU_lfsr32_next (lua_State *L) {
+    lua_Integer lfsr_val;
+    lua_Integer lfsr_result;
+    char c;
+
+    int n = lua_gettop(L);
+    if (n != 1) {
+        // NOTE: verify one argument has
+        // been passed to the function.
+
+        luaL_error(L, "unexpected argument");
+    }
+
+    lfsr_val = luaL_checkinteger(L, 1);
+        // NOTE: check first argument is an integer
+
+    c = (char)(lfsr_val >> 23) ^ (char)(lfsr_val >> 21);
+    c ^= (char)(lfsr_val >>  7) ^  (char)lfsr_val;
+    c &= 1u;
+
+    lfsr_result = (lfsr_val << 1) | c;
+
+    lua_pushinteger(L, lfsr_result);
+        // NOTE: push 32-bit LFSR result onto
+        // the Lua stack.
+
+    return 1;
+        // NOTE: one result was pushed onto the
+        // the Lua stack.
 }
 
 
-static const luaL_Reg user_funcs_dynamic[] = {
-    {"lfsr32_next", luaU_lfsr32_next},
-    {"pin1_4xtoggle", luaU_pin1_4xtoggle},
-    {NULL, NULL}
-};
+static int luaU_even (lua_State *L) {
+    const char *pass_str;
+    const char *fail_str;
+    int val;
+
+    int ret;
+
+    e_status status;
+
+    int n = lua_gettop(L);
+    if (n != 3) {
+        luaL_error(L, "unexpected argument");
+    }
+
+    val = luaL_checkinteger(L, 1);
+    pass_str = luaL_checkstring(L, 2);
+    fail_str = luaL_checkstring(L, 3);
+
+    if(val & 1) {
+        // NOTE: 'val' is odd
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, fail_str);
+
+    } else {
+        // NOTE: 'val' is even
+        lua_pushboolean(L, 1);
+        lua_pushstring(L, pass_str);
+    }
+
+    return 2;
+}
 
 
-/* }====================================================== */
+/* ------------------ Boilerplate Library Code ----------------------  */
+
+    // NOTE: you shouldn't need to touch
+    // any of this...
 
 
 static const luaL_Reg userlib_default[] = {
