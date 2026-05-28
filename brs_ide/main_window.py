@@ -222,13 +222,11 @@ class MainWindow(QMainWindow):
         self._build_btn = QPushButton('Build')
         self._build_btn.setToolTip('Build the current C project')
         self._build_btn.clicked.connect(self._build)
-        self._build_btn.setEnabled(False)
         tb.addWidget(self._build_btn)
 
         self._clean_btn = QPushButton('Clean')
         self._clean_btn.setToolTip('Delete build artefacts (make clean)')
         self._clean_btn.clicked.connect(self._clean)
-        self._clean_btn.setEnabled(False)
         tb.addWidget(self._clean_btn)
 
         self._flash_btn = QPushButton('Flash')
@@ -429,14 +427,11 @@ class MainWindow(QMainWindow):
         # Command Mode is a Lua-only concept — disabled entirely in C mode.
         self._cmd_btn.setEnabled(connected and not is_c_mode)
         self._refresh_status_label()
-        # C-workflow buttons — enabled whenever a C workspace is open.
-        # The handlers themselves check for a loaded file and warn if needed.
-        has_workspace = self._workspace_root is not None
-        self._build_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
-        self._clean_btn.setEnabled(is_c_mode and has_workspace and not cmd_active)
-        # Flash needs an active connection so the IDE can hand the same
-        # serial port off to the firmware uploader subprocess.
-        self._flash_btn.setEnabled(is_c_mode and has_workspace and usable)
+        # Build / Clean stay always enabled (their handlers validate the
+        # workspace + Makefile). Flash is enabled whenever the ELM11 is
+        # connected and not held by command mode — its handler validates the
+        # workspace + built image.
+        self._flash_btn.setEnabled(usable)
 
     def _on_cmd_btn_toggled(self, checked: bool):
         # When the user activates Command Mode, make sure the side panel
@@ -843,17 +838,33 @@ class MainWindow(QMainWindow):
         self._refresh_tab_title(editor)
         self._update_device_buttons()
 
+    def _build_make_dir(self) -> Path:
+        """Directory holding the workspace's Makefile. C workspaces deploy it
+        to `<ws>/build/make`; Lua workspaces nest the C build system under
+        `<ws>/embLua/build/make`."""
+        if self._workspace_mode == 'C':
+            return self._workspace_root / 'build' / 'make'
+        return self._workspace_root / 'embLua' / 'build' / 'make'
+
+    def _build_out_dir(self) -> Path:
+        """Directory holding the build's memory image (`<proj>.v`). C
+        workspaces emit it to `<ws>/build/out`; Lua workspaces nest the C
+        build system under `<ws>/embLua/build/out`."""
+        if self._workspace_mode == 'C':
+            return self._workspace_root / 'build' / 'out'
+        return self._workspace_root / 'embLua' / 'build' / 'out'
+
     def _build(self):
-        if self._workspace_mode != 'C' or self._workspace_root is None:
-            QMessageBox.warning(self, 'No C Workspace',
-                'Open a C workspace to build.')
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to build.')
             return
-        make_dir = self._workspace_root / 'build' / 'make'
+        make_dir = self._build_make_dir()
         makefile = make_dir / 'Makefile'
         if not makefile.is_file():
             QMessageBox.warning(self, 'Missing Makefile',
                 f'No Makefile found at:\n{makefile}\n\n'
-                "The C workspace templates don't appear to be deployed.")
+                "The C build templates don't appear to be deployed.")
             return
         # Save any in-flight edits before invoking make.
         editor = self._cur()
@@ -876,11 +887,11 @@ class MainWindow(QMainWindow):
             env=make_env)
 
     def _clean(self):
-        if self._workspace_mode != 'C' or self._workspace_root is None:
-            QMessageBox.warning(self, 'No C Workspace',
-                'Open a C workspace to clean.')
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to clean.')
             return
-        make_dir = self._workspace_root / 'build' / 'make'
+        make_dir = self._build_make_dir()
         makefile = make_dir / 'Makefile'
         if not makefile.is_file():
             QMessageBox.warning(self, 'Missing Makefile',
@@ -896,9 +907,9 @@ class MainWindow(QMainWindow):
             env=make_env)
 
     def _flash(self):
-        if self._workspace_mode != 'C' or self._workspace_root is None:
-            QMessageBox.warning(self, 'No C Workspace',
-                'Open a C workspace to flash.')
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to flash.')
             return
         if not self._terminal.is_connected:
             QMessageBox.warning(self, 'Not Connected',
@@ -936,8 +947,7 @@ class MainWindow(QMainWindow):
                 f'firmware_uploader.py not found at:\n{uploader}')
             _abort_and_reacquire()
             return
-        v_file = (self._workspace_root / 'build' / 'out'
-                  / f'{self._workspace_root.name}.v')
+        v_file = self._build_out_dir() / f'{self._workspace_root.name}.v'
         if not v_file.is_file():
             QMessageBox.warning(self, 'No Build Output',
                 f'Memory image not found:\n{v_file}\n\n'
