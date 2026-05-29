@@ -1302,6 +1302,15 @@ class MainWindow(QMainWindow):
             self._restore_terminal_deferred()
             return
 
+        # On a successful flash, prompt the user to reset the board (BTN1) so
+        # it boots the freshly-flashed firmware before we re-open the port.
+        if code == 0:
+            QMessageBox.information(
+                self, 'Flashing Complete',
+                'Flashing complete.\n\nPress BTN1 to reset the ELM11 and boot '
+                'the new firmware.',
+                QMessageBox.StandardButton.Ok)
+
         def _reconnect():
             # The device may re-enumerate after flashing, so re-resolve.
             target = _resolve_upload_port(held)
