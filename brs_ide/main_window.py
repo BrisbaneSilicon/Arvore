@@ -597,6 +597,23 @@ class MainWindow(QMainWindow):
         self._sync_cmd_mode_ui()
         self._update_device_buttons()
 
+    # Delay before re-enabling terminal output after an operation (Command
+    # Mode, upload, flash) releases the serial stream, so the device's
+    # trailing chatter has passed before the terminal resumes printing.
+    _TERMINAL_RESTORE_MS = 500
+
+    def _suppress_terminal(self):
+        """Silence the terminal while an operation owns the serial stream."""
+        self._terminal.set_output_suppressed(True)
+
+    def _restore_terminal_deferred(self):
+        """Re-enable terminal output as the very last step, after a short delay
+        so trailing device chatter is swallowed. Re-checks Command Mode so it
+        never un-suppresses while that still owns the stream."""
+        QTimer.singleShot(
+            self._TERMINAL_RESTORE_MS,
+            lambda: self._terminal.set_output_suppressed(self._cmd_mode.is_active))
+
     def _sync_cmd_mode_ui(self):
         """Reconcile the UI with `_cmd_mode.is_active`: keep the toolbar
         button checked-in-sync and swap the centre region to the command panel
@@ -608,6 +625,12 @@ class MainWindow(QMainWindow):
             self._cmd_btn.blockSignals(False)
         self._center_stack.setCurrentWidget(
             self._cmd_mode if active else self._centre)
+        # Command Mode owns the serial stream — silence the terminal on entry,
+        # restore it (last) once exit chatter passes.
+        if active:
+            self._suppress_terminal()
+        else:
+            self._restore_terminal_deferred()
 
     # ── File operations ───────────────────────────────────────────────────────
 
@@ -854,6 +877,9 @@ class MainWindow(QMainWindow):
         self._upload_out._append('Enter COMMAND mode...\n', theme.current()['term_fg'])
         self._bottom.setCurrentWidget(self._upload_out)
 
+        # Silence the terminal for the whole upload — its command-mode entry,
+        # upload command and exit chatter belong in the Upload Status tab.
+        self._suppress_terminal()
         # Enter Command Mode, then trigger the upload sequence
         worker.send(b'\ncmd\n')
         QTimer.singleShot(500, lambda: self._do_upload_step2(
@@ -896,6 +922,7 @@ class MainWindow(QMainWindow):
                     worker, lua_file))
             else:
                 worker.send(b'n')
+                self._restore_terminal_deferred()
             return
 
         self._do_upload_start(worker, lua_file)
@@ -935,6 +962,8 @@ class MainWindow(QMainWindow):
         if worker:
             worker.resume()
             worker.send(b'exit\n')
+        # Re-enable the terminal last, after the command-mode exit chatter.
+        self._restore_terminal_deferred()
 
     def _on_uploader_thread_done(self):
         """Called when the uploader thread has fully exited run()."""
@@ -1192,6 +1221,9 @@ class MainWindow(QMainWindow):
         self._flash_held_port = ''
 
     def _proceed_with_flash(self, uploader: Path, v_file: Path, target_port: str):
+        # Silence the terminal across the flash + post-flash reconnect; the
+        # flash log lives in the Flash Output tab.
+        self._suppress_terminal()
         self._flash_out.clear()
         self._bottom.setCurrentWidget(self._flash_out)
         try:
@@ -1238,6 +1270,7 @@ class MainWindow(QMainWindow):
         held = getattr(self, '_flash_held_port', '')
         self._flash_held_port = ''
         if not held:
+            self._restore_terminal_deferred()
             return
 
         def _reconnect():
@@ -1245,6 +1278,9 @@ class MainWindow(QMainWindow):
             target = _resolve_upload_port(held)
             if target:
                 self._terminal.reacquire_port(target, SettingsDialog.baud())
+            # Re-enable terminal output as the final step, once any post-flash
+            # boot chatter has passed.
+            self._restore_terminal_deferred()
 
         # Brief delay so the device is ready post-flash before we reopen.
         QTimer.singleShot(800, _reconnect)

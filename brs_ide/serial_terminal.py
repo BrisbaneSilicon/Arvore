@@ -172,6 +172,7 @@ class SerialTerminal(QWidget):
         self._buf    = b''          # partial-UTF-8 accumulator
         self._history: list[str] = []
         self._hist_pos = -1
+        self._suppress_output = False   # set while Command Mode owns the stream
         self._setup_ui()
 
     # ── UI ────────────────────────────────────────────────────────────────
@@ -299,6 +300,12 @@ class SerialTerminal(QWidget):
     def get_worker(self) -> SerialWorker | None:
         return self._worker
 
+    def set_output_suppressed(self, suppressed: bool):
+        """When True, incoming serial data is still decoded (so buffer/ANSI
+        state stays consistent) but not rendered. Used while Command Mode owns
+        the stream so its traffic doesn't clutter the terminal."""
+        self._suppress_output = suppressed
+
     def release_port(self) -> str:
         """Stop the worker and free the serial port for an external process
         (e.g. firmware_uploader.py) without emitting `connected(False)` or
@@ -388,8 +395,10 @@ class SerialTerminal(QWidget):
 
         text = text.replace('\r\n', '\n')
         text = text.replace('\n\r', '\n')
+        # Always run the decode + ANSI feed so buffer/escape state stays
+        # consistent; only the rendering is suppressed in Command Mode.
         clean = self._ansi.feed(text)
-        if clean:
+        if clean and not self._suppress_output:
             self._append(clean, theme.current()['term_fg'])
 
     def _on_lost(self, error: str):
