@@ -244,6 +244,16 @@ class MainWindow(QMainWindow):
         other mode uses a single pane."""
         return 2 if self._workspace_mode == 'Lua' else 1
 
+    def _default_pane_for(self, path: Path) -> QTabWidget:
+        """Pick the pane a newly-opened file lands in. In a split layout, C
+        sources/headers open in the right-hand pane and everything else in the
+        left; with a single pane, everything opens in the active pane."""
+        if len(self._editor_panes) < 2:
+            return self._active_pane
+        if path.suffix.lower() in ('.c', '.h'):
+            return self._editor_panes[-1]
+        return self._editor_panes[0]
+
     def _all_editors(self):
         """Yield every CodeEditor across all panes."""
         for pane in self._editor_panes:
@@ -620,7 +630,7 @@ class MainWindow(QMainWindow):
         editor.set_file(path)
         editor.document().modificationChanged.connect(
             lambda _: self._refresh_tab_title(editor))
-        target = pane or self._active_pane
+        target = pane or self._default_pane_for(path)
         idx = target.addTab(editor, path.name)
         target.setCurrentIndex(idx)
         self._refresh_tab_title(editor)
