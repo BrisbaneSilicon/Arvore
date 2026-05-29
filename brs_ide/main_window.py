@@ -239,6 +239,7 @@ class MainWindow(QMainWindow):
         if self._active_pane not in self._editor_panes:
             self._active_pane = self._editor_panes[0]
         self._editor_split.setSizes([1] * len(self._editor_panes))
+        self._update_pane_highlight()
         # Keep the View-menu toggle in sync (the menu may not exist yet during
         # initial construction).
         if hasattr(self, '_split_toggle'):
@@ -289,9 +290,33 @@ class MainWindow(QMainWindow):
         w = now
         while w is not None:
             if w in self._editor_panes:
-                self._active_pane = w
+                self._set_active_pane(w)
                 return
             w = w.parentWidget()
+
+    def _set_active_pane(self, pane: QTabWidget):
+        """Make `pane` the active pane (target of New/Open/Save) and refresh
+        the highlight. No-op if it's already active."""
+        if pane is getattr(self, '_active_pane', None):
+            return
+        self._active_pane = pane
+        self._update_pane_highlight()
+        # The active editor drives the Lua button states.
+        self._update_device_buttons()
+
+    def _update_pane_highlight(self):
+        """Accent the active pane's selected tab and mute the others, so the
+        most-recently-focused editor pane is visually obvious. With a single
+        pane there's nothing to disambiguate, so the override is cleared."""
+        if len(self._editor_panes) < 2:
+            for pane in self._editor_panes:
+                pane.setStyleSheet('')
+            return
+        t = theme.current()
+        for pane in self._editor_panes:
+            accent = t['tab_accent'] if pane is self._active_pane else t['border']
+            pane.setStyleSheet(
+                f'QTabBar::tab:selected {{ border-top:2px solid {accent}; }}')
 
     def _tab_context_menu(self, pane: QTabWidget, pos):
         """Right-click menu for an editor tab. Offers moving the tab to the
@@ -327,7 +352,7 @@ class MainWindow(QMainWindow):
         pane.removeTab(index)
         new_idx = dst.addTab(widget, text)
         dst.setCurrentIndex(new_idx)
-        self._active_pane = dst
+        self._set_active_pane(dst)
         if isinstance(widget, CodeEditor):
             self._refresh_tab_title(widget)
         widget.setFocus()
@@ -570,8 +595,10 @@ class MainWindow(QMainWindow):
         cmd_active = getattr(self, '_cmd_mode', None) and self._cmd_mode.is_active
         is_c_mode = self._workspace_mode == 'C'
         usable = connected and not cmd_active
-        # Lua-workflow buttons — only relevant in Lua mode.
-        lua_usable = usable and not is_c_mode
+        # Upload / Run / Stop act on a Lua program — only enabled when the
+        # active editor tab holds a .lua file.
+        cur = self._cur()
+        lua_usable = usable and cur is not None and cur.is_lua
         self._upload_btn.setEnabled(lua_usable)
         self._run_btn.setEnabled(lua_usable)
         self._stop_btn.setEnabled(lua_usable)
@@ -666,7 +693,7 @@ class MainWindow(QMainWindow):
                 w = p.widget(i)
                 if isinstance(w, CodeEditor) and w.file_path == path:
                     p.setCurrentIndex(i)
-                    self._active_pane = p
+                    self._set_active_pane(p)
                     return
         editor = CodeEditor()
         editor.set_file(path)
@@ -704,6 +731,8 @@ class MainWindow(QMainWindow):
         if path:
             editor.save_as(Path(path))
             self._refresh_tab_title(editor)
+            # Extension may have changed (e.g. .lua → .c), so refresh buttons.
+            self._update_device_buttons()
 
     def _refresh_tab_title(self, editor: CodeEditor):
         found = self._pane_for_editor(editor)
@@ -765,7 +794,7 @@ class MainWindow(QMainWindow):
             if reply == QMessageBox.StandardButton.Save:
                 # Make this the active editor so _save_file targets it.
                 pane.setCurrentIndex(index)
-                self._active_pane = pane
+                self._set_active_pane(pane)
                 self._save_file()
             elif reply == QMessageBox.StandardButton.Cancel:
                 return
@@ -775,7 +804,7 @@ class MainWindow(QMainWindow):
     def _on_tab_changed(self, _index: int):
         pane = self.sender()
         if isinstance(pane, QTabWidget) and pane in self._editor_panes:
-            self._active_pane = pane
+            self._set_active_pane(pane)
         self._update_device_buttons()
 
     def _close_all_editor_tabs(self):
@@ -1313,6 +1342,7 @@ class MainWindow(QMainWindow):
         self._cmd_mode.apply_theme()
         for editor in self._all_editors():
             editor.apply_theme()
+        self._update_pane_highlight()
         self._on_connection_changed(self._terminal.is_connected)
         self._rebuild_theme_menu()
 
@@ -1556,7 +1586,7 @@ class MainWindow(QMainWindow):
         except (TypeError, ValueError):
             ap = 0
         if 0 <= ap < len(self._editor_panes):
-            self._active_pane = self._editor_panes[ap]
+            self._set_active_pane(self._editor_panes[ap])
 
     def _rebuild_workspaces_menu(self):
         self._ws_menu.clear()
