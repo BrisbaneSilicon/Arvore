@@ -164,6 +164,8 @@ class ProjectTree(QTreeView):
                   path, path.parent, is_workspace, auto_expand)
         deep_expand = is_workspace and auto_expand
         self._auto_expand = deep_expand
+        # An explicit re-root cancels any in-flight expansion-state restore.
+        self._restore_paths = None
         self._proxy.set_workspace(path)
         parent_path = path.parent if path.parent != path else path
         parent_source = self._model.index(str(parent_path))
@@ -192,6 +194,56 @@ class ProjectTree(QTreeView):
 
     def _disarm_auto_expand(self):
         self._auto_expand = False
+
+    # ── Expansion-state persistence ───────────────────────────────────────
+
+    def expanded_dirs(self) -> list[str]:
+        """Return the paths of every currently-expanded directory under the
+        workspace root — used to persist the tree's open/closed state."""
+        ws = self._proxy._workspace
+        if ws is None:
+            return []
+        out: list[str] = []
+        self._collect_expanded(
+            self._proxy.mapFromSource(self._model.index(str(ws))), out)
+        return out
+
+    def _collect_expanded(self, idx: QModelIndex, out: list[str]):
+        if not idx.isValid() or not self.isExpanded(idx):
+            return
+        out.append(str(self._source_path(idx)))
+        for i in range(self._proxy.rowCount(idx)):
+            child = self._proxy.index(i, 0, idx)
+            if self._source_path(child).is_dir():
+                self._collect_expanded(child, out)
+
+    def restore_expanded(self, paths: list[str]):
+        """Re-expand `paths` as QFileSystemModel lazily loads each directory.
+        Call right after `set_root(..., auto_expand=False)`. Expanding a saved
+        folder triggers its load, which fires `directoryLoaded` and expands its
+        saved children in turn — so the whole saved tree unfolds."""
+        self._restore_paths = set(paths)
+        ws = self._proxy._workspace
+        if ws is not None:
+            # Apply to whatever is already loaded; the rest follow via the
+            # directoryLoaded cascade as each folder populates.
+            self._apply_restore_for(str(ws))
+        # Stop reacting once the initial restore window passes, so later
+        # filesystem rescans don't re-expand folders the user has collapsed.
+        QTimer.singleShot(5000, self._disarm_restore)
+
+    def _apply_restore_for(self, dir_path: str):
+        proxy_idx = self._proxy.mapFromSource(self._model.index(dir_path))
+        if not proxy_idx.isValid():
+            return
+        for i in range(self._proxy.rowCount(proxy_idx)):
+            child = self._proxy.index(i, 0, proxy_idx)
+            child_path = self._source_path(child)
+            if child_path.is_dir() and str(child_path) in self._restore_paths:
+                self.expand(child)
+
+    def _disarm_restore(self):
+        self._restore_paths = None
 
     def _is_under_build(self, path: Path) -> bool:
         """True if `path` is the workspace's `build/` directory or anything
@@ -226,6 +278,11 @@ class ProjectTree(QTreeView):
         model to load *that* directory's contents in turn, so the cascade
         continues until the whole tree under the workspace is expanded
         (capped at `_MAX_AUTO_EXPAND_DEPTH`)."""
+        # Restoring a saved open/closed state takes priority over the
+        # depth-based auto-expand cascade.
+        if getattr(self, '_restore_paths', None) is not None:
+            self._apply_restore_for(dir_path)
+            return
         if not getattr(self, '_auto_expand', False):
             return
         ws = self._proxy._workspace

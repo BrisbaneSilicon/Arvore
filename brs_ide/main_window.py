@@ -1144,11 +1144,9 @@ class MainWindow(QMainWindow):
         saved_mode = s.value(mode_key, None)
         is_new_workspace = saved_mode is None
 
-        # A freshly-created workspace opens with its root expanded but every
-        # nested folder collapsed; re-opened workspaces keep the full
-        # auto-expand cascade.
-        self._tree.set_root(path, is_workspace=True,
-                            auto_expand=not is_new_workspace)
+        # Opening a workspace (new or existing) shows the root expanded with
+        # all nested folders collapsed — no full auto-expand cascade.
+        self._tree.set_root(path, is_workspace=True, auto_expand=False)
         self.setWindowTitle(f'BrisbaneSilicon IDE — {path.name}')
 
         raw = s.value('workspaces/history', [])
@@ -1306,6 +1304,16 @@ class MainWindow(QMainWindow):
         s.setValue(f'workspaces/active_tab/{self._workspace_root}',
                    self._editor_tabs.currentIndex())
 
+    def _save_tree_state(self):
+        """Persist the current workspace tree's expanded-folder state so the
+        next IDE launch can restore it. Captured only here (on IDE close) and
+        only for the active workspace — switching workspaces does not save."""
+        if self._workspace_root is None:
+            return
+        QSettings().setValue(
+            f'tree/expanded/{self._workspace_root}',
+            self._tree.expanded_dirs())
+
     def _restore_workspace_tabs(self, path: Path):
         """Close any currently-open tabs and re-open the files recorded for
         `path` on its last close."""
@@ -1452,7 +1460,15 @@ class MainWindow(QMainWindow):
             if p.is_dir():
                 log.debug('Restoring workspace: %s', p)
                 self._workspace_root = p
-                self._tree.set_root(p, is_workspace=True)
+                # Restore with the root expanded, then re-apply the folder
+                # open/closed state saved when the IDE last closed (falling
+                # back to "subfolders collapsed" when none was saved).
+                self._tree.set_root(p, is_workspace=True, auto_expand=False)
+                raw = s.value(f'tree/expanded/{p}', [])
+                expanded = (list(raw) if isinstance(raw, (list, tuple))
+                            else ([raw] if raw else []))
+                if expanded:
+                    self._tree.restore_expanded(expanded)
                 self.setWindowTitle(f'BrisbaneSilicon IDE — {p.name}')
                 saved_mode = s.value(f'workspaces/mode/{p}', 'Lua')
                 self._set_target(s.value(f'workspaces/target/{p}', 'ELM11'))
@@ -1515,6 +1531,7 @@ class MainWindow(QMainWindow):
                 break
 
         self._save_workspace_tabs()
+        self._save_tree_state()
         self._cmd_mode.shutdown()
         port = self._port_combo.currentText()
         if port:
