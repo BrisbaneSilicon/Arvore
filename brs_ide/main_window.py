@@ -639,8 +639,6 @@ class MainWindow(QMainWindow):
 
     def _on_connection_changed(self, connected: bool):
         log.debug('Connection changed: connected=%s', connected)
-        was_connected = getattr(self, '_was_connected', False)
-        self._was_connected = connected
         self._connect_btn.setChecked(connected)
         self._connect_btn.setText('Disconnect' if connected else 'Connect')
         t = theme.current()
@@ -655,10 +653,6 @@ class MainWindow(QMainWindow):
                 f"background:{t['status_bg']}; color:{t['status_fg']};")
         self._port_combo.setEnabled(not connected)
         self._update_device_buttons()
-        # On a true disconnect (was-connected → not-connected) close all
-        # editor tabs so the user starts fresh on reconnect.
-        if was_connected and not connected:
-            self._close_all_editor_tabs()
 
     # ── Device actions ────────────────────────────────────────────────────────
 
