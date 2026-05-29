@@ -126,6 +126,14 @@ class LuaHighlighter(QSyntaxHighlighter):
         str_fmt    = _fmt(_colors()['string'])
         cmt_fmt    = _fmt(_colors()['comment'],     italic=True)
 
+        # Generic function-call highlight: any identifier immediately before
+        # '(' is coloured like a builtin (e.g. print). Added first so the
+        # keyword / ELM11 / builtin rules below override it for known tokens
+        # (so `if(` stays a keyword, `set_gpio(` stays an ELM11 function),
+        # while strings/comments (added last) still win over it.
+        self._rules.append(
+            (QRegularExpression(r'\b[A-Za-z_][A-Za-z0-9_]*(?=\s*\()'), bi_fmt))
+
         for kw in LUA_KEYWORDS:
             self._rules.append(_word_rule(kw, kw_fmt))
         for fn in ELM11_FUNCTIONS:
