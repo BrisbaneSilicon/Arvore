@@ -7,7 +7,7 @@ log = logging.getLogger(__name__)
 from PyQt6.QtWidgets import (
     QMainWindow, QApplication, QSplitter, QTabWidget, QToolBar,
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
-    QWidget, QSizePolicy,
+    QWidget, QSizePolicy, QMenu,
 )
 from PyQt6.QtCore import Qt, QSettings, QSize, QTimer
 from PyQt6.QtGui import QAction, QKeySequence, QCursor
@@ -157,12 +157,16 @@ class MainWindow(QMainWindow):
         centre = QSplitter(Qt.Orientation.Vertical)
         self._outer.addWidget(centre)
 
-        self._editor_tabs = QTabWidget()
-        self._editor_tabs.setTabsClosable(True)
-        self._editor_tabs.setMovable(True)
-        self._editor_tabs.tabCloseRequested.connect(self._close_tab)
-        self._editor_tabs.currentChanged.connect(self._on_tab_changed)
-        centre.addWidget(self._editor_tabs)
+        # Editor area: a horizontal splitter of one-or-more tab "panes".
+        # A Lua workspace defaults to two panes; the active pane (tracked via
+        # focus) receives New/Open/Save actions.
+        self._editor_split = QSplitter(Qt.Orientation.Horizontal)
+        self._editor_split.setChildrenCollapsible(False)
+        self._editor_panes: list[QTabWidget] = []
+        self._make_editor_pane()
+        self._active_pane = self._editor_panes[0]
+        QApplication.instance().focusChanged.connect(self._on_editor_focus_changed)
+        centre.addWidget(self._editor_split)
 
         self._bottom = QTabWidget()
         self._terminal = SerialTerminal()
@@ -195,6 +199,117 @@ class MainWindow(QMainWindow):
 
         self._outer.setSizes([200, 900, 0, 0])
         centre.setSizes([520, 200])
+
+    # ── Editor panes ────────────────────────────────────────────────────────────
+
+    def _make_editor_pane(self) -> QTabWidget:
+        """Create an editor tab-group, wire its signals, and add it to the
+        editor splitter. Returns the new pane."""
+        pane = QTabWidget()
+        pane.setTabsClosable(True)
+        pane.setMovable(True)
+        pane.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        pane.tabCloseRequested.connect(self._close_tab)
+        pane.currentChanged.connect(self._on_tab_changed)
+        bar = pane.tabBar()
+        bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        bar.customContextMenuRequested.connect(
+            lambda pos, p=pane: self._tab_context_menu(p, pos))
+        self._editor_panes.append(pane)
+        self._editor_split.addWidget(pane)
+        return pane
+
+    def _set_pane_count(self, n: int):
+        """Grow or shrink the editor to exactly `n` panes, then size them
+        evenly. Tabs in a removed pane are moved into the first pane so
+        nothing is lost."""
+        n = max(1, n)
+        while len(self._editor_panes) < n:
+            self._make_editor_pane()
+        while len(self._editor_panes) > n:
+            pane = self._editor_panes.pop()
+            while pane.count():
+                w = pane.widget(0)
+                text = pane.tabText(0)
+                pane.removeTab(0)
+                self._editor_panes[0].addTab(w, text)
+            pane.setParent(None)
+            pane.deleteLater()
+        if self._active_pane not in self._editor_panes:
+            self._active_pane = self._editor_panes[0]
+        self._editor_split.setSizes([1] * len(self._editor_panes))
+
+    def _pane_count_for_mode(self) -> int:
+        """Lua workspaces default to two side-by-side editor panes; every
+        other mode uses a single pane."""
+        return 2 if self._workspace_mode == 'Lua' else 1
+
+    def _all_editors(self):
+        """Yield every CodeEditor across all panes."""
+        for pane in self._editor_panes:
+            for i in range(pane.count()):
+                w = pane.widget(i)
+                if isinstance(w, CodeEditor):
+                    yield w
+
+    def _pane_for_editor(self, editor) -> tuple[QTabWidget, int] | None:
+        """Return the (pane, tab-index) holding `editor`, or None."""
+        for pane in self._editor_panes:
+            for i in range(pane.count()):
+                if pane.widget(i) is editor:
+                    return pane, i
+        return None
+
+    def _on_editor_focus_changed(self, _old, now):
+        """Track which pane is 'active' so New/Open/Save target it. Focus
+        landing anywhere inside a pane (editor body or tab bar) selects it;
+        focus elsewhere (toolbar, tree) leaves the active pane unchanged."""
+        w = now
+        while w is not None:
+            if w in self._editor_panes:
+                self._active_pane = w
+                return
+            w = w.parentWidget()
+
+    def _tab_context_menu(self, pane: QTabWidget, pos):
+        """Right-click menu for an editor tab. Offers moving the tab to the
+        adjacent pane — only meaningful when more than one pane exists."""
+        if len(self._editor_panes) < 2:
+            return
+        bar = pane.tabBar()
+        index = bar.tabAt(pos)
+        if index < 0:
+            return
+        t = theme.current()
+        menu = QMenu(self)
+        menu.setStyleSheet(
+            f'QMenu {{ background:{t["menubar_bg"]}; color:{t["menubar_fg"]}; '
+            f'border:1px solid {t["border"]}; }}'
+            f'QMenu::item:selected {{ background:{t["selection"]}; }}')
+        act = menu.addAction('Move to Other Pane')
+        act.triggered.connect(lambda: self._move_tab_to_other_pane(pane, index))
+        menu.exec(bar.mapToGlobal(pos))
+
+    def _move_tab_to_other_pane(self, pane: QTabWidget, index: int):
+        """Relocate the tab at `index` into the next pane, preserving the
+        editor widget and all its state (content, undo history, dirty/stale
+        markers). The destination pane becomes active."""
+        if len(self._editor_panes) < 2 or index < 0:
+            return
+        widget = pane.widget(index)
+        if widget is None:
+            return
+        src_i = self._editor_panes.index(pane)
+        dst = self._editor_panes[(src_i + 1) % len(self._editor_panes)]
+        text = pane.tabText(index)
+        pane.removeTab(index)
+        new_idx = dst.addTab(widget, text)
+        dst.setCurrentIndex(new_idx)
+        self._active_pane = dst
+        if isinstance(widget, CodeEditor):
+            self._refresh_tab_title(widget)
+        widget.setFocus()
+        self._update_device_buttons()
 
     # ── Toolbar ───────────────────────────────────────────────────────────────
 
@@ -373,7 +488,7 @@ class MainWindow(QMainWindow):
         return a
 
     def _cur(self) -> CodeEditor | None:
-        w = self._editor_tabs.currentWidget()
+        w = self._active_pane.currentWidget()
         return w if isinstance(w, CodeEditor) else None
 
     def _refresh_ports(self):
@@ -470,8 +585,9 @@ class MainWindow(QMainWindow):
     def _new_file(self):
         log.debug('New untitled file')
         editor = CodeEditor()
-        idx = self._editor_tabs.addTab(editor, 'untitled.lua')
-        self._editor_tabs.setCurrentIndex(idx)
+        pane = self._active_pane
+        idx = pane.addTab(editor, 'untitled.lua')
+        pane.setCurrentIndex(idx)
         editor.document().modificationChanged.connect(
             lambda _: self._refresh_tab_title(editor))
 
@@ -490,20 +606,23 @@ class MainWindow(QMainWindow):
             self._tree.set_root(p)
             self.setWindowTitle('BrisbaneSilicon IDE')
 
-    def _open_path(self, path: Path):
+    def _open_path(self, path: Path, pane: QTabWidget | None = None):
         log.debug('Open path: %s', path)
-        # Avoid duplicate tabs
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, CodeEditor) and w.file_path == path:
-                self._editor_tabs.setCurrentIndex(i)
-                return
+        # Avoid duplicate tabs across all panes — focus the existing one.
+        for p in self._editor_panes:
+            for i in range(p.count()):
+                w = p.widget(i)
+                if isinstance(w, CodeEditor) and w.file_path == path:
+                    p.setCurrentIndex(i)
+                    self._active_pane = p
+                    return
         editor = CodeEditor()
         editor.set_file(path)
         editor.document().modificationChanged.connect(
             lambda _: self._refresh_tab_title(editor))
-        idx = self._editor_tabs.addTab(editor, path.name)
-        self._editor_tabs.setCurrentIndex(idx)
+        target = pane or self._active_pane
+        idx = target.addTab(editor, path.name)
+        target.setCurrentIndex(idx)
         self._refresh_tab_title(editor)
         self._update_device_buttons()
 
@@ -535,22 +654,21 @@ class MainWindow(QMainWindow):
             self._refresh_tab_title(editor)
 
     def _refresh_tab_title(self, editor: CodeEditor):
-        for i in range(self._editor_tabs.count()):
-            if self._editor_tabs.widget(i) is editor:
-                name = editor.file_path.name if editor.file_path else 'untitled'
-                dot   = ' ●' if editor.document().isModified() else ''
-                stale = '' if self._is_build_artifact(editor.file_path) \
-                    else (' ↑' if editor.is_stale else '')
-                self._editor_tabs.setTabText(i, name + dot + stale)
-                break
+        found = self._pane_for_editor(editor)
+        if found:
+            pane, i = found
+            name = editor.file_path.name if editor.file_path else 'untitled'
+            dot   = ' ●' if editor.document().isModified() else ''
+            stale = '' if self._is_build_artifact(editor.file_path) \
+                else (' ↑' if editor.is_stale else '')
+            pane.setTabText(i, name + dot + stale)
         if editor.file_path:
             self._tree.refresh_decoration(editor.file_path)
 
     def _editor_for(self, path: Path) -> CodeEditor | None:
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, CodeEditor) and w.file_path == path:
-                return w
+        for editor in self._all_editors():
+            if editor.file_path == path:
+                return editor
         return None
 
     def _is_build_artifact(self, path: Path | None) -> bool:
@@ -579,24 +697,33 @@ class MainWindow(QMainWindow):
             return (False, False)
 
     def _close_tab(self, index: int):
-        log.debug('Close tab index=%d  title=%s', index, self._editor_tabs.tabText(index))
-        editor = self._editor_tabs.widget(index)
+        pane = self.sender()
+        if not isinstance(pane, QTabWidget) or pane not in self._editor_panes:
+            pane = self._active_pane
+        log.debug('Close tab index=%d  title=%s', index, pane.tabText(index))
+        editor = pane.widget(index)
         closed_path = editor.file_path if isinstance(editor, CodeEditor) else None
         if isinstance(editor, CodeEditor) and editor.document().isModified():
-            name = self._editor_tabs.tabText(index).rstrip(' ●↑')
+            name = pane.tabText(index).rstrip(' ●↑')
             reply = QMessageBox.question(
                 self, 'Unsaved Changes', f'Save changes to {name}?',
                 QMessageBox.StandardButton.Save |
                 QMessageBox.StandardButton.Discard |
                 QMessageBox.StandardButton.Cancel)
             if reply == QMessageBox.StandardButton.Save:
+                # Make this the active editor so _save_file targets it.
+                pane.setCurrentIndex(index)
+                self._active_pane = pane
                 self._save_file()
             elif reply == QMessageBox.StandardButton.Cancel:
                 return
-        self._editor_tabs.removeTab(index)
+        pane.removeTab(index)
         self._tree.refresh_decoration(closed_path)
 
     def _on_tab_changed(self, _index: int):
+        pane = self.sender()
+        if isinstance(pane, QTabWidget) and pane in self._editor_panes:
+            self._active_pane = pane
         self._update_device_buttons()
 
     def _close_all_editor_tabs(self):
@@ -604,13 +731,12 @@ class MainWindow(QMainWindow):
         unsaved modifications are saved silently first (untitled buffers
         with no `file_path` are still discarded — saving those would
         require a Save-As dialog we can't safely pop here)."""
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, CodeEditor) and w.document().isModified() \
-                    and w.file_path:
-                w.save()
-        while self._editor_tabs.count():
-            self._editor_tabs.removeTab(0)
+        for editor in self._all_editors():
+            if editor.document().isModified() and editor.file_path:
+                editor.save()
+        for pane in self._editor_panes:
+            while pane.count():
+                pane.removeTab(0)
         self._update_device_buttons()
 
     # ── Serial connection ─────────────────────────────────────────────────────
@@ -839,8 +965,9 @@ class MainWindow(QMainWindow):
         editor = CodeEditor()
         editor.setPlainText(code)
         editor.document().setModified(True)
-        idx = self._editor_tabs.addTab(editor, filename)
-        self._editor_tabs.setCurrentIndex(idx)
+        pane = self._active_pane
+        idx = pane.addTab(editor, filename)
+        pane.setCurrentIndex(idx)
         editor.document().modificationChanged.connect(
             lambda _: self._refresh_tab_title(editor))
         self._refresh_tab_title(editor)
@@ -1122,10 +1249,8 @@ class MainWindow(QMainWindow):
         self._build_out.apply_theme()
         self._docs.apply_theme()
         self._cmd_mode.apply_theme()
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, CodeEditor):
-                w.apply_theme()
+        for editor in self._all_editors():
+            editor.apply_theme()
         self._on_connection_changed(self._terminal.is_connected)
         self._rebuild_theme_menu()
 
@@ -1290,19 +1415,27 @@ class MainWindow(QMainWindow):
     # ── Per-workspace tab persistence ─────────────────────────────────────
 
     def _save_workspace_tabs(self):
-        """Record the currently-open file paths + active index under the
-        current workspace's QSettings keys. No-op when no workspace is open."""
+        """Record each pane's open files + active tab, plus which pane was
+        active, under the current workspace's QSettings keys. No-op when no
+        workspace is open."""
         if self._workspace_root is None:
             return
-        files: list[str] = []
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, CodeEditor) and w.file_path:
-                files.append(str(w.file_path))
         s = QSettings()
-        s.setValue(f'workspaces/open_files/{self._workspace_root}', files)
-        s.setValue(f'workspaces/active_tab/{self._workspace_root}',
-                   self._editor_tabs.currentIndex())
+        ws = self._workspace_root
+        s.setValue(f'workspaces/pane_count/{ws}', len(self._editor_panes))
+        try:
+            active = self._editor_panes.index(self._active_pane)
+        except ValueError:
+            active = 0
+        s.setValue(f'workspaces/active_pane/{ws}', active)
+        for pi, pane in enumerate(self._editor_panes):
+            files: list[str] = []
+            for i in range(pane.count()):
+                w = pane.widget(i)
+                if isinstance(w, CodeEditor) and w.file_path:
+                    files.append(str(w.file_path))
+            s.setValue(f'workspaces/open_files/{ws}/{pi}', files)
+            s.setValue(f'workspaces/active_tab/{ws}/{pi}', pane.currentIndex())
 
     def _save_tree_state(self):
         """Persist the current workspace tree's expanded-folder state so the
@@ -1315,26 +1448,45 @@ class MainWindow(QMainWindow):
             self._tree.expanded_dirs())
 
     def _restore_workspace_tabs(self, path: Path):
-        """Close any currently-open tabs and re-open the files recorded for
-        `path` on its last close."""
+        """Clear all panes, set the pane count for the current mode, then
+        re-open each pane's recorded files (with its active tab) and select
+        the previously-active pane."""
         s = QSettings()
-        raw = s.value(f'workspaces/open_files/{path}', [])
-        files = (list(raw) if isinstance(raw, (list, tuple))
-                 else ([raw] if raw else []))
-        # Clear existing tabs (directly — bypasses the unsaved-changes prompt
-        # that tabCloseRequested triggers; users should save before switching).
-        while self._editor_tabs.count():
-            self._editor_tabs.removeTab(0)
-        for f in files:
-            p = Path(f)
-            if p.is_file():
-                self._open_path(p)
+        ws = path
+        # Clear every pane first (directly — bypasses the unsaved-changes
+        # prompt; users should save before switching) so the pane-count
+        # adjustment never shuffles stale tabs between panes.
+        for pane in self._editor_panes:
+            while pane.count():
+                pane.removeTab(0)
+        self._set_pane_count(self._pane_count_for_mode())
+
+        def _as_list(raw):
+            return (list(raw) if isinstance(raw, (list, tuple))
+                    else ([raw] if raw else []))
+
+        for pi, pane in enumerate(self._editor_panes):
+            raw = s.value(f'workspaces/open_files/{ws}/{pi}', None)
+            # Back-compat with the pre-multipane single-list key (pane 0).
+            if raw is None and pi == 0:
+                raw = s.value(f'workspaces/open_files/{ws}', [])
+            for f in _as_list(raw):
+                p = Path(f)
+                if p.is_file():
+                    self._open_path(p, pane=pane)
+            try:
+                idx = int(s.value(f'workspaces/active_tab/{ws}/{pi}', 0))
+            except (TypeError, ValueError):
+                idx = 0
+            if 0 <= idx < pane.count():
+                pane.setCurrentIndex(idx)
+
         try:
-            idx = int(s.value(f'workspaces/active_tab/{path}', 0))
+            ap = int(s.value(f'workspaces/active_pane/{ws}', 0))
         except (TypeError, ValueError):
-            idx = 0
-        if 0 <= idx < self._editor_tabs.count():
-            self._editor_tabs.setCurrentIndex(idx)
+            ap = 0
+        if 0 <= ap < len(self._editor_panes):
+            self._active_pane = self._editor_panes[ap]
 
     def _rebuild_workspaces_menu(self):
         self._ws_menu.clear()
@@ -1408,6 +1560,9 @@ class MainWindow(QMainWindow):
         s.remove(f'workspaces/target/{entry}')
         s.remove(f'workspaces/open_files/{entry}')
         s.remove(f'workspaces/active_tab/{entry}')
+        s.remove(f'workspaces/pane_count/{entry}')
+        s.remove(f'workspaces/active_pane/{entry}')
+        s.remove(f'tree/expanded/{entry}')
         # Close if it's the current workspace, and clear out its open tabs.
         if self._workspace_root and str(self._workspace_root) == entry:
             self._close_workspace()
@@ -1426,6 +1581,9 @@ class MainWindow(QMainWindow):
             s.remove(f'workspaces/target/{entry}')
             s.remove(f'workspaces/open_files/{entry}')
             s.remove(f'workspaces/active_tab/{entry}')
+            s.remove(f'workspaces/pane_count/{entry}')
+            s.remove(f'workspaces/active_pane/{entry}')
+            s.remove(f'tree/expanded/{entry}')
         s.remove('workspaces/history')
         self._close_workspace()
         self._rebuild_workspaces_menu()
@@ -1436,10 +1594,8 @@ class MainWindow(QMainWindow):
         if SettingsDialog(self).exec():
             self._update_device_buttons()
             # Re-apply font to all open editors
-            for i in range(self._editor_tabs.count()):
-                w = self._editor_tabs.widget(i)
-                if isinstance(w, CodeEditor):
-                    w.apply_theme()
+            for editor in self._all_editors():
+                editor.apply_theme()
 
     def _about(self):
         QMessageBox.about(self, 'ELM11 IDE',
@@ -1518,17 +1674,14 @@ class MainWindow(QMainWindow):
             log.debug('No saved window size found')
 
     def closeEvent(self, event):
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, CodeEditor) and w.document().isModified():
-                reply = QMessageBox.question(
-                    self, 'Unsaved Changes',
-                    'There are unsaved changes. Exit anyway?',
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                if reply == QMessageBox.StandardButton.No:
-                    event.ignore()
-                    return
-                break
+        if any(e.document().isModified() for e in self._all_editors()):
+            reply = QMessageBox.question(
+                self, 'Unsaved Changes',
+                'There are unsaved changes. Exit anyway?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
 
         self._save_workspace_tabs()
         self._save_tree_state()
