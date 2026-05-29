@@ -238,6 +238,12 @@ class MainWindow(QMainWindow):
         if self._active_pane not in self._editor_panes:
             self._active_pane = self._editor_panes[0]
         self._editor_split.setSizes([1] * len(self._editor_panes))
+        # Keep the View-menu toggle in sync (the menu may not exist yet during
+        # initial construction).
+        if hasattr(self, '_split_toggle'):
+            self._split_toggle.blockSignals(True)
+            self._split_toggle.setChecked(len(self._editor_panes) > 1)
+            self._split_toggle.blockSignals(False)
 
     def _pane_count_for_mode(self) -> int:
         """Lua workspaces default to two side-by-side editor panes; every
@@ -253,6 +259,11 @@ class MainWindow(QMainWindow):
         if path.suffix.lower() in ('.c', '.h'):
             return self._editor_panes[-1]
         return self._editor_panes[0]
+
+    def _toggle_split_editor(self, checked: bool):
+        """View-menu toggle: split the editor into two panes, or close the
+        right-hand pane (its tabs move back into the left pane)."""
+        self._set_pane_count(2 if checked else 1)
 
     def _all_editors(self):
         """Yield every CodeEditor across all panes."""
@@ -462,6 +473,11 @@ class MainWindow(QMainWindow):
         self._docs_toggle.setShortcut(QKeySequence('F2'))
         self._docs_toggle.toggled.connect(self._toggle_docs)
         vm.addAction(self._docs_toggle)
+        self._split_toggle = QAction('&Split Editor', self)
+        self._split_toggle.setCheckable(True)
+        self._split_toggle.setShortcut(QKeySequence('F3'))
+        self._split_toggle.toggled.connect(self._toggle_split_editor)
+        vm.addAction(self._split_toggle)
 
         # Tools
         tm = mb.addMenu('&Tools')
@@ -1102,8 +1118,8 @@ class MainWindow(QMainWindow):
         # Walk the user through putting the board in flash-mode.
         reply = QMessageBox.information(
             self, 'Prepare ELM11 for Flash',
-            'Unplug-Plug the ELM11 while holding BTN1, ensuring LEDs 1-3 '
-            'remain illuminated after releasing BTN1.',
+            'Unplug-Plug the ELM11 while holding BTN2, ensuring LEDs 1-3 '
+            'remain illuminated after releasing BTN2.',
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Ok)
         if reply != QMessageBox.StandardButton.Ok:
@@ -1469,7 +1485,15 @@ class MainWindow(QMainWindow):
         for pane in self._editor_panes:
             while pane.count():
                 pane.removeTab(0)
-        self._set_pane_count(self._pane_count_for_mode())
+        # Honour the layout saved for this workspace; fall back to the mode
+        # default (Lua=2) for a workspace that has never been saved.
+        raw_pc = s.value(f'workspaces/pane_count/{ws}', None)
+        try:
+            pane_count = (int(raw_pc) if raw_pc is not None
+                          else self._pane_count_for_mode())
+        except (TypeError, ValueError):
+            pane_count = self._pane_count_for_mode()
+        self._set_pane_count(pane_count)
 
         def _as_list(raw):
             return (list(raw) if isinstance(raw, (list, tuple))
