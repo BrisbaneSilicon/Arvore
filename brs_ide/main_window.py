@@ -7,7 +7,7 @@ log = logging.getLogger(__name__)
 from PyQt6.QtWidgets import (
     QMainWindow, QApplication, QSplitter, QTabWidget, QToolBar,
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
-    QWidget, QSizePolicy, QMenu,
+    QWidget, QSizePolicy, QMenu, QStackedWidget,
 )
 from PyQt6.QtCore import Qt, QSettings, QSize, QTimer
 from PyQt6.QtGui import QAction, QKeySequence, QCursor
@@ -128,8 +128,6 @@ class MainWindow(QMainWindow):
 
         if QSettings().value('ui/docs_visible', False, type=bool):
             self._docs_toggle.setChecked(True)
-        if QSettings().value('ui/cmd_mode_visible', False, type=bool):
-            self._cmd_toggle.setChecked(True)
 
         # Auto-refresh serial port list
         self._port_timer = QTimer(self)
@@ -153,9 +151,9 @@ class MainWindow(QMainWindow):
         self._outer.addWidget(self._tree)
         self._outer.setChildrenCollapsible(False)
 
-        # Centre: editor on top, bottom panel below
-        centre = QSplitter(Qt.Orientation.Vertical)
-        self._outer.addWidget(centre)
+        # Centre: editor + bottom panel, wrapped in a stack so Command Mode
+        # can replace the whole centre region when active.
+        self._centre = QSplitter(Qt.Orientation.Vertical)
 
         # Editor area: a horizontal splitter of one-or-more tab "panes".
         # A Lua workspace defaults to two panes; the active pane (tracked via
@@ -166,7 +164,7 @@ class MainWindow(QMainWindow):
         self._make_editor_pane()
         self._active_pane = self._editor_panes[0]
         QApplication.instance().focusChanged.connect(self._on_editor_focus_changed)
-        centre.addWidget(self._editor_split)
+        self._centre.addWidget(self._editor_split)
 
         self._bottom = QTabWidget()
         self._terminal = SerialTerminal()
@@ -179,16 +177,19 @@ class MainWindow(QMainWindow):
         self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
         self._bottom.addTab(self._flash_out, 'Flash Output')
-        centre.addWidget(self._bottom)
-        centre.setChildrenCollapsible(False)
+        self._centre.addWidget(self._bottom)
+        self._centre.setChildrenCollapsible(False)
 
-        # Middle-right: toggleable command-mode panel (left of docs)
+        # Command-mode panel: page 1 of the centre stack. Activating Command
+        # Mode swaps the centre from editors+bottom to this panel.
         self._cmd_mode = CommandModePanel()
         self._cmd_mode.set_terminal(self._terminal)
         self._cmd_mode.active_changed.connect(self._on_cmd_mode_active_changed)
-        self._cmd_mode.setMinimumWidth(280)
-        self._cmd_mode.setVisible(False)
-        self._outer.addWidget(self._cmd_mode)
+
+        self._center_stack = QStackedWidget()
+        self._center_stack.addWidget(self._centre)     # page 0: editors + bottom
+        self._center_stack.addWidget(self._cmd_mode)   # page 1: command mode
+        self._outer.addWidget(self._center_stack)
 
         # Right-most: toggleable documentation panel
         self._docs = DocsPanel()
@@ -197,8 +198,8 @@ class MainWindow(QMainWindow):
         self._docs.setVisible(False)
         self._outer.addWidget(self._docs)
 
-        self._outer.setSizes([200, 900, 0, 0])
-        centre.setSizes([520, 200])
+        self._outer.setSizes([200, 900, 0])
+        self._centre.setSizes([520, 200])
 
     # ── Editor panes ────────────────────────────────────────────────────────────
 
@@ -463,19 +464,14 @@ class MainWindow(QMainWindow):
         self._theme_menu = vm.addMenu('Theme')
         self._rebuild_theme_menu()
         vm.addSeparator()
-        self._cmd_toggle = QAction('&Command Mode Panel', self)
-        self._cmd_toggle.setCheckable(True)
-        self._cmd_toggle.setShortcut(QKeySequence('F1'))
-        self._cmd_toggle.toggled.connect(self._toggle_cmd_mode)
-        vm.addAction(self._cmd_toggle)
         self._docs_toggle = QAction('&Documentation Panel', self)
         self._docs_toggle.setCheckable(True)
-        self._docs_toggle.setShortcut(QKeySequence('F2'))
+        self._docs_toggle.setShortcut(QKeySequence('F1'))
         self._docs_toggle.toggled.connect(self._toggle_docs)
         vm.addAction(self._docs_toggle)
         self._split_toggle = QAction('&Split Editor', self)
         self._split_toggle.setCheckable(True)
-        self._split_toggle.setShortcut(QKeySequence('F3'))
+        self._split_toggle.setShortcut(QKeySequence('F2'))
         self._split_toggle.toggled.connect(self._toggle_split_editor)
         vm.addAction(self._split_toggle)
 
@@ -589,22 +585,29 @@ class MainWindow(QMainWindow):
         self._flash_btn.setEnabled(usable)
 
     def _on_cmd_btn_toggled(self, checked: bool):
-        # When the user activates Command Mode, make sure the side panel
-        # is visible so they can actually interact with it. The View-menu
-        # action's `toggled` signal drives `_toggle_cmd_mode`, which
-        # handles pane sizing and persists the visibility setting.
-        if checked and not self._cmd_toggle.isChecked():
-            self._cmd_toggle.setChecked(True)
+        # Toolbar trigger. Drives device activation; the resulting
+        # active_changed (or a snap-back if activation is refused) updates the
+        # view via _sync_cmd_mode_ui.
         self._cmd_mode.set_active(checked)
+        self._sync_cmd_mode_ui()
 
-    def _on_cmd_mode_active_changed(self, active: bool):
-        # Keep the toolbar button in sync if activation changed via other paths
-        # (e.g. auto-deactivate on serial disconnect).
+    def _on_cmd_mode_active_changed(self, _active: bool):
+        # Activation changed (incl. auto-deactivate on disconnect) — refresh
+        # everything from the authoritative state.
+        self._sync_cmd_mode_ui()
+        self._update_device_buttons()
+
+    def _sync_cmd_mode_ui(self):
+        """Reconcile the UI with `_cmd_mode.is_active`: keep the toolbar
+        button checked-in-sync and swap the centre region to the command panel
+        (when active) or back to the editors+bottom (when not)."""
+        active = self._cmd_mode.is_active
         if self._cmd_btn.isChecked() != active:
             self._cmd_btn.blockSignals(True)
             self._cmd_btn.setChecked(active)
             self._cmd_btn.blockSignals(False)
-        self._update_device_buttons()
+        self._center_stack.setCurrentWidget(
+            self._cmd_mode if active else self._centre)
 
     # ── File operations ───────────────────────────────────────────────────────
 
@@ -981,10 +984,7 @@ class MainWindow(QMainWindow):
         QSettings().setValue(setting_key, checked)
 
     def _toggle_docs(self, checked: bool):
-        self._toggle_outer_pane(3, checked, 320, 'ui/docs_visible')
-
-    def _toggle_cmd_mode(self, checked: bool):
-        self._toggle_outer_pane(2, checked, 340, 'ui/cmd_mode_visible')
+        self._toggle_outer_pane(2, checked, 320, 'ui/docs_visible')
 
     def _open_example(self, filename: str, code: str):
         """Open an embLua example program in a new editor tab."""
