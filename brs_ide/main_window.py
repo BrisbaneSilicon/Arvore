@@ -8,8 +8,9 @@ from PyQt6.QtWidgets import (
     QMainWindow, QApplication, QSplitter, QTabWidget, QToolBar,
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
     QWidget, QSizePolicy, QMenu, QStackedWidget,
+    QMenuBar, QVBoxLayout, QHBoxLayout,
 )
-from PyQt6.QtCore import Qt, QSettings, QSize, QTimer
+from PyQt6.QtCore import Qt, QSettings, QSize, QTimer, QEvent
 from PyQt6.QtGui import QAction, QKeySequence, QCursor
 from PyQt6.QtWidgets import QToolTip
 import serial.tools.list_ports
@@ -100,10 +101,95 @@ def _resolve_upload_port(intended: str) -> str:
     return max(available, key=_index)
 
 
+class _TitleBar(QWidget):
+    """Custom themed title bar for the frameless main window: app icon + title
+    on the left, window controls on the right. Dragging the bar moves the
+    window (delegated to the window manager via startSystemMove); double-click
+    toggles maximize."""
+
+    def __init__(self, window: QMainWindow):
+        super().__init__(window)
+        self._win = window
+        self.setObjectName('TitleBar')
+        self.setFixedHeight(30)
+
+        row = QHBoxLayout(self)
+        row.setContentsMargins(8, 0, 0, 0)
+        row.setSpacing(6)
+
+        self._icon = QLabel()
+        row.addWidget(self._icon)
+        self._title = QLabel(window.windowTitle())
+        self._title.setObjectName('TitleBarText')
+        row.addWidget(self._title)
+        row.addStretch(1)
+
+        self._min_btn   = QPushButton('—')   # —
+        self._max_btn   = QPushButton('□')   # □
+        self._close_btn = QPushButton('✕')   # ✕
+        for b in (self._min_btn, self._max_btn, self._close_btn):
+            b.setFixedSize(44, 30)
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            row.addWidget(b)
+        self._min_btn.clicked.connect(window.showMinimized)
+        self._max_btn.clicked.connect(self._toggle_max)
+        self._close_btn.clicked.connect(window.close)
+
+        window.windowTitleChanged.connect(self._title.setText)
+        window.windowIconChanged.connect(self._set_icon)
+        self._set_icon(window.windowIcon())
+
+    def _set_icon(self, icon):
+        if icon is not None and not icon.isNull():
+            self._icon.setPixmap(icon.pixmap(18, 18))
+        else:
+            self._icon.clear()
+
+    def _toggle_max(self):
+        if self._win.isMaximized():
+            self._win.showNormal()
+        else:
+            self._win.showMaximized()
+        self._update_max_glyph()
+
+    def _update_max_glyph(self):
+        self._max_btn.setText('❐' if self._win.isMaximized() else '□')
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            handle = self._win.windowHandle()
+            if handle is not None:
+                handle.startSystemMove()
+            event.accept()
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._toggle_max()
+            event.accept()
+
+    def apply_theme(self):
+        t = theme.current()
+        self.setStyleSheet(
+            f'#TitleBar {{ background:{t["menubar_bg"]}; }}'
+            f'#TitleBarText {{ color:{t["menubar_fg"]}; font-weight:bold; }}'
+            f'#TitleBar QPushButton {{ background:transparent; '
+            f'color:{t["menubar_fg"]}; border:none; font-size:11pt; }}'
+            f'#TitleBar QPushButton:hover {{ background:{t["btn_hover"]}; }}'
+        )
+        # Close button gets a red hover, like most title bars.
+        self._close_btn.setStyleSheet(
+            f'QPushButton {{ background:transparent; color:{t["menubar_fg"]}; '
+            f'border:none; font-size:11pt; }}'
+            f'QPushButton:hover {{ background:#c45330; color:#ffffff; }}'
+        )
+        self._update_max_glyph()
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         log.debug('MainWindow init')
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setWindowTitle('BrisbaneSilicon IDE')
         self.setMinimumSize(1100, 720)
         self.setStyleSheet(theme.main_stylesheet(theme.current()))
@@ -117,6 +203,8 @@ class MainWindow(QMainWindow):
         self._setup_central()
         log.debug('Setting up toolbar')
         self._setup_toolbar()
+        log.debug('Setting up title bar')
+        self._setup_titlebar()
         log.debug('Setting up menu')
         self._setup_menu()
         log.debug('Setting up statusbar')
@@ -456,10 +544,27 @@ class MainWindow(QMainWindow):
         w.setStyleSheet('background: transparent;')
         return w
 
+    # ── Title bar ───────────────────────────────────────────────────────────────
+
+    def _setup_titlebar(self):
+        """Frameless windows have no native title bar, so stack a custom themed
+        one above the menu bar via setMenuWidget. The menu bar is our own
+        QMenuBar instance (populated by _setup_menu)."""
+        self._titlebar = _TitleBar(self)
+        self._menubar = QMenuBar()
+        container = QWidget()
+        v = QVBoxLayout(container)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
+        v.addWidget(self._titlebar)
+        v.addWidget(self._menubar)
+        self.setMenuWidget(container)
+        self._titlebar.apply_theme()
+
     # ── Menu ──────────────────────────────────────────────────────────────────
 
     def _setup_menu(self):
-        mb = self.menuBar()
+        mb = self._menubar
 
         # File
         fm = mb.addMenu('&File')
@@ -521,6 +626,9 @@ class MainWindow(QMainWindow):
 
     def _setup_statusbar(self):
         sb = self.statusBar()
+        # Frameless windows lose native resize edges; the status-bar size grip
+        # gives a (bottom-right) resize handle.
+        sb.setSizeGripEnabled(True)
         self._sb_conn = QLabel('  Not connected')
         sb.addWidget(self._sb_conn)
         self._sb_mode = None
@@ -1060,18 +1168,18 @@ class MainWindow(QMainWindow):
     def _build_make_dir(self) -> Path:
         """Directory holding the workspace's Makefile. C workspaces deploy it
         to `<ws>/build/make`; Lua workspaces nest the C build system under
-        `<ws>/embLua/build/make`."""
+        `<ws>/embLua/software/build/make`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / 'build' / 'make'
-        return self._workspace_root / 'embLua' / 'build' / 'make'
+        return self._workspace_root / 'embLua' / 'software' / 'build' / 'make'
 
     def _build_out_dir(self) -> Path:
         """Directory holding the build's memory image (`<proj>.v`). C
         workspaces emit it to `<ws>/build/out`; Lua workspaces nest the C
-        build system under `<ws>/embLua/build/out`."""
+        build system under `<ws>/embLua/software/build/out`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / 'build' / 'out'
-        return self._workspace_root / 'embLua' / 'build' / 'out'
+        return self._workspace_root / 'embLua' / 'software' / 'build' / 'out'
 
     def _build(self):
         if self._workspace_root is None:
@@ -1343,6 +1451,7 @@ class MainWindow(QMainWindow):
     def _apply_theme(self):
         t = theme.current()
         self.setStyleSheet(theme.main_stylesheet(t))
+        self._titlebar.apply_theme()
         self._tree.apply_theme()
         self._terminal.apply_theme()
         self._upload_out.apply_theme()
@@ -1447,19 +1556,34 @@ class MainWindow(QMainWindow):
         `lang` ('c' or 'lua'), sourced from `brs_ide/elm11/<lang>/`. Files
         are laid out as:
 
-          * `<workspace>/*.c`               — starter user source
-          * `<workspace>/build/runtime/`    — prebuilt runtime objects
-          * `<workspace>/build/make/`       — Makefile / linker / startup
-          * `<workspace>/build/header/`     — bundled C headers
-          * `<workspace>/build/utilities/`  — helper Python scripts
+          * `<dest>/*.c`               — starter user source
+          * `<dest>/build/runtime/`    — prebuilt runtime objects
+          * `<dest>/build/make/`       — Makefile / linker / startup
+          * `<dest>/build/header/`     — bundled C headers
+          * `<dest>/build/utilities/`  — helper Python scripts
+
+        where `<dest>` is the workspace root for C, or `<workspace>/embLua/
+        software/` for Lua. Lua workspaces also get an empty sibling
+        `<workspace>/embLua/firmware/` directory for the firmware image.
 
         Existing files at the destinations are overwritten so the
         deployed templates always reflect the IDE's current bundle."""
         import shutil
 
-        # Lua workspaces nest every deployed artefact under an `embLua/`
-        # subdirectory; C workspaces deploy straight into the workspace root.
-        dest_root = workspace / 'embLua' if lang == 'lua' else workspace
+        # Lua workspaces nest every deployed artefact under
+        # `embLua/software/`, alongside a sibling `embLua/firmware/` directory
+        # (left empty here for the user's firmware image); C workspaces deploy
+        # straight into the workspace root.
+        if lang == 'lua':
+            emb_root = workspace / 'embLua'
+            dest_root = emb_root / 'software'
+            try:
+                (emb_root / 'firmware').mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                log.warning('Could not create firmware dir under %s: %s',
+                            emb_root, exc)
+        else:
+            dest_root = workspace
 
         def _target_for(src: Path) -> Path:
             """Where does a build-template file go? Rooted on `dest_root`."""
@@ -1781,6 +1905,13 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(200, _apply)
         else:
             log.debug('No saved window size found')
+
+    def changeEvent(self, event):
+        # Keep the title-bar maximize glyph in sync when the window is
+        # maximized/restored by means other than our own button.
+        if event.type() == QEvent.Type.WindowStateChange and hasattr(self, '_titlebar'):
+            self._titlebar._update_max_glyph()
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         if any(e.document().isModified() for e in self._all_editors()):

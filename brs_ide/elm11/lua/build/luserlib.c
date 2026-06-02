@@ -144,10 +144,6 @@ static int luaU_even (lua_State *L) {
     const char *fail_str;
     int val;
 
-    int ret;
-
-    e_status status;
-
     int n = lua_gettop(L);
     if (n != 3) {
         luaL_error(L, "unexpected argument");
