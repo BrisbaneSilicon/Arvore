@@ -12,6 +12,13 @@ from PyQt6.QtGui import QFont, QFontDatabase, QFontInfo, QFontMetrics
 from . import theme
 
 
+# LD_PRELOAD libraries the Gowin CLI flow needs on Linux. These are the
+# usual Debian/Ubuntu locations; the user can override them in Settings if
+# their distro keeps the libraries elsewhere.
+_DEFAULT_FREETYPE = '/lib/x86_64-linux-gnu/libfreetype.so'
+_DEFAULT_LIBZ = '/lib/x86_64-linux-gnu/libz.so.1'
+
+
 def _default_mono_font() -> str:
     """Pick a sensible built-in monospaced font per platform."""
     if sys.platform.startswith('win'):
@@ -71,6 +78,41 @@ class SettingsDialog(QDialog):
 
         tabs.addTab(c_w, 'C')
 
+        # ── Hardware ──────────────────────────────────────────────────
+        hw_w = QWidget()
+        f = QFormLayout(hw_w)
+        self._gowin = QLineEdit()
+        self._gowin.setPlaceholderText(
+            'GoWIN EDA install path, i.e. /opt/Gowin/Gowin_V1.9.12_linux/')
+        browse_gowin = QPushButton('Browse…')
+        browse_gowin.clicked.connect(self._browse_gowin)
+        row_gowin = QHBoxLayout()
+        row_gowin.addWidget(self._gowin)
+        row_gowin.addWidget(browse_gowin)
+        f.addRow('Gowin IDE Path:', row_gowin)
+
+        # LD_PRELOAD libraries the Gowin CLI flow needs (Linux). Defaults
+        # cover Debian/Ubuntu; override if your distro stores them elsewhere.
+        self._libfreetype = QLineEdit()
+        self._libfreetype.setPlaceholderText(_DEFAULT_FREETYPE)
+        browse_ft = QPushButton('Browse…')
+        browse_ft.clicked.connect(self._browse_freetype)
+        row_ft = QHBoxLayout()
+        row_ft.addWidget(self._libfreetype)
+        row_ft.addWidget(browse_ft)
+        f.addRow('libfreetype.so:', row_ft)
+
+        self._libz = QLineEdit()
+        self._libz.setPlaceholderText(_DEFAULT_LIBZ)
+        browse_z = QPushButton('Browse…')
+        browse_z.clicked.connect(self._browse_libz)
+        row_z = QHBoxLayout()
+        row_z.addWidget(self._libz)
+        row_z.addWidget(browse_z)
+        f.addRow('libz.so.1:', row_z)
+
+        tabs.addTab(hw_w, 'Hardware')
+
         # ── Editor ────────────────────────────────────────────────────
         editor_w = QWidget()
         f = QFormLayout(editor_w)
@@ -124,6 +166,24 @@ class SettingsDialog(QDialog):
         if path:
             self._msys2.setText(path)
 
+    def _browse_gowin(self):
+        path = QFileDialog.getExistingDirectory(
+            self, 'Select Gowin EDA install folder')
+        if path:
+            self._gowin.setText(path)
+
+    def _browse_freetype(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Select libfreetype.so', '/lib', 'Shared libraries (*.so*)')
+        if path:
+            self._libfreetype.setText(path)
+
+    def _browse_libz(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Select libz.so.1', '/lib', 'Shared libraries (*.so*)')
+        if path:
+            self._libz.setText(path)
+
     def _load(self):
         saved_font = self._s.value('editor/font_family', _default_mono_font())
         idx = self._font_combo.findText(saved_font)
@@ -134,6 +194,9 @@ class SettingsDialog(QDialog):
         self._compiler.setText(self._s.value('c/compiler_path', ''))
         self._cflags.setText(self._s.value('c/compiler_flags', ''))
         self._msys2.setText(self._s.value('c/msys2_path', ''))
+        self._gowin.setText(self._s.value('hw/gowin_path', ''))
+        self._libfreetype.setText(self._s.value('hw/libfreetype_path', _DEFAULT_FREETYPE))
+        self._libz.setText(self._s.value('hw/libz_path', _DEFAULT_LIBZ))
 
     def _save(self):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
@@ -142,6 +205,9 @@ class SettingsDialog(QDialog):
         self._s.setValue('c/compiler_path',       self._compiler.text())
         self._s.setValue('c/compiler_flags',      self._cflags.text())
         self._s.setValue('c/msys2_path',          self._msys2.text())
+        self._s.setValue('hw/gowin_path',         self._gowin.text())
+        self._s.setValue('hw/libfreetype_path',   self._libfreetype.text())
+        self._s.setValue('hw/libz_path',          self._libz.text())
 
     # ── Static helpers used by MainWindow ─────────────────────────────
     @staticmethod
@@ -165,6 +231,23 @@ class SettingsDialog(QDialog):
     @staticmethod
     def compiler_path() -> str:
         return QSettings().value('c/compiler_path', '')
+
+    @staticmethod
+    def gowin_path() -> str:
+        """Gowin EDA install root (contains IDE/bin/gw_sh), used to synthesise
+        the FPGA firmware. Empty string means 'not configured'."""
+        return QSettings().value('hw/gowin_path', '')
+
+    @staticmethod
+    def gowin_preload_libs() -> list[str]:
+        """The libraries LD_PRELOAD'd for the Gowin CLI flow (libfreetype +
+        libz), in order. User-overridable; falls back to the Debian/Ubuntu
+        defaults."""
+        s = QSettings()
+        return [
+            s.value('hw/libfreetype_path', _DEFAULT_FREETYPE),
+            s.value('hw/libz_path', _DEFAULT_LIBZ),
+        ]
 
     @staticmethod
     def compiler_flags() -> list[str]:

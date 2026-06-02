@@ -1250,12 +1250,66 @@ class MainWindow(QMainWindow):
 
     # ── Firmware / HDL synthesis (Synth · Clean · Flash) ──────────────────
     # The hardware bundle ships a Gowin TCL flow (emblua/hardware/.build/
-    # build.tcl); these handlers are placeholders until the synthesis
-    # toolchain is wired in.
+    # build.tcl), driven by the Gowin IDE's `gw_sh`. Clean/Flash are still
+    # placeholders.
+
+    def _synth_dir(self) -> Path:
+        """Directory holding the firmware synthesis flow (build.tcl + image)."""
+        return self._workspace_root / 'emblua' / 'hardware' / '.build'
 
     def _synth(self):
-        QMessageBox.information(self, 'Synthesise Firmware',
-            'Firmware synthesis is not wired up yet.')
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to synthesise.')
+            return
+        gowin = SettingsDialog.gowin_path()
+        if not gowin:
+            QMessageBox.warning(self, 'Gowin IDE Not Configured',
+                'Set the Gowin IDE path in Settings → Hardware before '
+                'synthesising the firmware.')
+            return
+        gowin_root = Path(gowin)
+        is_win = sys.platform.startswith('win')
+        gw_sh = gowin_root / 'IDE' / 'bin' / ('gw_sh.exe' if is_win else 'gw_sh')
+        if not gw_sh.is_file():
+            QMessageBox.warning(self, 'gw_sh Not Found',
+                f'gw_sh was not found under the configured Gowin IDE path:\n'
+                f'{gw_sh}\n\nCheck the path in Settings → Hardware.')
+            return
+        synth_dir = self._synth_dir()
+        tcl = synth_dir / 'build.tcl'
+        if not tcl.is_file():
+            QMessageBox.warning(self, 'Missing build.tcl',
+                f'No synthesis script found at:\n{tcl}\n\n'
+                "The hardware templates don't appear to be deployed.")
+            return
+        # Save any in-flight HDL edits (user.sv / user.vhd) before synthesis.
+        editor = self._cur()
+        if editor and editor.file_path and editor.document().isModified():
+            editor.save()
+
+        # Replicate the shell exports the Gowin CLI flow needs:
+        #   export LD_LIBRARY_PATH=<gowin>/IDE/lib
+        #   export PATH=$PATH:<gowin>/Programmer/bin/
+        #   export LD_PRELOAD=/lib/x86_64-linux-gnu/libfreetype.so:.../libz.so.1
+        # Passed as env overrides on top of the inherited environment.
+        env = {
+            'PATH': os.environ.get('PATH', '') + os.pathsep
+                    + str(gowin_root / 'Programmer' / 'bin'),
+        }
+        if not is_win:
+            env['LD_LIBRARY_PATH'] = str(gowin_root / 'IDE' / 'lib')
+            env['LD_PRELOAD'] = ':'.join(SettingsDialog.gowin_preload_libs())
+
+        # gw_sh resolves build.tcl's relative paths (`-dir .`, add_file "...")
+        # from its working directory, so run it inside the synth directory.
+        # The workspace root is passed as the script's first argument
+        # (available in build.tcl as `[lindex $argv 0]`).
+        self._build_out.clear()
+        self._bottom.setCurrentWidget(self._build_out)
+        self._build_out.run_command(
+            str(gw_sh), ['build.tcl', str(self._workspace_root)],
+            cwd=str(synth_dir), env=env)
 
     def _fw_clean(self):
         QMessageBox.information(self, 'Clean Firmware',
@@ -1716,10 +1770,11 @@ class MainWindow(QMainWindow):
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, dest_root / '.build' / 'runtime' / src.name))
         # Firmware image (Lua only) — deployed into the sibling
-        # `emblua/hardware/` directory created above. Generated artefacts go
-        # under `.build/`; the user-editable HDL source sits in the hardware
-        # root. Only the HDL flavour selected at workspace creation is
-        # deployed — SystemVerilog ships `user.sv`, VHDL ships `user.vhd`.
+        # `emblua/hardware/` directory created above: the generated image and
+        # constraints under `.build/`, and the user-editable HDL source in the
+        # hardware root (build.tcl references each at its own location). Only
+        # the HDL flavour selected at workspace creation is deployed —
+        # SystemVerilog ships `user.sv`, VHDL ships `user.vhd`.
         # The active timing constraint (bundled per-frequency, e.g.
         # `timing_70mhz.sdc`) is renamed to a fixed `timing.sdc` so downstream
         # tooling can reference it by a stable name.
@@ -1732,11 +1787,13 @@ class MainWindow(QMainWindow):
                     if not (src.is_file() and not src.name.startswith('.')):
                         continue
                     if src.name in ('user.sv', 'user.vhd'):
-                        # Skip the HDL flavour the user didn't pick.
+                        # Skip the HDL flavour the user didn't pick. The
+                        # user-editable HDL source sits in the hardware root.
                         if src.name != hdl_file:
                             continue
                         dst = fw_root / src.name
                     else:
+                        # Generated image + constraints live under `.build/`.
                         name = ('timing.sdc'
                                 if src.name.startswith('timing')
                                 and src.suffix == '.sdc'
