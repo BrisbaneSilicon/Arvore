@@ -1,13 +1,13 @@
 # ELM11 C-workspace Makefile.
 #
-# Layout (deployed by the IDE when a new C workspace is created):
-#   <workspace>/main.c           — user entry point
-#   <workspace>/build/make/      — this Makefile + linker.ld
-#   <workspace>/build/utilities/ — eelf.py, vdump8to32.py
-#   <workspace>/build/runtime/   — prebuilt *.o runtime objects to link against
+# Layout (deployed by the IDE when a new C workspace is created; the
+# generated `.build/` tree is dot-prefixed so it stays hidden in the IDE):
+#   <workspace>/.build/make/      — main.c, this Makefile + linker.ld
+#   <workspace>/.build/utilities/ — eelf.py, vdump8to32.py
+#   <workspace>/.build/runtime/   — prebuilt *.o runtime objects to link against
 #
-# Run with `make -C build/make` from the workspace root, or
-# `cd build/make && make`.
+# Run with `make -C .build/make` from the workspace root, or
+# `cd .build/make && make`.
 
 # ── Project / target configuration ────────────────────────────────────────
 PROJ_NAME           := NONE
@@ -52,10 +52,12 @@ VDUMP_PATH          := $(UTIL_DIR)/vdump8to32.py
 _all_dirs            = $(foreach d,$(wildcard $(1)/*/), \
                           $(d:%/=%) $(call _all_dirs,$(d:%/=%)))
 # Workspace directories that contain user code (workspace root + every
-# nested subdirectory) — the `build/` tree of generated artefacts is
-# explicitly excluded so its files don't end up double-compiled.
+# nested subdirectory) — the `.build/` tree of generated artefacts is
+# excluded so its files don't end up double-compiled. ($(wildcard) skips
+# dot-prefixed dirs, so the hidden `.build` is already invisible to the
+# walker; the filter-out is belt-and-braces.)
 USER_DIRS           := $(WORKSPACE) \
-                       $(filter-out $(WORKSPACE)/build $(WORKSPACE)/build/%, \
+                       $(filter-out $(WORKSPACE)/.build $(WORKSPACE)/.build/%, \
                                     $(call _all_dirs,$(WORKSPACE)))
 
 SRCS                := $(foreach d,$(USER_DIRS), \

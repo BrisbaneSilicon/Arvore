@@ -862,11 +862,11 @@ class MainWindow(QMainWindow):
 
     def _is_build_artifact(self, path: Path | None) -> bool:
         """Suppress the upload/stale marker for anything the IDE deploys
-        into `<workspace>/build/` — runtime objects, Makefiles, helpers."""
+        into a `.build/` tree — runtime objects, Makefiles, helpers."""
         if not path or not self._workspace_root:
             return False
         try:
-            return path.is_relative_to(self._workspace_root / 'build')
+            return any(part == '.build' for part in path.parts)
         except (ValueError, OSError):
             return False
 
@@ -1168,18 +1168,18 @@ class MainWindow(QMainWindow):
     def _build_make_dir(self) -> Path:
         """Directory holding the workspace's Makefile. C workspaces deploy it
         to `<ws>/build/make`; Lua workspaces nest the C build system under
-        `<ws>/emblua/software/build/make`."""
+        `<ws>/emblua/software/.build/make`."""
         if self._workspace_mode == 'C':
-            return self._workspace_root / 'build' / 'make'
-        return self._workspace_root / 'emblua' / 'software' / 'build' / 'make'
+            return self._workspace_root / '.build' / 'make'
+        return self._workspace_root / 'emblua' / 'software' / '.build' / 'make'
 
     def _build_out_dir(self) -> Path:
         """Directory holding the build's memory image (`<proj>.v`). C
         workspaces emit it to `<ws>/build/out`; Lua workspaces nest the C
-        build system under `<ws>/emblua/software/build/out`."""
+        build system under `<ws>/emblua/software/.build/out`."""
         if self._workspace_mode == 'C':
-            return self._workspace_root / 'build' / 'out'
-        return self._workspace_root / 'emblua' / 'software' / 'build' / 'out'
+            return self._workspace_root / '.build' / 'out'
+        return self._workspace_root / 'emblua' / 'software' / '.build' / 'out'
 
     def _build(self):
         if self._workspace_root is None:
@@ -1573,16 +1573,17 @@ class MainWindow(QMainWindow):
         `lang` ('c' or 'lua'), sourced from `brs_ide/elm11/<lang>/`. Files
         are laid out as:
 
-          * `<dest>/*.c`               — starter user source
-          * `<dest>/build/runtime/`    — prebuilt runtime objects
-          * `<dest>/build/make/`       — Makefile / linker / startup
-          * `<dest>/build/header/`     — bundled C headers
-          * `<dest>/build/utilities/`  — helper Python scripts
+          * `<dest>/*.c`                — starter user source
+          * `<dest>/.build/runtime/`    — prebuilt runtime objects
+          * `<dest>/.build/make/`       — Makefile / linker / startup
+          * `<dest>/.build/header/`     — bundled C headers
+          * `<dest>/.build/utilities/`  — helper Python scripts
 
-        where `<dest>` is the workspace root for C, or `<workspace>/emblua/
-        software/` for Lua. Lua workspaces also get a sibling
-        `<workspace>/emblua/firmware/build/` directory seeded with the bundled
-        firmware image (`elm11/lua/build/fw/`).
+        The `.build/` tree is hidden (dot-prefixed) so it stays out of the
+        file tree. `<dest>` is the workspace root for C, or
+        `<workspace>/emblua/software/` for Lua. Lua workspaces also get a
+        sibling `<workspace>/emblua/firmware/.build/` directory seeded with
+        the bundled firmware image (`elm11/lua/build/fw/`).
 
         Existing files at the destinations are overwritten so the
         deployed templates always reflect the IDE's current bundle."""
@@ -1596,7 +1597,7 @@ class MainWindow(QMainWindow):
             emb_root = workspace / 'emblua'
             dest_root = emb_root / 'software'
             try:
-                (emb_root / 'firmware' / 'build').mkdir(
+                (emb_root / 'firmware' / '.build').mkdir(
                     parents=True, exist_ok=True)
             except OSError as exc:
                 log.warning('Could not create firmware dir under %s: %s',
@@ -1607,20 +1608,20 @@ class MainWindow(QMainWindow):
         def _target_for(src: Path) -> Path:
             """Where does a build-template file go? Rooted on `dest_root`."""
             if src.name == 'main.c':
-                # Entry point lives alongside the Makefile in build/make/.
-                return dest_root / 'build' / 'make' / src.name
+                # Entry point lives alongside the Makefile in .build/make/.
+                return dest_root / '.build' / 'make' / src.name
             if src.name == 'user.c':
                 # User application source lives in its own `app/` subdir.
                 return dest_root / 'app' / src.name
             if src.suffix == '.c':
                 return dest_root / src.name
             if src.suffix == '.py':
-                return dest_root / 'build' / 'utilities' / src.name
+                return dest_root / '.build' / 'utilities' / src.name
             if src.suffix == '.h':
-                return dest_root / 'build' / 'header' / src.name
+                return dest_root / '.build' / 'header' / src.name
             # `.S` startup files, Makefile, linker script, etc. all sit in
             # the make/ directory.
-            return dest_root / 'build' / 'make' / src.name
+            return dest_root / '.build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
         build_src = _ide_data_dir(f'elm11/{lang}/build/sw')
@@ -1632,10 +1633,10 @@ class MainWindow(QMainWindow):
         if runtime_src.is_dir():
             for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
-                    plan.append((src, dest_root / 'build' / 'runtime' / src.name))
+                    plan.append((src, dest_root / '.build' / 'runtime' / src.name))
         # Firmware image (Lua only) — deployed into the sibling
         # `emblua/firmware/` directory created above. Generated artefacts go
-        # under `build/`; the user-editable HDL source goes in its own `app/`
+        # under `.build/`; the user-editable HDL source goes in its own `app/`
         # subdir. Only the HDL flavour selected at workspace creation is
         # deployed — SystemVerilog ships `user.sv`, VHDL ships `user.vhd`.
         # The active timing constraint (bundled per-frequency, e.g.
@@ -1659,7 +1660,7 @@ class MainWindow(QMainWindow):
                                 if src.name.startswith('timing')
                                 and src.suffix == '.sdc'
                                 else src.name)
-                        dst = fw_root / 'build' / name
+                        dst = fw_root / '.build' / name
                     plan.append((src, dst))
 
         import re
