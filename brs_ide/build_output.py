@@ -92,6 +92,17 @@ class BuildOutput(QWidget):
     def clear(self):
         self._output.clear()
 
+    def is_running(self) -> bool:
+        return bool(self._process) and \
+            self._process.state() != QProcess.ProcessState.NotRunning
+
+    def stop(self):
+        """Kill the running process, if any. The resulting `finished` signal
+        still fires (with a non-zero exit), so listeners reset normally."""
+        if self.is_running():
+            self._append('\n--- Stopping… ---\n', theme.current()['term_warning'])
+            self._process.kill()
+
     # ── Internal ─────────────────────────────────────────────────────────
 
     def _on_stdout(self):

@@ -260,6 +260,9 @@ class MainWindow(QMainWindow):
         self._terminal.connected.connect(self._on_connection_changed)
         self._upload_out = BuildOutput()
         self._build_out = BuildOutput()
+        # Which long-running op currently owns _build_out: None, 'build', or
+        # 'synth'. Used to flip the Build/Synth buttons into a Stop control.
+        self._build_op = None
         self._build_out.build_finished.connect(self._on_build_finished)
         self._flash_out = BuildOutput()
         self._bottom.addTab(self._terminal, 'Serial Terminal')
@@ -1174,8 +1177,34 @@ class MainWindow(QMainWindow):
         self._uploader = None
 
     def _on_build_finished(self, exit_code: int):
-        """Handle C build completion (future use)."""
+        """Build/synth completed (or was stopped) — restore the buttons."""
         log.debug('Build finished: exit_code=%d', exit_code)
+        self._end_build_op()
+
+    # ── Build/synth run-state (Build & Synth double as Stop while running) ──
+
+    def _begin_build_op(self, op: str):
+        """Flip the Build or Synth button into a Stop control and lock out the
+        sibling operations that share the build-output process."""
+        self._build_op = op
+        self._build_btn.setText('Stop' if op == 'build' else 'Build')
+        self._synth_btn.setText('Stop' if op == 'synth' else 'Synth')
+        # Only the active operation's button stays live (as Stop); the others
+        # that drive _build_out are disabled until it finishes.
+        self._synth_btn.setEnabled(op == 'synth')
+        self._build_btn.setEnabled(op == 'build')
+        self._clean_btn.setEnabled(False)
+        self._fw_clean_btn.setEnabled(False)
+
+    def _end_build_op(self):
+        """Restore the Build/Synth buttons after an operation ends."""
+        self._build_op = None
+        self._build_btn.setText('Build')
+        self._synth_btn.setText('Synth')
+        self._build_btn.setEnabled(True)
+        self._synth_btn.setEnabled(True)
+        self._clean_btn.setEnabled(True)
+        self._fw_clean_btn.setEnabled(True)
 
     def _run_program(self):
         editor = self._cur()
@@ -1258,6 +1287,10 @@ class MainWindow(QMainWindow):
         return self._workspace_root / 'hardware' / '.build'
 
     def _synth(self):
+        # While a synthesis is running the button reads 'Stop' — click = kill.
+        if self._build_op == 'synth':
+            self._build_out.stop()
+            return
         if self._workspace_root is None:
             QMessageBox.warning(self, 'No Workspace',
                 'Open a workspace to synthesise.')
@@ -1307,19 +1340,40 @@ class MainWindow(QMainWindow):
         # (available in build.tcl as `[lindex $argv 0]`).
         self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
+        self._begin_build_op('synth')
         self._build_out.run_command(
             str(gw_sh), ['build.tcl', str(self._workspace_root)],
             cwd=str(synth_dir), env=env)
 
     def _fw_clean(self):
-        QMessageBox.information(self, 'Clean Firmware',
-            'Firmware clean is not wired up yet.')
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to clean.')
+            return
+        # gw_sh's `create_project -name "emblua"` writes its project tree into
+        # `<synth_dir>/emblua`; cleaning just removes that directory.
+        proj = self._synth_dir() / 'emblua'
+        if not proj.exists():
+            self.statusBar().showMessage('Hardware build already clean.', 3000)
+            return
+        import shutil
+        try:
+            shutil.rmtree(proj)
+        except OSError as exc:
+            QMessageBox.warning(self, 'Clean Failed',
+                f'Could not delete:\n{proj}\n\n{exc}')
+            return
+        self.statusBar().showMessage('Hardware build cleaned.', 3000)
 
     def _fw_flash(self):
         QMessageBox.information(self, 'Flash Firmware',
             'Firmware flashing is not wired up yet.')
 
     def _build(self):
+        # While a build is running the button reads 'Stop' — click = kill.
+        if self._build_op == 'build':
+            self._build_out.stop()
+            return
         if self._workspace_root is None:
             QMessageBox.warning(self, 'No Workspace',
                 'Open a workspace to build.')
@@ -1345,6 +1399,7 @@ class MainWindow(QMainWindow):
         make_prog, make_env = _make_invocation()
         self._build_out.clear()
         self._bottom.setCurrentWidget(self._build_out)
+        self._begin_build_op('build')
         self._build_out.run_command(
             make_prog,
             ['-C', _msys_path(make_dir), f'RISCV_PATH={toolchain_root}'],
