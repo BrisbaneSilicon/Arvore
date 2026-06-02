@@ -1,9 +1,3 @@
-/*
-** $Id: luserlib_c.c $
-** User Library - Example
-*/
-
-#define luserlib_c
 #define LUA_LIB
 
 #include "lprefix.h"
