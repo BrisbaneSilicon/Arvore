@@ -1495,10 +1495,12 @@ class MainWindow(QMainWindow):
         s.setValue('workspaces/history', history)
 
         # Restore or choose mode + target board for this workspace
+        hdl = 'SystemVerilog'
         if is_new_workspace:
-            target, mode = self._prompt_new_workspace_config(path.name)
+            target, mode, hdl = self._prompt_new_workspace_config(path.name)
             s.setValue(mode_key, mode)
             s.setValue(target_key, target)
+            s.setValue(f'workspaces/hdl/{path}', hdl)
             saved_mode = mode
         else:
             target = s.value(target_key, 'ELM11')
@@ -1509,16 +1511,16 @@ class MainWindow(QMainWindow):
         # Both Lua and C workspaces get their language-specific build/ and
         # runtime/ trees seeded from the IDE's bundle.
         if is_new_workspace:
-            self._deploy_build_templates(path, saved_mode.lower())
+            self._deploy_build_templates(path, saved_mode.lower(), hdl)
 
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
 
-    def _prompt_new_workspace_config(self, name: str) -> tuple[str, str]:
-        """Ask the user to pick a Target Board and Language Mode for a
-        freshly-opened workspace. Returns `(target_board, mode)`.
-        Cancelling the dialog falls back to the safe defaults
-        (`ELM11`, `Lua`)."""
+    def _prompt_new_workspace_config(self, name: str) -> tuple[str, str, str]:
+        """Ask the user to pick a Target Board, Language Mode and Default HDL
+        for a freshly-opened workspace. Returns `(target_board, mode, hdl)`,
+        where `hdl` is 'SystemVerilog' or 'VHDL'. Cancelling the dialog falls
+        back to the safe defaults (`ELM11`, `Lua`, `SystemVerilog`)."""
         from PyQt6.QtWidgets import (
             QDialog, QVBoxLayout, QFormLayout, QComboBox,
             QDialogButtonBox, QLabel,
@@ -1538,6 +1540,10 @@ class MainWindow(QMainWindow):
         mode_combo = QComboBox()
         mode_combo.addItems(['Lua', 'C'])
         form.addRow('Language Mode:', mode_combo)
+
+        hdl_combo = QComboBox()
+        hdl_combo.addItems(['SystemVerilog', 'VHDL'])
+        form.addRow('Default HDL:', hdl_combo)
         root.addLayout(form)
 
         btns = QDialogButtonBox(
@@ -1548,10 +1554,12 @@ class MainWindow(QMainWindow):
         root.addWidget(btns)
 
         if dlg.exec() != QDialog.DialogCode.Accepted:
-            return ('ELM11', 'Lua')
-        return (target_combo.currentText(), mode_combo.currentText())
+            return ('ELM11', 'Lua', 'SystemVerilog')
+        return (target_combo.currentText(), mode_combo.currentText(),
+                hdl_combo.currentText())
 
-    def _deploy_build_templates(self, workspace: Path, lang: str):
+    def _deploy_build_templates(self, workspace: Path, lang: str,
+                                hdl: str = 'SystemVerilog'):
         """Seed a freshly-created workspace with the bundled templates for
         `lang` ('c' or 'lua'), sourced from `brs_ide/elm11/<lang>/`. Files
         are laid out as:
@@ -1618,25 +1626,32 @@ class MainWindow(QMainWindow):
                     plan.append((src, dest_root / 'build' / 'runtime' / src.name))
         # Firmware image (Lua only) — deployed into the sibling
         # `emblua/firmware/` directory created above. Generated artefacts go
-        # under `build/`; user-editable HDL sources (`user.sv`, `user.vhd`)
-        # go in their own `app/` subdir. The active timing constraint (bundled
-        # per-frequency, e.g. `timing_70mhz.sdc`) is renamed to a fixed
-        # `timing.sdc` so downstream tooling can reference it by a stable name.
+        # under `build/`; the user-editable HDL source goes in its own `app/`
+        # subdir. Only the HDL flavour selected at workspace creation is
+        # deployed — SystemVerilog ships `user.sv`, VHDL ships `user.vhd`.
+        # The active timing constraint (bundled per-frequency, e.g.
+        # `timing_70mhz.sdc`) is renamed to a fixed `timing.sdc` so downstream
+        # tooling can reference it by a stable name.
         if lang == 'lua':
             fw_root = emb_root / 'firmware'
+            hdl_file = 'user.vhd' if hdl == 'VHDL' else 'user.sv'
             fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
             if fw_src.is_dir():
                 for src in fw_src.iterdir():
-                    if src.is_file() and not src.name.startswith('.'):
-                        if src.name in ('user.sv', 'user.vhd'):
-                            dst = fw_root / 'app' / src.name
-                        else:
-                            name = ('timing.sdc'
-                                    if src.name.startswith('timing')
-                                    and src.suffix == '.sdc'
-                                    else src.name)
-                            dst = fw_root / 'build' / name
-                        plan.append((src, dst))
+                    if not (src.is_file() and not src.name.startswith('.')):
+                        continue
+                    if src.name in ('user.sv', 'user.vhd'):
+                        # Skip the HDL flavour the user didn't pick.
+                        if src.name != hdl_file:
+                            continue
+                        dst = fw_root / 'app' / src.name
+                    else:
+                        name = ('timing.sdc'
+                                if src.name.startswith('timing')
+                                and src.suffix == '.sdc'
+                                else src.name)
+                        dst = fw_root / 'build' / name
+                    plan.append((src, dst))
 
         import re
         for src, dst in plan:
