@@ -512,7 +512,7 @@ class MainWindow(QMainWindow):
         self._clean_btn.clicked.connect(self._clean)
 
         self._flash_btn = QPushButton('Flash')
-        self._flash_btn.setToolTip('Flash emblua/driver')
+        self._flash_btn.setToolTip('Flash emblua/driver to device')
         self._flash_btn.clicked.connect(self._flash)
         self._flash_btn.setEnabled(False)
 
@@ -529,8 +529,8 @@ class MainWindow(QMainWindow):
         self._fw_clean_btn.setToolTip('Clean emblua/hardware')
         self._fw_clean_btn.clicked.connect(self._fw_clean)
 
-        self._fw_flash_btn = QPushButton('Flash')
-        self._fw_flash_btn.setToolTip('Flash emblua/hardware')
+        self._fw_flash_btn = QPushButton('Program')
+        self._fw_flash_btn.setToolTip('Program emblua/hardware to device')
         self._fw_flash_btn.clicked.connect(self._fw_flash)
         self._fw_flash_btn.setEnabled(False)
 
