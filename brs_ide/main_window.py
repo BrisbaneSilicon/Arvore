@@ -504,15 +504,15 @@ class MainWindow(QMainWindow):
 
         # ── Drivers group: Build · Clean · Flash ──
         self._build_btn = QPushButton('Build')
-        self._build_btn.setToolTip('Build emblua/driver')
+        self._build_btn.setToolTip('Build driver')
         self._build_btn.clicked.connect(self._build)
 
         self._clean_btn = QPushButton('Clean')
-        self._clean_btn.setToolTip('Clean emblua/driver')
+        self._clean_btn.setToolTip('Clean driver')
         self._clean_btn.clicked.connect(self._clean)
 
         self._flash_btn = QPushButton('Flash')
-        self._flash_btn.setToolTip('Flash emblua/driver to device')
+        self._flash_btn.setToolTip('Flash driver to device')
         self._flash_btn.clicked.connect(self._flash)
         self._flash_btn.setEnabled(False)
 
@@ -522,15 +522,15 @@ class MainWindow(QMainWindow):
 
         # ── Hardware group: Synth · Clean · Flash ──
         self._synth_btn = QPushButton('Synth')
-        self._synth_btn.setToolTip('Synthesise emblua/hardware')
+        self._synth_btn.setToolTip('Synthesise hardware')
         self._synth_btn.clicked.connect(self._synth)
 
         self._fw_clean_btn = QPushButton('Clean')
-        self._fw_clean_btn.setToolTip('Clean emblua/hardware')
+        self._fw_clean_btn.setToolTip('Clean hardware')
         self._fw_clean_btn.clicked.connect(self._fw_clean)
 
         self._fw_flash_btn = QPushButton('Program')
-        self._fw_flash_btn.setToolTip('Program emblua/hardware to device')
+        self._fw_flash_btn.setToolTip('Program hardware to device')
         self._fw_flash_btn.clicked.connect(self._fw_flash)
         self._fw_flash_btn.setEnabled(False)
 
@@ -1235,27 +1235,27 @@ class MainWindow(QMainWindow):
     def _build_make_dir(self) -> Path:
         """Directory holding the workspace's Makefile. C workspaces deploy it
         to `<ws>/build/make`; Lua workspaces nest the C build system under
-        `<ws>/emblua/driver/.build/make`."""
+        `<ws>/driver/.build/make`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / '.build' / 'make'
-        return self._workspace_root / 'emblua' / 'driver' / '.build' / 'make'
+        return self._workspace_root / 'driver' / '.build' / 'make'
 
     def _build_out_dir(self) -> Path:
         """Directory holding the build's memory image (`<proj>.v`). C
         workspaces emit it to `<ws>/build/out`; Lua workspaces nest the C
-        build system under `<ws>/emblua/driver/.build/out`."""
+        build system under `<ws>/driver/.build/out`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / '.build' / 'out'
-        return self._workspace_root / 'emblua' / 'driver' / '.build' / 'out'
+        return self._workspace_root / 'driver' / '.build' / 'out'
 
     # ── Firmware / HDL synthesis (Synth · Clean · Flash) ──────────────────
-    # The hardware bundle ships a Gowin TCL flow (emblua/hardware/.build/
+    # The hardware bundle ships a Gowin TCL flow (hardware/.build/
     # build.tcl), driven by the Gowin IDE's `gw_sh`. Clean/Flash are still
     # placeholders.
 
     def _synth_dir(self) -> Path:
         """Directory holding the firmware synthesis flow (build.tcl + image)."""
-        return self._workspace_root / 'emblua' / 'hardware' / '.build'
+        return self._workspace_root / 'hardware' / '.build'
 
     def _synth(self):
         if self._workspace_root is None:
@@ -1719,27 +1719,26 @@ class MainWindow(QMainWindow):
 
         The `.build/` tree is hidden (dot-prefixed) so it stays out of the
         file tree. `<dest>` is the workspace root for C, or
-        `<workspace>/emblua/driver/` for Lua. Lua workspaces also get a
-        sibling `<workspace>/emblua/hardware/.build/` directory seeded with
+        `<workspace>/driver/` for Lua. Lua workspaces also get a
+        sibling `<workspace>/hardware/.build/` directory seeded with
         the bundled firmware image (`elm11/lua/build/fw/`).
 
         Existing files at the destinations are overwritten so the
         deployed templates always reflect the IDE's current bundle."""
         import shutil
 
-        # Lua workspaces nest every deployed artefact under
-        # `emblua/driver/`, alongside a sibling `emblua/hardware/` directory
-        # seeded with the bundled firmware image; C workspaces deploy
-        # straight into the workspace root.
+        # Lua workspaces deploy their driver build tree under `driver/`,
+        # alongside a sibling `hardware/` directory seeded with the bundled
+        # firmware image — both directly in the workspace root. C workspaces
+        # deploy straight into the workspace root.
         if lang == 'lua':
-            emb_root = workspace / 'emblua'
-            dest_root = emb_root / 'driver'
+            dest_root = workspace / 'driver'
+            fw_root = workspace / 'hardware'
             try:
-                (emb_root / 'hardware' / '.build').mkdir(
-                    parents=True, exist_ok=True)
+                (fw_root / '.build').mkdir(parents=True, exist_ok=True)
             except OSError as exc:
                 log.warning('Could not create hardware dir under %s: %s',
-                            emb_root, exc)
+                            workspace, exc)
         else:
             dest_root = workspace
 
@@ -1770,7 +1769,7 @@ class MainWindow(QMainWindow):
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, dest_root / '.build' / 'runtime' / src.name))
         # Firmware image (Lua only) — deployed into the sibling
-        # `emblua/hardware/` directory created above: the generated image and
+        # `hardware/` directory created above: the generated image and
         # constraints under `.build/`, and the user-editable HDL source in the
         # hardware root (build.tcl references each at its own location). Only
         # the HDL flavour selected at workspace creation is deployed —
@@ -1779,7 +1778,7 @@ class MainWindow(QMainWindow):
         # `timing_70mhz.sdc`) is renamed to a fixed `timing.sdc` so downstream
         # tooling can reference it by a stable name.
         if lang == 'lua':
-            fw_root = emb_root / 'hardware'
+            # fw_root (workspace/hardware) was set up at the top of this method.
             hdl_file = 'user.vhd' if hdl == 'VHDL' else 'user.sv'
             fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
             if fw_src.is_dir():
@@ -1801,11 +1800,12 @@ class MainWindow(QMainWindow):
                         dst = fw_root / '.build' / name
                     plan.append((src, dst))
 
-            # Starter Lua application script, deployed to `<workspace>/app/`
-            # (a sibling of `emblua/`, not nested under it).
+            # Starter Lua application script, deployed to
+            # `<workspace>/application/`, alongside the driver/ and hardware/
+            # directories in the workspace root.
             script_src = _ide_data_dir(f'elm11/{lang}/build/script/user.lua')
             if script_src.is_file():
-                plan.append((script_src, workspace / 'app' / 'user.lua'))
+                plan.append((script_src, workspace / 'application' / 'user.lua'))
 
         import re
         for src, dst in plan:

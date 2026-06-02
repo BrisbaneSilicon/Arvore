@@ -1,6 +1,6 @@
 set workspace_path  [lindex $argv 0]
 
-set hardware_path   "$workspace_path/emblua/hardware"
+set hardware_path   "$workspace_path/hardware"
 set build_path      "$hardware_path/.build"
 
 create_project -name "emblua" -dir . -pn "GW1NR-LV9QN88PC7/I6" -device_version "C" -force

@@ -1,7 +1,7 @@
 create_clock -name clk_27Mhz        -period 37.037  -waveform {0 18.518}    [get_ports  {pad_clk_27Mhz}]
 
-create_clock -name clk_70Mhz        -period 15.151  -waveform {0 7.575}     [get_pins   {dweezle_top_inst/clk66mhz_inst/rpll_inst/CLKOUT}]
-create_clock -name clk_70Mhz_p      -period 15.151  -waveform {0 7.575}     [get_pins   {dweezle_top_inst/clk66mhz_inst/rpll_inst/CLKOUTP}]
+create_clock -name clk_70Mhz        -period 14.286  -waveform {0 7.143}     [get_pins   {emblua_top_inst/clk70mhz_inst/rpll_inst/CLKOUT}]
+create_clock -name clk_70Mhz_p      -period 14.286  -waveform {0 7.143}     [get_pins   {emblua_top_inst/clk70mhz_inst/rpll_inst/CLKOUTP}]
 
 
 # NOTE: all clocks, to/from everything else
