@@ -63,9 +63,12 @@ SRCS                := $(foreach d,$(USER_DIRS), \
 # Startup / bootstrap assembly files bundled with the Makefile itself
 # (e.g. crt_flash.S).
 STARTUP_SRCS        := $(wildcard *.S)
+# C sources bundled alongside the Makefile (e.g. main.c, the entry point).
+LOCAL_SRCS          := $(wildcard *.c)
 RUNTIME_OBJS        := $(wildcard $(RUNTIME_DIR)/*.o)
 OBJS                := $(patsubst $(WORKSPACE)/%.c,$(BUILDDIR)/%.o,$(filter %.c,$(SRCS))) \
                        $(patsubst $(WORKSPACE)/%.S,$(BUILDDIR)/%.o,$(filter %.S,$(SRCS))) \
+                       $(patsubst %.c,$(BUILDDIR)/local/%.o,$(LOCAL_SRCS)) \
                        $(patsubst %.S,$(BUILDDIR)/startup/%.o,$(STARTUP_SRCS))
 
 ELF                 := $(BUILDDIR)/$(PROJ_NAME).elf
@@ -128,6 +131,12 @@ $(BUILDDIR)/%.o: $(WORKSPACE)/%.S | $(BUILDDIR)
 $(BUILDDIR)/startup/%.o: %.S | $(BUILDDIR)
 	@mkdir -p $(dir $@)
 	$(RISCV_CC) -c $(CFLAGS) -D__ASSEMBLY__=1 -o $@ $<
+
+$(BUILDDIR)/local/%.o: %.c | $(BUILDDIR)
+	@mkdir -p $(dir $@)
+	$(RISCV_CC) -c $(CFLAGS) $(INC) \
+	    -DVERSION=$(VSTRING) -DSTACK_SIZE_$(STACK_SIZE_BYTES) \
+	    -o $@ $<
 
 %.hex: %.elf
 	$(RISCV_OBJCOPY) -O ihex $< $@
