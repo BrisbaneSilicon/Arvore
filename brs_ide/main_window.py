@@ -1563,8 +1563,9 @@ class MainWindow(QMainWindow):
           * `<dest>/build/utilities/`  — helper Python scripts
 
         where `<dest>` is the workspace root for C, or `<workspace>/emblua/
-        software/` for Lua. Lua workspaces also get an empty sibling
-        `<workspace>/emblua/firmware/` directory for the firmware image.
+        software/` for Lua. Lua workspaces also get a sibling
+        `<workspace>/emblua/firmware/build/` directory seeded with the bundled
+        firmware image (`elm11/lua/build/fw/`).
 
         Existing files at the destinations are overwritten so the
         deployed templates always reflect the IDE's current bundle."""
@@ -1572,13 +1573,14 @@ class MainWindow(QMainWindow):
 
         # Lua workspaces nest every deployed artefact under
         # `emblua/software/`, alongside a sibling `emblua/firmware/` directory
-        # (left empty here for the user's firmware image); C workspaces deploy
+        # seeded with the bundled firmware image; C workspaces deploy
         # straight into the workspace root.
         if lang == 'lua':
             emb_root = workspace / 'emblua'
             dest_root = emb_root / 'software'
             try:
-                (emb_root / 'firmware').mkdir(parents=True, exist_ok=True)
+                (emb_root / 'firmware' / 'build').mkdir(
+                    parents=True, exist_ok=True)
             except OSError as exc:
                 log.warning('Could not create firmware dir under %s: %s',
                             emb_root, exc)
@@ -1598,7 +1600,7 @@ class MainWindow(QMainWindow):
             return dest_root / 'build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
-        build_src = _ide_data_dir(f'elm11/{lang}/build')
+        build_src = _ide_data_dir(f'elm11/{lang}/build/sw')
         if build_src.is_dir():
             for src in build_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
@@ -1608,6 +1610,15 @@ class MainWindow(QMainWindow):
             for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, dest_root / 'build' / 'runtime' / src.name))
+        # Firmware image (Lua only) — deployed verbatim into the sibling
+        # `emblua/firmware/build/` directory created above.
+        if lang == 'lua':
+            fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
+            if fw_src.is_dir():
+                for src in fw_src.iterdir():
+                    if src.is_file() and not src.name.startswith('.'):
+                        plan.append(
+                            (src, emb_root / 'firmware' / 'build' / src.name))
 
         import re
         for src, dst in plan:
