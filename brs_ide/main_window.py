@@ -476,42 +476,60 @@ class MainWindow(QMainWindow):
         tb.addWidget(self._connect_btn)
         tb.addSeparator()
 
-        self._build_btn = QPushButton('Build')
-        self._build_btn.setToolTip('Build the current C project')
-        self._build_btn.clicked.connect(self._build)
-        tb.addWidget(self._build_btn)
-
-        self._clean_btn = QPushButton('Clean')
-        self._clean_btn.setToolTip('Delete build artefacts (make clean)')
-        self._clean_btn.clicked.connect(self._clean)
-        tb.addWidget(self._clean_btn)
-
-        self._flash_btn = QPushButton('Flash')
-        self._flash_btn.setToolTip('Flash the built binary to the ELM11')
-        self._flash_btn.clicked.connect(self._flash)
-        self._flash_btn.setEnabled(False)
-        tb.addWidget(self._flash_btn)
-
-        tb.addWidget(self._toolbar_spacer())
-
+        # ── Application group: Upload · Run · Stop ──
         self._upload_btn = QPushButton('Upload')
         self._upload_btn.setToolTip('Upload Lua program to ELM11')
         self._upload_btn.clicked.connect(self._upload)
         self._upload_btn.setEnabled(False)
-        tb.addWidget(self._upload_btn)
 
         self._run_btn = QPushButton('Run')
         self._run_btn.setToolTip('Run uploaded program on ELM11')
         self._run_btn.clicked.connect(self._run_program)
         self._run_btn.setEnabled(False)
-        tb.addWidget(self._run_btn)
 
         self._stop_btn = QPushButton('Stop')
         self._stop_btn.setToolTip('Stop the currently running program')
         self._stop_btn.clicked.connect(self._stop_program)
         self._stop_btn.setEnabled(False)
-        tb.addWidget(self._stop_btn)
 
+        tb.addWidget(self._toolbar_group('Application',
+            [self._upload_btn, self._run_btn, self._stop_btn]))
+        tb.addWidget(self._toolbar_spacer())
+
+        # ── Drivers group: Build · Clean · Flash ──
+        self._build_btn = QPushButton('Build')
+        self._build_btn.setToolTip('Build the current C project')
+        self._build_btn.clicked.connect(self._build)
+
+        self._clean_btn = QPushButton('Clean')
+        self._clean_btn.setToolTip('Delete build artefacts (make clean)')
+        self._clean_btn.clicked.connect(self._clean)
+
+        self._flash_btn = QPushButton('Flash')
+        self._flash_btn.setToolTip('Flash the built binary to the ELM11')
+        self._flash_btn.clicked.connect(self._flash)
+        self._flash_btn.setEnabled(False)
+
+        tb.addWidget(self._toolbar_group('Driver',
+            [self._build_btn, self._clean_btn, self._flash_btn]))
+        tb.addWidget(self._toolbar_spacer())
+
+        # ── Hardware group: Synth · Clean · Flash ──
+        self._synth_btn = QPushButton('Synth')
+        self._synth_btn.setToolTip('Synthesise the FPGA firmware (HDL)')
+        self._synth_btn.clicked.connect(self._synth)
+
+        self._fw_clean_btn = QPushButton('Clean')
+        self._fw_clean_btn.setToolTip('Delete firmware synthesis artefacts')
+        self._fw_clean_btn.clicked.connect(self._fw_clean)
+
+        self._fw_flash_btn = QPushButton('Flash')
+        self._fw_flash_btn.setToolTip('Flash the synthesised firmware to the ELM11')
+        self._fw_flash_btn.clicked.connect(self._fw_flash)
+        self._fw_flash_btn.setEnabled(False)
+
+        tb.addWidget(self._toolbar_group('Hardware',
+            [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn]))
         tb.addWidget(self._toolbar_spacer())
 
         self._cmd_btn = QPushButton('Command Mode')
@@ -550,6 +568,43 @@ class MainWindow(QMainWindow):
         w.setFixedWidth(width)
         w.setStyleSheet('background: transparent;')
         return w
+
+    @staticmethod
+    def _toolbar_group(title: str, buttons: list[QPushButton]) -> QWidget:
+        """Stack a centered caption above a row of related toolbar buttons,
+        e.g. 'Application' over Upload/Run/Stop. Transparent background so it
+        blends with the toolbar."""
+        box = QWidget()
+        box.setStyleSheet('background: transparent;')
+        col = QVBoxLayout(box)
+        col.setContentsMargins(2, 0, 2, 0)
+        col.setSpacing(1)
+
+        # Smaller caption font — tweak the font only (not a stylesheet) so the
+        # label keeps the themed colour it inherits from the global stylesheet.
+        caption = QLabel(title)
+        caption.setObjectName('ToolbarGroupLabel')
+        caption.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        cf = caption.font()
+        cf.setPointSize(max(7, cf.pointSize() - 2))
+        caption.setFont(cf)
+
+        # An empty placeholder of the same height above the button row balances
+        # the caption below it, keeping the buttons vertically centred in the
+        # group — so they stay in line with the other toolbar buttons (Connect).
+        spacer = QLabel('')
+        spacer.setFont(cf)
+        col.addWidget(spacer)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(2)
+        for b in buttons:
+            row.addWidget(b)
+        col.addLayout(row)
+
+        col.addWidget(caption)
+        return box
 
     # ── Title bar ───────────────────────────────────────────────────────────────
 
@@ -1188,18 +1243,35 @@ class MainWindow(QMainWindow):
     def _build_make_dir(self) -> Path:
         """Directory holding the workspace's Makefile. C workspaces deploy it
         to `<ws>/build/make`; Lua workspaces nest the C build system under
-        `<ws>/emblua/software/.build/make`."""
+        `<ws>/emblua/driver/.build/make`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / '.build' / 'make'
-        return self._workspace_root / 'emblua' / 'software' / '.build' / 'make'
+        return self._workspace_root / 'emblua' / 'driver' / '.build' / 'make'
 
     def _build_out_dir(self) -> Path:
         """Directory holding the build's memory image (`<proj>.v`). C
         workspaces emit it to `<ws>/build/out`; Lua workspaces nest the C
-        build system under `<ws>/emblua/software/.build/out`."""
+        build system under `<ws>/emblua/driver/.build/out`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / '.build' / 'out'
-        return self._workspace_root / 'emblua' / 'software' / '.build' / 'out'
+        return self._workspace_root / 'emblua' / 'driver' / '.build' / 'out'
+
+    # ── Firmware / HDL synthesis (Synth · Clean · Flash) ──────────────────
+    # The hardware bundle ships a Gowin TCL flow (emblua/hardware/.build/
+    # build.tcl); these handlers are placeholders until the synthesis
+    # toolchain is wired in.
+
+    def _synth(self):
+        QMessageBox.information(self, 'Synthesise Firmware',
+            'Firmware synthesis is not wired up yet.')
+
+    def _fw_clean(self):
+        QMessageBox.information(self, 'Clean Firmware',
+            'Firmware clean is not wired up yet.')
+
+    def _fw_flash(self):
+        QMessageBox.information(self, 'Flash Firmware',
+            'Firmware flashing is not wired up yet.')
 
     def _build(self):
         if self._workspace_root is None:
@@ -1601,8 +1673,8 @@ class MainWindow(QMainWindow):
 
         The `.build/` tree is hidden (dot-prefixed) so it stays out of the
         file tree. `<dest>` is the workspace root for C, or
-        `<workspace>/emblua/software/` for Lua. Lua workspaces also get a
-        sibling `<workspace>/emblua/firmware/.build/` directory seeded with
+        `<workspace>/emblua/driver/` for Lua. Lua workspaces also get a
+        sibling `<workspace>/emblua/hardware/.build/` directory seeded with
         the bundled firmware image (`elm11/lua/build/fw/`).
 
         Existing files at the destinations are overwritten so the
@@ -1610,17 +1682,17 @@ class MainWindow(QMainWindow):
         import shutil
 
         # Lua workspaces nest every deployed artefact under
-        # `emblua/software/`, alongside a sibling `emblua/firmware/` directory
+        # `emblua/driver/`, alongside a sibling `emblua/hardware/` directory
         # seeded with the bundled firmware image; C workspaces deploy
         # straight into the workspace root.
         if lang == 'lua':
             emb_root = workspace / 'emblua'
-            dest_root = emb_root / 'software'
+            dest_root = emb_root / 'driver'
             try:
-                (emb_root / 'firmware' / '.build').mkdir(
+                (emb_root / 'hardware' / '.build').mkdir(
                     parents=True, exist_ok=True)
             except OSError as exc:
-                log.warning('Could not create firmware dir under %s: %s',
+                log.warning('Could not create hardware dir under %s: %s',
                             emb_root, exc)
         else:
             dest_root = workspace
@@ -1630,9 +1702,6 @@ class MainWindow(QMainWindow):
             if src.name == 'main.c':
                 # Entry point lives alongside the Makefile in .build/make/.
                 return dest_root / '.build' / 'make' / src.name
-            if src.name == 'user.c':
-                # User application source lives in its own `app/` subdir.
-                return dest_root / 'app' / src.name
             if src.suffix == '.c':
                 return dest_root / src.name
             if src.suffix == '.py':
@@ -1655,15 +1724,15 @@ class MainWindow(QMainWindow):
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, dest_root / '.build' / 'runtime' / src.name))
         # Firmware image (Lua only) — deployed into the sibling
-        # `emblua/firmware/` directory created above. Generated artefacts go
-        # under `.build/`; the user-editable HDL source goes in its own `app/`
-        # subdir. Only the HDL flavour selected at workspace creation is
+        # `emblua/hardware/` directory created above. Generated artefacts go
+        # under `.build/`; the user-editable HDL source sits in the hardware
+        # root. Only the HDL flavour selected at workspace creation is
         # deployed — SystemVerilog ships `user.sv`, VHDL ships `user.vhd`.
         # The active timing constraint (bundled per-frequency, e.g.
         # `timing_70mhz.sdc`) is renamed to a fixed `timing.sdc` so downstream
         # tooling can reference it by a stable name.
         if lang == 'lua':
-            fw_root = emb_root / 'firmware'
+            fw_root = emb_root / 'hardware'
             hdl_file = 'user.vhd' if hdl == 'VHDL' else 'user.sv'
             fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
             if fw_src.is_dir():
@@ -1674,7 +1743,7 @@ class MainWindow(QMainWindow):
                         # Skip the HDL flavour the user didn't pick.
                         if src.name != hdl_file:
                             continue
-                        dst = fw_root / 'app' / src.name
+                        dst = fw_root / src.name
                     else:
                         name = ('timing.sdc'
                                 if src.name.startswith('timing')
