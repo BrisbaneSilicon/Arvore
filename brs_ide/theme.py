@@ -212,6 +212,7 @@ QMenuBar                    {{ background:{t['menubar_bg']}; color:{t['menubar_f
 QMenuBar::item:selected     {{ background:{t['selection']}; }}
 QMenu                       {{ background:{t['menubar_bg']}; color:{t['menubar_fg']}; border:1px solid {t['border']}; }}
 QMenu::item:selected        {{ background:{t['selection']}; }}
+QToolTip                    {{ background:#ffffe1; color:#000000; border:1px solid #767676; padding:3px 6px; }}
 QToolBar                    {{ background:{t['toolbar_bg']}; border:none; spacing:4px; padding:3px; }}
 QTabWidget::pane            {{ border:1px solid {t['border']}; background:{t['window_bg']}; }}
 QTabBar::tab {{

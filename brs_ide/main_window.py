@@ -472,65 +472,71 @@ class MainWindow(QMainWindow):
 
         self._connect_btn = QPushButton('Connect')
         self._connect_btn.setCheckable(True)
+        self._connect_btn.setToolTip('Connect to / disconnect from the device '
+                                     'on the selected port')
         self._connect_btn.clicked.connect(self._toggle_connect)
         tb.addWidget(self._connect_btn)
+        # Wider gap (2× the inter-group spacer) sets the connection controls
+        # apart from the action groups that follow.
+        tb.addWidget(self._toolbar_spacer(6))
         tb.addSeparator()
+        tb.addWidget(self._toolbar_spacer(6))
 
         # ── Application group: Upload · Run · Stop ──
         self._upload_btn = QPushButton('Upload')
-        self._upload_btn.setToolTip('Upload Lua program to ELM11')
+        self._upload_btn.setToolTip('Upload the active Lua module')
         self._upload_btn.clicked.connect(self._upload)
         self._upload_btn.setEnabled(False)
 
         self._run_btn = QPushButton('Run')
-        self._run_btn.setToolTip('Run uploaded program on ELM11')
+        self._run_btn.setToolTip('Run the active Lua module')
         self._run_btn.clicked.connect(self._run_program)
         self._run_btn.setEnabled(False)
 
         self._stop_btn = QPushButton('Stop')
-        self._stop_btn.setToolTip('Stop the currently running program')
+        self._stop_btn.setToolTip('Stop the running Lua module')
         self._stop_btn.clicked.connect(self._stop_program)
         self._stop_btn.setEnabled(False)
 
         tb.addWidget(self._toolbar_group('Application',
             [self._upload_btn, self._run_btn, self._stop_btn]))
-        tb.addWidget(self._toolbar_spacer())
+        tb.addSeparator()
 
         # ── Drivers group: Build · Clean · Flash ──
         self._build_btn = QPushButton('Build')
-        self._build_btn.setToolTip('Build the current C project')
+        self._build_btn.setToolTip('Build emblua/driver')
         self._build_btn.clicked.connect(self._build)
 
         self._clean_btn = QPushButton('Clean')
-        self._clean_btn.setToolTip('Delete build artefacts (make clean)')
+        self._clean_btn.setToolTip('Clean emblua/driver')
         self._clean_btn.clicked.connect(self._clean)
 
         self._flash_btn = QPushButton('Flash')
-        self._flash_btn.setToolTip('Flash the built binary to the ELM11')
+        self._flash_btn.setToolTip('Flash emblua/driver')
         self._flash_btn.clicked.connect(self._flash)
         self._flash_btn.setEnabled(False)
 
         tb.addWidget(self._toolbar_group('Driver',
             [self._build_btn, self._clean_btn, self._flash_btn]))
-        tb.addWidget(self._toolbar_spacer())
+        tb.addSeparator()
 
         # ── Hardware group: Synth · Clean · Flash ──
         self._synth_btn = QPushButton('Synth')
-        self._synth_btn.setToolTip('Synthesise the FPGA firmware (HDL)')
+        self._synth_btn.setToolTip('Synthesise emblua/hardware')
         self._synth_btn.clicked.connect(self._synth)
 
         self._fw_clean_btn = QPushButton('Clean')
-        self._fw_clean_btn.setToolTip('Delete firmware synthesis artefacts')
+        self._fw_clean_btn.setToolTip('Clean emblua/hardware')
         self._fw_clean_btn.clicked.connect(self._fw_clean)
 
         self._fw_flash_btn = QPushButton('Flash')
-        self._fw_flash_btn.setToolTip('Flash the synthesised firmware to the ELM11')
+        self._fw_flash_btn.setToolTip('Flash emblua/hardware')
         self._fw_flash_btn.clicked.connect(self._fw_flash)
         self._fw_flash_btn.setEnabled(False)
 
         tb.addWidget(self._toolbar_group('Hardware',
             [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn]))
-        tb.addWidget(self._toolbar_spacer())
+        tb.addSeparator()
 
         self._cmd_btn = QPushButton('Command Mode')
         self._cmd_btn.setCheckable(True)
@@ -560,7 +566,7 @@ class MainWindow(QMainWindow):
         tb.addWidget(self._cmd_status)
 
     @staticmethod
-    def _toolbar_spacer(width: int = 12) -> QWidget:
+    def _toolbar_spacer(width: int = 1) -> QWidget:
         """A small fixed-width transparent gap for visually grouping toolbar
         buttons. Transparent so it blends with the toolbar background, which
         differs from the default widget background."""
@@ -571,39 +577,25 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _toolbar_group(title: str, buttons: list[QPushButton]) -> QWidget:
-        """Stack a centered caption above a row of related toolbar buttons,
-        e.g. 'Application' over Upload/Run/Stop. Transparent background so it
-        blends with the toolbar."""
+        """A row of related toolbar buttons (e.g. Upload/Run/Stop). The group
+        name isn't drawn — it surfaces as a hover tooltip: on the group
+        container, and prefixed onto each button's own tooltip so it pops up
+        wherever you hover within the group."""
         box = QWidget()
-        box.setStyleSheet('background: transparent;')
-        col = QVBoxLayout(box)
-        col.setContentsMargins(2, 0, 2, 0)
-        col.setSpacing(1)
-
-        # Smaller caption font — tweak the font only (not a stylesheet) so the
-        # label keeps the themed colour it inherits from the global stylesheet.
-        caption = QLabel(title)
-        caption.setObjectName('ToolbarGroupLabel')
-        caption.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        cf = caption.font()
-        cf.setPointSize(max(7, cf.pointSize() - 2))
-        caption.setFont(cf)
-
-        # An empty placeholder of the same height above the button row balances
-        # the caption below it, keeping the buttons vertically centred in the
-        # group — so they stay in line with the other toolbar buttons (Connect).
-        spacer = QLabel('')
-        spacer.setFont(cf)
-        col.addWidget(spacer)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
+        # Scope the transparent background to the box itself (via objectName) —
+        # an unscoped `background: transparent` would cascade to the child
+        # buttons and, in turn, to the tooltips they pop up (rendering them as
+        # black boxes).
+        box.setObjectName('ToolbarBtnGroup')
+        box.setStyleSheet('#ToolbarBtnGroup { background: transparent; }')
+        box.setToolTip(title)
+        row = QHBoxLayout(box)
+        row.setContentsMargins(2, 0, 2, 0)
         row.setSpacing(2)
         for b in buttons:
+            action = b.toolTip()
+            b.setToolTip(f'{title} — {action}' if action else title)
             row.addWidget(b)
-        col.addLayout(row)
-
-        col.addWidget(caption)
         return box
 
     # ── Title bar ───────────────────────────────────────────────────────────────
