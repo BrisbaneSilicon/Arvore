@@ -18,6 +18,11 @@ from . import theme
 _DEFAULT_FREETYPE = '/lib/x86_64-linux-gnu/libfreetype.so'
 _DEFAULT_LIBZ = '/lib/x86_64-linux-gnu/libz.so.1'
 
+# Command run (Linux) before programming the FPGA, to release the FTDI
+# kernel driver so the Gowin programmer can claim the USB device over JTAG.
+# Needs root, hence the default uses pkexec for a graphical prompt.
+_DEFAULT_PREPROGRAM = 'pkexec modprobe -r ftdi_sio'
+
 
 def _default_mono_font() -> str:
     """Pick a sensible built-in monospaced font per platform."""
@@ -111,6 +116,11 @@ class SettingsDialog(QDialog):
         row_z.addWidget(browse_z)
         f.addRow('libz.so.1:', row_z)
 
+        # Run before programming (Linux) to free the FTDI device for JTAG.
+        self._preprogram = QLineEdit()
+        self._preprogram.setPlaceholderText(_DEFAULT_PREPROGRAM)
+        f.addRow('Pre-program command:', self._preprogram)
+
         tabs.addTab(hw_w, 'Hardware')
 
         # ── Editor ────────────────────────────────────────────────────
@@ -197,6 +207,7 @@ class SettingsDialog(QDialog):
         self._gowin.setText(self._s.value('hw/gowin_path', ''))
         self._libfreetype.setText(self._s.value('hw/libfreetype_path', _DEFAULT_FREETYPE))
         self._libz.setText(self._s.value('hw/libz_path', _DEFAULT_LIBZ))
+        self._preprogram.setText(self._s.value('hw/preprogram_cmd', _DEFAULT_PREPROGRAM))
 
     def _save(self):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
@@ -208,6 +219,7 @@ class SettingsDialog(QDialog):
         self._s.setValue('hw/gowin_path',         self._gowin.text())
         self._s.setValue('hw/libfreetype_path',   self._libfreetype.text())
         self._s.setValue('hw/libz_path',          self._libz.text())
+        self._s.setValue('hw/preprogram_cmd',     self._preprogram.text())
 
     # ── Static helpers used by MainWindow ─────────────────────────────
     @staticmethod
@@ -237,6 +249,12 @@ class SettingsDialog(QDialog):
         """Gowin EDA install root (contains IDE/bin/gw_sh), used to synthesise
         the FPGA firmware. Empty string means 'not configured'."""
         return QSettings().value('hw/gowin_path', '')
+
+    @staticmethod
+    def preprogram_command() -> str:
+        """Shell command run (Linux) before programming, to release the FTDI
+        driver. Empty string means 'skip'."""
+        return QSettings().value('hw/preprogram_cmd', _DEFAULT_PREPROGRAM)
 
     @staticmethod
     def gowin_preload_libs() -> list[str]:

@@ -260,15 +260,21 @@ class MainWindow(QMainWindow):
         self._terminal.connected.connect(self._on_connection_changed)
         self._upload_out = BuildOutput()
         self._build_out = BuildOutput()
-        # Which long-running op currently owns _build_out: None, 'build', or
-        # 'synth'. Used to flip the Build/Synth buttons into a Stop control.
-        self._build_op = None
+        self._synth_out = BuildOutput()
+        # Run-state flags — flip the Build/Synth buttons into a Stop control
+        # while their (independent) processes run.
+        self._build_running = False
+        self._synth_running = False
         self._build_out.build_finished.connect(self._on_build_finished)
+        self._synth_out.build_finished.connect(self._on_synth_finished)
         self._flash_out = BuildOutput()
+        self._program_out = BuildOutput()
         self._bottom.addTab(self._terminal, 'Serial Terminal')
         self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
         self._bottom.addTab(self._flash_out, 'Flash Output')
+        self._bottom.addTab(self._synth_out, 'Synthesis Output')
+        self._bottom.addTab(self._program_out, 'Program Output')
         self._centre.addWidget(self._bottom)
         self._centre.setChildrenCollapsible(False)
 
@@ -535,7 +541,6 @@ class MainWindow(QMainWindow):
         self._fw_flash_btn = QPushButton('Program')
         self._fw_flash_btn.setToolTip('Program hardware to device')
         self._fw_flash_btn.clicked.connect(self._fw_flash)
-        self._fw_flash_btn.setEnabled(False)
 
         tb.addWidget(self._toolbar_group('Hardware',
             [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn]))
@@ -781,6 +786,10 @@ class MainWindow(QMainWindow):
         # connected and not held by command mode — its handler validates the
         # workspace + built image.
         self._flash_btn.setEnabled(usable)
+        # Program (FPGA bitstream via Gowin programmer_cli) talks to the board
+        # over JTAG, which needs the serial port released — only enabled while
+        # the device is disconnected.
+        self._fw_flash_btn.setEnabled(not connected)
 
     def _on_cmd_btn_toggled(self, checked: bool):
         # Toolbar trigger. Drives device activation; the resulting
@@ -1177,34 +1186,39 @@ class MainWindow(QMainWindow):
         self._uploader = None
 
     def _on_build_finished(self, exit_code: int):
-        """Build/synth completed (or was stopped) — restore the buttons."""
+        """C build completed (or was stopped) — restore the Build button."""
         log.debug('Build finished: exit_code=%d', exit_code)
-        self._end_build_op()
+        self._end_build_op('build')
+
+    def _on_synth_finished(self, exit_code: int):
+        """Synthesis completed (or was stopped) — restore the Synth button."""
+        log.debug('Synth finished: exit_code=%d', exit_code)
+        self._end_build_op('synth')
 
     # ── Build/synth run-state (Build & Synth double as Stop while running) ──
+    # Build drives _build_out, Synth drives _synth_out — independent, so each
+    # toggles only its own button and the sibling that shares its process
+    # (software Clean shares _build_out; hardware Clean writes the synth tree).
 
     def _begin_build_op(self, op: str):
-        """Flip the Build or Synth button into a Stop control and lock out the
-        sibling operations that share the build-output process."""
-        self._build_op = op
-        self._build_btn.setText('Stop' if op == 'build' else 'Build')
-        self._synth_btn.setText('Stop' if op == 'synth' else 'Synth')
-        # Only the active operation's button stays live (as Stop); the others
-        # that drive _build_out are disabled until it finishes.
-        self._synth_btn.setEnabled(op == 'synth')
-        self._build_btn.setEnabled(op == 'build')
-        self._clean_btn.setEnabled(False)
-        self._fw_clean_btn.setEnabled(False)
+        if op == 'build':
+            self._build_running = True
+            self._build_btn.setText('Stop')
+            self._clean_btn.setEnabled(False)
+        else:
+            self._synth_running = True
+            self._synth_btn.setText('Stop')
+            self._fw_clean_btn.setEnabled(False)
 
-    def _end_build_op(self):
-        """Restore the Build/Synth buttons after an operation ends."""
-        self._build_op = None
-        self._build_btn.setText('Build')
-        self._synth_btn.setText('Synth')
-        self._build_btn.setEnabled(True)
-        self._synth_btn.setEnabled(True)
-        self._clean_btn.setEnabled(True)
-        self._fw_clean_btn.setEnabled(True)
+    def _end_build_op(self, op: str):
+        if op == 'build':
+            self._build_running = False
+            self._build_btn.setText('Build')
+            self._clean_btn.setEnabled(True)
+        else:
+            self._synth_running = False
+            self._synth_btn.setText('Synth')
+            self._fw_clean_btn.setEnabled(True)
 
     def _run_program(self):
         editor = self._cur()
@@ -1286,10 +1300,27 @@ class MainWindow(QMainWindow):
         """Directory holding the firmware synthesis flow (build.tcl + image)."""
         return self._workspace_root / 'hardware' / '.build'
 
+    @staticmethod
+    def _gowin_env(gowin_root: Path) -> dict:
+        """Environment overrides the Gowin CLI tools (gw_sh / programmer_cli)
+        need — mirrors the shell exports:
+            export LD_LIBRARY_PATH=<gowin>/IDE/lib
+            export PATH=$PATH:<gowin>/Programmer/bin/
+            export LD_PRELOAD=<libfreetype>:<libz>
+        Applied on top of the inherited environment."""
+        env = {
+            'PATH': os.environ.get('PATH', '') + os.pathsep
+                    + str(gowin_root / 'Programmer' / 'bin'),
+        }
+        if not sys.platform.startswith('win'):
+            env['LD_LIBRARY_PATH'] = str(gowin_root / 'IDE' / 'lib')
+            env['LD_PRELOAD'] = ':'.join(SettingsDialog.gowin_preload_libs())
+        return env
+
     def _synth(self):
         # While a synthesis is running the button reads 'Stop' — click = kill.
-        if self._build_op == 'synth':
-            self._build_out.stop()
+        if self._synth_running:
+            self._synth_out.stop()
             return
         if self._workspace_root is None:
             QMessageBox.warning(self, 'No Workspace',
@@ -1321,27 +1352,16 @@ class MainWindow(QMainWindow):
         if editor and editor.file_path and editor.document().isModified():
             editor.save()
 
-        # Replicate the shell exports the Gowin CLI flow needs:
-        #   export LD_LIBRARY_PATH=<gowin>/IDE/lib
-        #   export PATH=$PATH:<gowin>/Programmer/bin/
-        #   export LD_PRELOAD=/lib/x86_64-linux-gnu/libfreetype.so:.../libz.so.1
-        # Passed as env overrides on top of the inherited environment.
-        env = {
-            'PATH': os.environ.get('PATH', '') + os.pathsep
-                    + str(gowin_root / 'Programmer' / 'bin'),
-        }
-        if not is_win:
-            env['LD_LIBRARY_PATH'] = str(gowin_root / 'IDE' / 'lib')
-            env['LD_PRELOAD'] = ':'.join(SettingsDialog.gowin_preload_libs())
+        env = self._gowin_env(gowin_root)
 
         # gw_sh resolves build.tcl's relative paths (`-dir .`, add_file "...")
         # from its working directory, so run it inside the synth directory.
         # The workspace root is passed as the script's first argument
         # (available in build.tcl as `[lindex $argv 0]`).
-        self._build_out.clear()
-        self._bottom.setCurrentWidget(self._build_out)
+        self._synth_out.clear()
+        self._bottom.setCurrentWidget(self._synth_out)
         self._begin_build_op('synth')
-        self._build_out.run_command(
+        self._synth_out.run_command(
             str(gw_sh), ['build.tcl', str(self._workspace_root)],
             cwd=str(synth_dir), env=env)
 
@@ -1366,12 +1386,74 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage('Hardware build cleaned.', 3000)
 
     def _fw_flash(self):
-        QMessageBox.information(self, 'Flash Firmware',
-            'Firmware flashing is not wired up yet.')
+        """Program the synthesised bitstream onto the FPGA via the Gowin
+        `programmer_cli`."""
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to program the device.')
+            return
+        gowin = SettingsDialog.gowin_path()
+        if not gowin:
+            QMessageBox.warning(self, 'Gowin IDE Not Configured',
+                'Set the Gowin IDE path in Settings → Hardware before '
+                'programming the device.')
+            return
+        gowin_root = Path(gowin)
+        is_win = sys.platform.startswith('win')
+        prog = gowin_root / 'Programmer' / 'bin' / (
+            'programmer_cli.exe' if is_win else 'programmer_cli')
+        if not prog.is_file():
+            QMessageBox.warning(self, 'programmer_cli Not Found',
+                f'programmer_cli was not found under the configured Gowin IDE '
+                f'path:\n{prog}\n\nCheck the path in Settings → Hardware.')
+            return
+        # The synthesis run writes the bitstream to the Gowin project's
+        # impl/pnr directory.
+        bitstream = self._synth_dir() / 'emblua' / 'impl' / 'pnr' / 'emblua.fs'
+        if not bitstream.is_file():
+            QMessageBox.warning(self, 'No Bitstream',
+                f'Bitstream not found:\n{bitstream}\n\nRun Synth first.')
+            return
+        self._program_out.clear()
+        self._bottom.setCurrentWidget(self._program_out)
+
+        def _run_programmer(*_):
+            self._program_out.run_command(
+                str(prog),
+                ['--device', 'GW1NR-9C', '--operation_index', '2',
+                 '-f', str(bitstream)],
+                cwd=str(self._synth_dir()),
+                env=self._gowin_env(gowin_root),
+                clear=False)
+
+        # On Linux the FTDI kernel driver must be released first (it otherwise
+        # holds the USB device, blocking JTAG). Run the configurable
+        # pre-program command, then chain the programmer when it finishes.
+        pre = '' if is_win else SettingsDialog.preprogram_command().strip()
+        if pre:
+            import shlex
+            try:
+                parts = shlex.split(pre)
+            except ValueError as exc:
+                QMessageBox.warning(self, 'Invalid Pre-program Command',
+                    f'Could not parse the pre-program command:\n{pre}\n\n{exc}')
+                return
+
+            def _after_pre(_code):
+                # One-shot: detach, then program regardless of the unload's
+                # exit code (e.g. "module not loaded" is harmless).
+                self._program_out.build_finished.disconnect(_after_pre)
+                _run_programmer()
+
+            self._program_out.build_finished.connect(_after_pre)
+            self._program_out.run_command(
+                parts[0], parts[1:], cwd=str(self._synth_dir()), clear=False)
+        else:
+            _run_programmer()
 
     def _build(self):
         # While a build is running the button reads 'Stop' — click = kill.
-        if self._build_op == 'build':
+        if self._build_running:
             self._build_out.stop()
             return
         if self._workspace_root is None:
@@ -1649,6 +1731,8 @@ class MainWindow(QMainWindow):
         self._terminal.apply_theme()
         self._upload_out.apply_theme()
         self._build_out.apply_theme()
+        self._synth_out.apply_theme()
+        self._program_out.apply_theme()
         self._docs.apply_theme()
         self._cmd_mode.apply_theme()
         for editor in self._all_editors():
