@@ -1,27 +1,4 @@
-// -------------------------------------------------------------------------
-// COPYRIGHT © 2024, BRISBANE SILICON, PTY LTD.
-//
-// THE SOURCE CODE CONTAINED HEREIN IS PROVIDED ON AN "AS IS" BASIS.
-// BRISBANE SILICON, PTY LTD. DISCLAIMS ANY AND ALL WARRANTIES,
-// WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING ANY IMPLIED
-// WARRANTIES OF MERCHANTABILITY OR OF FITNESS FOR A PARTICULAR PURPOSE.
-// IN NO EVENT SHALL BRISBANE SILICON, PTY LTD. BE LIABLE FOR ANY
-// INCIDENTAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES OF ANY KIND WHATSOEVER
-// ARISING FROM THE USE OF THIS SOURCE CODE.
-//
-// THIS DISCLAIMER OF WARRANTY EXTENDS TO THE USER OF THIS SOURCE CODE
-// AND USER'S CUSTOMERS, EMPLOYEES, AGENTS, TRANSFEREES, SUCCESSORS,
-// AND ASSIGNS.
-//
-// THIS IS NOT A GRANT OF PATENT RIGHTS
-//
-// -------------------------------------------------------------------------
-// DESCRIPTION : TODO
-//
-// -------------------------------------------------------------------------
-// USE CASE(S) : TODO
-//
-// -------------------------------------------------------------------------
+
 
 module user
 (
