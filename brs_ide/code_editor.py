@@ -10,7 +10,10 @@ from PyQt6.QtGui import (
 )
 from pathlib import Path
 
-from .highlighter import LuaHighlighter, CHighlighter, MakefileHighlighter
+from .highlighter import (
+    LuaHighlighter, CHighlighter, MakefileHighlighter,
+    SystemVerilogHighlighter, VHDLHighlighter,
+)
 from .settings import SettingsDialog
 from . import theme
 
@@ -269,6 +272,10 @@ class CodeEditor(QPlainTextEdit):
         name = path.name
         if suffix in ('.c', '.h'):
             self._highlighter = CHighlighter(self.document())
+        elif suffix in ('.sv', '.svh'):
+            self._highlighter = SystemVerilogHighlighter(self.document())
+        elif suffix in ('.vhd', '.vhdl'):
+            self._highlighter = VHDLHighlighter(self.document())
         elif name == 'Makefile' or suffix in ('.mk',):
             self._highlighter = MakefileHighlighter(self.document())
         else:
