@@ -157,6 +157,12 @@ class SettingsDialog(QDialog):
         return int(QSettings().value('serial/baud', 115200))
 
     @staticmethod
+    def show_hidden_files() -> bool:
+        """Whether the project tree should show dot-prefixed (hidden) files
+        and directories, e.g. the generated `.build/` tree. Defaults off."""
+        return QSettings().value('tree/show_hidden', False, type=bool)
+
+    @staticmethod
     def compiler_path() -> str:
         return QSettings().value('c/compiler_path', '')
 

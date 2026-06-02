@@ -231,6 +231,7 @@ class MainWindow(QMainWindow):
 
         # Left: project tree
         self._tree = ProjectTree()
+        self._tree.set_show_hidden(SettingsDialog.show_hidden_files())
         self._tree.file_activated.connect(self._open_path)
         self._tree.workspace_loaded.connect(self._load_workspace)
         self._tree.new_file_requested.connect(self._new_file)
@@ -354,6 +355,12 @@ class MainWindow(QMainWindow):
         """View-menu toggle: split the editor into two panes, or close the
         right-hand pane (its tabs move back into the left pane)."""
         self._set_pane_count(2 if checked else 1)
+
+    def _toggle_hidden_files(self, checked: bool):
+        """View-menu toggle: show/hide dot-prefixed files (e.g. `.build/`)
+        in the project tree. The choice is persisted across sessions."""
+        self._tree.set_show_hidden(checked)
+        QSettings().setValue('tree/show_hidden', checked)
 
     def _all_editors(self):
         """Yield every CodeEditor across all panes."""
@@ -604,6 +611,12 @@ class MainWindow(QMainWindow):
         self._split_toggle.setShortcut(QKeySequence('F2'))
         self._split_toggle.toggled.connect(self._toggle_split_editor)
         vm.addAction(self._split_toggle)
+        vm.addSeparator()
+        self._hidden_toggle = QAction('Show &Hidden Files', self)
+        self._hidden_toggle.setCheckable(True)
+        self._hidden_toggle.setChecked(SettingsDialog.show_hidden_files())
+        self._hidden_toggle.toggled.connect(self._toggle_hidden_files)
+        vm.addAction(self._hidden_toggle)
 
         # Tools
         tm = mb.addMenu('&Tools')
@@ -848,8 +861,12 @@ class MainWindow(QMainWindow):
             pane, i = found
             name = editor.file_path.name if editor.file_path else 'untitled'
             dot   = ' ●' if editor.document().isModified() else ''
-            stale = '' if self._is_build_artifact(editor.file_path) \
-                else (' ↑' if editor.is_stale else '')
+            # The upload (↑) marker only ever applies to Lua scripts.
+            is_lua = bool(editor.file_path) \
+                and editor.file_path.suffix.lower() == '.lua'
+            stale = ' ↑' if (is_lua and editor.is_stale
+                             and not self._is_build_artifact(editor.file_path)) \
+                else ''
             pane.setTabText(i, name + dot + stale)
         if editor.file_path:
             self._tree.refresh_decoration(editor.file_path)
@@ -874,7 +891,10 @@ class MainWindow(QMainWindow):
         """Return (dirty, stale) for the given path, used to decorate the tree."""
         editor = self._editor_for(path)
         if editor:
-            stale = False if self._is_build_artifact(path) else editor.is_stale
+            # The upload (↑) marker only ever applies to Lua scripts.
+            is_lua = path.suffix.lower() == '.lua'
+            stale = (editor.is_stale and is_lua
+                     and not self._is_build_artifact(path))
             return (editor.document().isModified(), stale)
         if path.suffix.lower() != '.lua' or self._is_build_artifact(path):
             return (False, False)
@@ -1662,6 +1682,12 @@ class MainWindow(QMainWindow):
                                 else src.name)
                         dst = fw_root / '.build' / name
                     plan.append((src, dst))
+
+            # Starter Lua application script, deployed to `<workspace>/app/`
+            # (a sibling of `emblua/`, not nested under it).
+            script_src = _ide_data_dir(f'elm11/{lang}/build/script/user.lua')
+            if script_src.is_file():
+                plan.append((script_src, workspace / 'app' / 'user.lua'))
 
         import re
         for src, dst in plan:

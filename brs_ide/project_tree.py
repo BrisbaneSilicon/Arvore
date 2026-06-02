@@ -78,9 +78,8 @@ class ProjectTree(QTreeView):
         super().__init__(parent)
 
         self._model = QFileSystemModel()
-        self._model.setFilter(
-            QDir.Filter.NoDotAndDotDot | QDir.Filter.Files | QDir.Filter.Dirs
-        )
+        self._show_hidden = False
+        self._apply_model_filter()
         # Read-write so QFileSystemModel.dropMimeData can perform real
         # filesystem moves; inline rename-by-editing is suppressed below
         # via setEditTriggers so the user still goes through our own dialog.
@@ -120,6 +119,24 @@ class ProjectTree(QTreeView):
         self.apply_theme()
 
     # ── Public API ────────────────────────────────────────────────────────
+
+    def _apply_model_filter(self):
+        """(Re)build the QFileSystemModel filter from `self._show_hidden`.
+        `.`/`..` are always excluded; hidden (dot-prefixed) entries are shown
+        only when the user opts in."""
+        flt = (QDir.Filter.NoDotAndDotDot | QDir.Filter.Files
+               | QDir.Filter.Dirs)
+        if self._show_hidden:
+            flt |= QDir.Filter.Hidden
+        self._model.setFilter(flt)
+
+    def set_show_hidden(self, show: bool):
+        """Show or hide dot-prefixed files/dirs (e.g. the `.build/` tree)."""
+        show = bool(show)
+        if show == self._show_hidden:
+            return
+        self._show_hidden = show
+        self._apply_model_filter()
 
     def apply_theme(self):
         self.setStyleSheet(theme.tree_stylesheet(theme.current()))

@@ -31,6 +31,8 @@ module user
 
     assign m_iobus_wrdata   = s_wrdata;
     assign s_rddata         = 32'h8badf00d;
+        // NOTE: this register read and
+        // printed by the example script
 
     assign m_iobus_tuser    = 0;
         // TODO: pin direction

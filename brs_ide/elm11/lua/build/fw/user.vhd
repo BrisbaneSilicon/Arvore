@@ -37,5 +37,7 @@ begin
 
     m_iobus_wrdata  <= s_wrdata(15 downto 0);
     s_rddata        <= x"8badf00d";
+        -- NOTE: this register read and
+        -- printed by the example script
 
 end architecture rtl;
