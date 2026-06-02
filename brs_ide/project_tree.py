@@ -349,7 +349,9 @@ class ProjectTree(QTreeView):
         menu.exec(self.viewport().mapToGlobal(pos))
 
     def _set_workspace(self, path: Path):
-        self.set_root(path)
+        # Don't switch the tree root yet — the handler prompts the user for
+        # workspace config first and may cancel. It owns set_root() once the
+        # workspace is actually committed.
         self.workspace_loaded.emit(path)
 
     def _create_subfolder(self, parent: Path):

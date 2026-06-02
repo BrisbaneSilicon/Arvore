@@ -1469,15 +1469,34 @@ class MainWindow(QMainWindow):
     def _load_workspace(self, path: Path):
         """Switch the tree root to path and persist it in the workspace history."""
         log.debug('Load workspace: %s', path)
-        # Persist the outgoing workspace's open files before we swap roots.
-        self._save_workspace_tabs()
-        self._workspace_root = path
-
         s = QSettings()
         mode_key = f'workspaces/mode/{path}'
         target_key = f'workspaces/target/{path}'
         saved_mode = s.value(mode_key, None)
         is_new_workspace = saved_mode is None
+
+        # For a brand-new workspace, gather its config up front. If the user
+        # cancels the dialog, create nothing: don't swap roots, touch history,
+        # or deploy templates — leave the current workspace untouched.
+        hdl = 'SystemVerilog'
+        if is_new_workspace:
+            cfg = self._prompt_new_workspace_config(path.name)
+            if cfg is None:
+                return
+            target, mode, hdl = cfg
+            saved_mode = mode
+        else:
+            target = s.value(target_key, 'ELM11')
+
+        # ── Commit: from here on the workspace is actually created/opened ──
+        # Persist the outgoing workspace's open files before we swap roots.
+        self._save_workspace_tabs()
+        self._workspace_root = path
+
+        if is_new_workspace:
+            s.setValue(mode_key, mode)
+            s.setValue(target_key, target)
+            s.setValue(f'workspaces/hdl/{path}', hdl)
 
         # Opening a workspace (new or existing) shows the root expanded with
         # all nested folders collapsed — no full auto-expand cascade.
@@ -1494,16 +1513,6 @@ class MainWindow(QMainWindow):
         history = history[:10]          # keep the 10 most recent
         s.setValue('workspaces/history', history)
 
-        # Restore or choose mode + target board for this workspace
-        hdl = 'SystemVerilog'
-        if is_new_workspace:
-            target, mode, hdl = self._prompt_new_workspace_config(path.name)
-            s.setValue(mode_key, mode)
-            s.setValue(target_key, target)
-            s.setValue(f'workspaces/hdl/{path}', hdl)
-            saved_mode = mode
-        else:
-            target = s.value(target_key, 'ELM11')
         self._set_target(target)
         self._set_mode(saved_mode)
 
@@ -1516,11 +1525,11 @@ class MainWindow(QMainWindow):
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
 
-    def _prompt_new_workspace_config(self, name: str) -> tuple[str, str, str]:
+    def _prompt_new_workspace_config(self, name: str):
         """Ask the user to pick a Target Board, Language Mode and Default HDL
         for a freshly-opened workspace. Returns `(target_board, mode, hdl)`,
-        where `hdl` is 'SystemVerilog' or 'VHDL'. Cancelling the dialog falls
-        back to the safe defaults (`ELM11`, `Lua`, `SystemVerilog`)."""
+        where `hdl` is 'SystemVerilog' or 'VHDL', or `None` if the user
+        cancels (in which case the workspace should not be created)."""
         from PyQt6.QtWidgets import (
             QDialog, QVBoxLayout, QFormLayout, QComboBox,
             QDialogButtonBox, QLabel,
@@ -1554,7 +1563,7 @@ class MainWindow(QMainWindow):
         root.addWidget(btns)
 
         if dlg.exec() != QDialog.DialogCode.Accepted:
-            return ('ELM11', 'Lua', 'SystemVerilog')
+            return None
         return (target_combo.currentText(), mode_combo.currentText(),
                 hdl_combo.currentText())
 
