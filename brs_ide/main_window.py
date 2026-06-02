@@ -1589,6 +1589,12 @@ class MainWindow(QMainWindow):
 
         def _target_for(src: Path) -> Path:
             """Where does a build-template file go? Rooted on `dest_root`."""
+            if src.name == 'main.c':
+                # Entry point lives alongside the Makefile in build/make/.
+                return dest_root / 'build' / 'make' / src.name
+            if src.name == 'user.c':
+                # User application source lives in its own `app/` subdir.
+                return dest_root / 'app' / src.name
             if src.suffix == '.c':
                 return dest_root / src.name
             if src.suffix == '.py':
@@ -1611,21 +1617,26 @@ class MainWindow(QMainWindow):
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, dest_root / 'build' / 'runtime' / src.name))
         # Firmware image (Lua only) — deployed into the sibling
-        # `emblua/firmware/build/` directory created above. The active timing
-        # constraint (bundled per-frequency, e.g. `timing_70mhz.sdc`) is
-        # renamed to a fixed `timing.sdc` so downstream tooling can reference
-        # it by a stable name.
+        # `emblua/firmware/` directory created above. Generated artefacts go
+        # under `build/`; user-editable HDL sources (`user.sv`, `user.vhd`)
+        # go in their own `app/` subdir. The active timing constraint (bundled
+        # per-frequency, e.g. `timing_70mhz.sdc`) is renamed to a fixed
+        # `timing.sdc` so downstream tooling can reference it by a stable name.
         if lang == 'lua':
-            fw_build = emb_root / 'firmware' / 'build'
+            fw_root = emb_root / 'firmware'
             fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
             if fw_src.is_dir():
                 for src in fw_src.iterdir():
                     if src.is_file() and not src.name.startswith('.'):
-                        name = ('timing.sdc'
-                                if src.name.startswith('timing')
-                                and src.suffix == '.sdc'
-                                else src.name)
-                        plan.append((src, fw_build / name))
+                        if src.name in ('user.sv', 'user.vhd'):
+                            dst = fw_root / 'app' / src.name
+                        else:
+                            name = ('timing.sdc'
+                                    if src.name.startswith('timing')
+                                    and src.suffix == '.sdc'
+                                    else src.name)
+                            dst = fw_root / 'build' / name
+                        plan.append((src, dst))
 
         import re
         for src, dst in plan:
