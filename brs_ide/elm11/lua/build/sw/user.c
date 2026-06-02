@@ -11,41 +11,22 @@
 #include "lualib.h"
 
 
-// Function prototypes
-
-static int luaU_pin1_4xtoggle (lua_State *L);
-static int luaU_lfsr32_next (lua_State *L);
-static int luaU_even (lua_State *L);
-
-
 // Implementation
 
 
 /* ------------------ Users Lua API ----------------------  */
 
-
     // NOTE: User to add any custom API
     // functions here.
 
 
-
-static const luaL_Reg user_funcs_dynamic[] = {
-    // NOTE: ensure you add any new custom API
-    // functions to this array in order to ensure
-    // they can be imported from the Lua Interpreter.
-
-    // NOTE: the below function Names, Pointers
-    // are from the examples below.
-
-    {"pin1_4xtoggle", luaU_pin1_4xtoggle},
-    {"lfsr32_next", luaU_lfsr32_next},
-    {"even", luaU_even},
-
-    {NULL, NULL}
-};
+    // NOTE: Ensure that all API funcitons are
+    // included in the 'User API Registry' below,
+    // in order for them to be callable from the
+    // Lua appliction layer.
 
 
-/* --------------- Example Users Lua API -------------------  */
+/* ------------------- Example Lua API --------------------  */
 
 /*
 ** Toggle PIN1 four times as quickly as possible.
@@ -122,7 +103,6 @@ static int luaU_lfsr32_next (lua_State *L) {
         // the Lua stack.
 }
 
-
 /*
 ** Calculate if the first arg is even. Takes
 ** two possible responses as second and third
@@ -162,10 +142,29 @@ static int luaU_even (lua_State *L) {
 }
 
 
+/* ------------------ User API Registry ----------------------------  */
+
+static const luaL_Reg user_api_registry[] = {
+    // NOTE: ensure you add any new custom API
+    // functions to this array in order to ensure
+    // they can be imported from the Lua Interpreter.
+
+    // NOTE: the { "Function Name", Function Pointer } entries
+    // below are the 'Example Lua API' functions that are
+    // defined previously.
+
+    {"pin1_4xtoggle", luaU_pin1_4xtoggle},
+    {"lfsr32_next", luaU_lfsr32_next},
+    {"even", luaU_even},
+
+    {NULL, NULL}
+};
+
+
 /* ------------------ Boilerplate Library Code ----------------------  */
 
-    // NOTE: you shouldn't need to touch
-    // any of this...
+// NOTE: users shouldn't need to
+// touch any of this...
 
 
 static const luaL_Reg userlib_default[] = {
@@ -185,13 +184,13 @@ LUAMOD_API int luaimportfunc_user (lua_State *L, const char *fname) {
 
     i = 0;
     while(1) {
-        if (!user_funcs_dynamic[i].name) {
+        if (!user_api_registry[i].name) {
             return 1;
         }
 
-        if (strcmp(fname, user_funcs_dynamic[i].name) == 0) {
+        if (strcmp(fname, user_api_registry[i].name) == 0) {
             lua_getglobal(L, LUA_USERLIBNAME);
-            luaL_setfunc(L, &user_funcs_dynamic[i], 0);
+            luaL_setfunc(L, &user_api_registry[i], 0);
 
             break;
         }
