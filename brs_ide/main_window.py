@@ -1168,18 +1168,18 @@ class MainWindow(QMainWindow):
     def _build_make_dir(self) -> Path:
         """Directory holding the workspace's Makefile. C workspaces deploy it
         to `<ws>/build/make`; Lua workspaces nest the C build system under
-        `<ws>/embLua/software/build/make`."""
+        `<ws>/emblua/software/build/make`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / 'build' / 'make'
-        return self._workspace_root / 'embLua' / 'software' / 'build' / 'make'
+        return self._workspace_root / 'emblua' / 'software' / 'build' / 'make'
 
     def _build_out_dir(self) -> Path:
         """Directory holding the build's memory image (`<proj>.v`). C
         workspaces emit it to `<ws>/build/out`; Lua workspaces nest the C
-        build system under `<ws>/embLua/software/build/out`."""
+        build system under `<ws>/emblua/software/build/out`."""
         if self._workspace_mode == 'C':
             return self._workspace_root / 'build' / 'out'
-        return self._workspace_root / 'embLua' / 'software' / 'build' / 'out'
+        return self._workspace_root / 'emblua' / 'software' / 'build' / 'out'
 
     def _build(self):
         if self._workspace_root is None:
@@ -1562,20 +1562,20 @@ class MainWindow(QMainWindow):
           * `<dest>/build/header/`     — bundled C headers
           * `<dest>/build/utilities/`  — helper Python scripts
 
-        where `<dest>` is the workspace root for C, or `<workspace>/embLua/
+        where `<dest>` is the workspace root for C, or `<workspace>/emblua/
         software/` for Lua. Lua workspaces also get an empty sibling
-        `<workspace>/embLua/firmware/` directory for the firmware image.
+        `<workspace>/emblua/firmware/` directory for the firmware image.
 
         Existing files at the destinations are overwritten so the
         deployed templates always reflect the IDE's current bundle."""
         import shutil
 
         # Lua workspaces nest every deployed artefact under
-        # `embLua/software/`, alongside a sibling `embLua/firmware/` directory
+        # `emblua/software/`, alongside a sibling `emblua/firmware/` directory
         # (left empty here for the user's firmware image); C workspaces deploy
         # straight into the workspace root.
         if lang == 'lua':
-            emb_root = workspace / 'embLua'
+            emb_root = workspace / 'emblua'
             dest_root = emb_root / 'software'
             try:
                 (emb_root / 'firmware').mkdir(parents=True, exist_ok=True)
