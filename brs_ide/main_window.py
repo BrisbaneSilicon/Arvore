@@ -1610,15 +1610,22 @@ class MainWindow(QMainWindow):
             for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, dest_root / 'build' / 'runtime' / src.name))
-        # Firmware image (Lua only) — deployed verbatim into the sibling
-        # `emblua/firmware/build/` directory created above.
+        # Firmware image (Lua only) — deployed into the sibling
+        # `emblua/firmware/build/` directory created above. The active timing
+        # constraint (bundled per-frequency, e.g. `timing_70mhz.sdc`) is
+        # renamed to a fixed `timing.sdc` so downstream tooling can reference
+        # it by a stable name.
         if lang == 'lua':
+            fw_build = emb_root / 'firmware' / 'build'
             fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
             if fw_src.is_dir():
                 for src in fw_src.iterdir():
                     if src.is_file() and not src.name.startswith('.'):
-                        plan.append(
-                            (src, emb_root / 'firmware' / 'build' / src.name))
+                        name = ('timing.sdc'
+                                if src.name.startswith('timing')
+                                and src.suffix == '.sdc'
+                                else src.name)
+                        plan.append((src, fw_build / name))
 
         import re
         for src, dst in plan:
