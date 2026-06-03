@@ -104,11 +104,11 @@ print("\nPerforming hardware ID check")
 id = hw_read(0)
 print(string.format("Hardware ID=0x%.8x", id))
 if id == 0xdeadbeef then
-    print("Using 'user.sv'")
+    print("Workspace default HDL is 'SystemVerilog'")
 elseif id == 0x8badf00d then
-    print("Using 'user.vhd'")
+    print("Workspace default HDL is 'VHDL'")
 else
-    print("Using unknown?")
+    print("Workspace default unknown - you've modified 'user.sv/vhd'...")
 end
 msleep(500)
 
