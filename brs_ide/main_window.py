@@ -9,9 +9,11 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMessageBox, QComboBox, QPushButton, QLabel,
     QWidget, QSizePolicy, QMenu, QStackedWidget,
     QMenuBar, QVBoxLayout, QHBoxLayout,
+    QStyledItemDelegate, QStyle, QStyleOptionViewItem,
+    QStylePainter, QStyleOptionComboBox,
 )
 from PyQt6.QtCore import Qt, QSettings, QSize, QTimer, QEvent
-from PyQt6.QtGui import QAction, QKeySequence, QCursor
+from PyQt6.QtGui import QAction, QKeySequence, QCursor, QColor
 from PyQt6.QtWidgets import QToolTip
 import serial.tools.list_ports
 from pathlib import Path
@@ -34,6 +36,74 @@ def _ide_data_dir(name: str) -> Path:
     if hasattr(sys, '_MEIPASS'):
         return Path(sys._MEIPASS) / 'brs_ide' / name
     return Path(__file__).resolve().parent / name
+
+
+# Always-present action item in the Port dropdown. Selecting it re-attaches
+# the FTDI kernel driver (released before programming the FPGA over JTAG) so
+# the serial port reappears, rather than choosing a port to connect to.
+_RELOAD_FTDI_ITEM = 'Reload FTDI Driver'
+_RELOAD_FTDI_CMD = 'pkexec modprobe ftdi_sio'
+
+
+class _PortItemDelegate(QStyledItemDelegate):
+    """Paints combo items honouring their `ForegroundRole` colour. A plain
+    `setItemData(... ForegroundRole)` is ignored once a stylesheet sets a
+    `color` on the view (Qt's stylesheet style wins), so we draw the text
+    ourselves to grey out the `Reload FTDI Driver` action item."""
+
+    def paint(self, painter, option, index):
+        color = index.data(Qt.ItemDataRole.ForegroundRole)
+        if color is None:
+            super().paint(painter, option, index)
+            return
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        widget = opt.widget
+        style = widget.style() if widget else QApplication.style()
+        # Paint everything ourselves — handing the item to the stylesheet
+        # style would re-draw the text in the QSS `color`, overriding ours.
+        painter.save()
+        if opt.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(opt.rect, QColor(theme.current()['selection']))
+        rect = style.subElementRect(
+            QStyle.SubElement.SE_ItemViewItemText, opt, widget)
+        painter.setPen(QColor(color))
+        painter.drawText(
+            rect,
+            int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
+            opt.text)
+        painter.restore()
+
+
+class _PortComboBox(QComboBox):
+    """Combo whose *closed* display honours the current item's
+    `ForegroundRole` colour. The item delegate only colours the popup list;
+    when the greyed `Reload FTDI Driver` item is the current one (e.g. no real
+    ports), the box itself is painted by the combo, so we recolour it here."""
+
+    def paintEvent(self, event):
+        painter = QStylePainter(self)
+        opt = QStyleOptionComboBox()
+        self.initStyleOption(opt)
+        color = self.itemData(self.currentIndex(), Qt.ItemDataRole.ForegroundRole)
+        if color is None:
+            painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt)
+            painter.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, opt)
+            return
+        # Draw frame + arrow with no label, then the label in the item colour.
+        label = opt.currentText
+        opt.currentText = ''
+        painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt)
+        rect = self.style().subControlRect(
+            QStyle.ComplexControl.CC_ComboBox, opt,
+            QStyle.SubControl.SC_ComboBoxEditField, self)
+        painter.save()
+        painter.setPen(QColor(color))
+        painter.drawText(
+            rect.adjusted(2, 0, 0, 0),
+            int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
+            label)
+        painter.restore()
 
 
 def _c_runtime_objects() -> list[str]:
@@ -476,7 +546,9 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
 
         tb.addWidget(QLabel(' Port: '))
-        self._port_combo = QComboBox()
+        self._port_combo = _PortComboBox()
+        self._port_combo.setItemDelegate(_PortItemDelegate(self._port_combo))
+        self._port_combo.activated.connect(self._on_port_activated)
         tb.addWidget(self._port_combo)
 
         self._connect_btn = QPushButton('Connect')
@@ -716,16 +788,54 @@ class MainWindow(QMainWindow):
 
     def _refresh_ports(self):
         current = self._port_combo.currentText()
-        if not current:
+        if not current or current == _RELOAD_FTDI_ITEM:
             current = QSettings().value('serial/last_port', '')
         ports = [p.device for p in serial.tools.list_ports.comports()
                  if _port_is_acceptable(p.device)]
         self._port_combo.blockSignals(True)
         self._port_combo.clear()
         self._port_combo.addItems(ports)
+        # Keep the FTDI-reload action permanently at the bottom of the list,
+        # set off by a separator when there are real ports above it.
+        if ports:
+            self._port_combo.insertSeparator(self._port_combo.count())
+        self._port_combo.addItem(_RELOAD_FTDI_ITEM)
+        # Grey the action item so it reads as a command, not a real port.
+        self._port_combo.setItemData(
+            self._port_combo.count() - 1,
+            QColor(0x88, 0x88, 0x88), Qt.ItemDataRole.ForegroundRole)
         if current in ports:
             self._port_combo.setCurrentText(current)
         self._port_combo.blockSignals(False)
+
+    def _on_port_activated(self, index: int):
+        """Handle the user picking an item from the Port dropdown. Real ports
+        are just selections; the FTDI-reload sentinel triggers an action."""
+        if self._port_combo.itemText(index) != _RELOAD_FTDI_ITEM:
+            return
+        self._reload_ftdi_driver()
+
+    def _reload_ftdi_driver(self):
+        """Re-attach the FTDI kernel driver so the released serial port
+        reappears. Runs `pkexec modprobe ftdi_sio` on Linux; no-op elsewhere.
+        Streams into the Program Output panel and refreshes the port list once
+        the driver is back."""
+        if sys.platform.startswith('win'):
+            self._refresh_ports()
+            return
+        import shlex
+        parts = shlex.split(_RELOAD_FTDI_CMD)
+        self._bottom.setCurrentWidget(self._program_out)
+
+        def _after(_code):
+            self._program_out.build_finished.disconnect(_after)
+            self._refresh_ports()
+
+        self._program_out.build_finished.connect(_after)
+        self._program_out.run_command(parts[0], parts[1:])
+        # Drop the sentinel selection immediately so the combo doesn't sit on
+        # the action item while the driver reloads.
+        self._refresh_ports()
 
     @property
     def workspace_mode(self) -> str:
@@ -1013,8 +1123,12 @@ class MainWindow(QMainWindow):
         log.debug('Toggle connect: checked=%s', checked)
 
         if checked:
-            # Connect path requires a port to be selected.
+            # Connect path requires a port to be selected. The FTDI-reload
+            # action item isn't a port — ignore a Connect click on it.
             port = self._port_combo.currentText()
+            if port == _RELOAD_FTDI_ITEM:
+                self._connect_btn.setChecked(False)
+                return
             if not port:
                 QMessageBox.warning(self, 'No Port', 'No serial port selected.')
                 self._connect_btn.setChecked(False)
