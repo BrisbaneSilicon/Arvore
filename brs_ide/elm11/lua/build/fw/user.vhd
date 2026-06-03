@@ -11,7 +11,7 @@ entity user is
         s_ready         : out std_logic;
         s_wrdata        : in  std_logic_vector(31 downto 0);
         s_rddata        : out std_logic_vector(31 downto 0);
-        s_addr          : in  std_logic_vector(31 downto 0);
+        s_addr          : in  std_logic_vector(23 downto 0);
         s_wstrb         : in  std_logic_vector(3 downto 0);
             -- NOTE: upstream interface,
             -- i.e. to/from Lua API

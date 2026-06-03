@@ -361,10 +361,10 @@ typedef struct luaL_Stream {
 #define DLIB_REPL_INTERRUPT_MODE_ENABLE       "repl_interrupt_mode_enable"
 #define DLIB_REPL_INTERRUPT_MODE_DISABLE      "repl_interrupt_mode_disable"
 #define DLIB_RUN_PROGRAM                      "run_program"
-#define DLIB_FPGA_WRITE                       "fpga_write"
-#define DLIB_FPGA_WRITE_NONBLOCKING           "fpga_write_nonblocking"
-#define DLIB_FPGA_READ                        "fpga_read"
-#define DLIB_FPGA_READ_NONBLOCKING            "fpga_read_nonblocking"
+#define DLIB_FPGA_WRITE                       "hw_write"
+#define DLIB_FPGA_WRITE_NONBLOCKING           "hw_write_nonblocking"
+#define DLIB_FPGA_READ                        "hw_read"
+#define DLIB_FPGA_READ_NONBLOCKING            "hw_read_nonblocking"
 
 #endif
 

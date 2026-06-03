@@ -29,29 +29,33 @@
 /* ------------------- Example Lua API --------------------  */
 
 /*
-** Toggle PIN1 four times as quickly as possible.
+** Toggle provided PIN as quickly as possible.
 **
-** NOTE: assumes PIN1 is already configured as
-** a GPIO_OUT, throws an error otherwise.
+** NOTE: assumes the provided PIN is already
+** configured asa GPIO_OUT, throws an error
+** otherwise.
 **
 ** Returns nothing.
 */
-static int luaU_pin1_4xtoggle (lua_State *L) {
-    const int c_pin1 = 1;
-
+static int luaU_quick_toggle (lua_State *L) {
     e_status ret;
     int i;
 
+    int pin;
+
     int n = lua_gettop(L);
-    if (n != 0) {
-        // NOTE: verify no arguments have
+    if (n != 1) {
+        // NOTE: verify one argument has
         // been passed to the function.
 
         luaL_error(L, "unexpected argument");
     }
 
-    for (i = 0; i < 4; ++i) {
-        ret = set_gpio(c_pin1, e_level_toggle);
+    pin = luaL_checkinteger(L, 1);
+        // NOTE: check first argument is an integer
+
+    for (i = 0; i < 100000; ++i) {
+        ret = set_gpio(pin, e_level_toggle);
             // NOTE: function 'set_gpio' is defined
             // in 'io.h'
 
@@ -89,7 +93,7 @@ static int luaU_lfsr32_next (lua_State *L) {
         // NOTE: check first argument is an integer
 
     c = (char)(lfsr_val >> 23) ^ (char)(lfsr_val >> 21);
-    c ^= (char)(lfsr_val >>  7) ^  (char)lfsr_val;
+    c ^= (char)(lfsr_val >>  7) ^ (char)lfsr_val;
     c &= 1u;
 
     lfsr_result = (lfsr_val << 1) | c;
@@ -97,9 +101,12 @@ static int luaU_lfsr32_next (lua_State *L) {
     lua_pushinteger(L, lfsr_result);
         // NOTE: push 32-bit LFSR result onto
         // the Lua stack.
+    lua_pushinteger(L, lfsr_val);
+        // NOTE: push argument (i.e. previous LFSR
+        // result) onto the Lua stack.
 
-    return 1;
-        // NOTE: one result was pushed onto the
+    return 2;
+        // NOTE: two results were pushed onto the
         // the Lua stack.
 }
 
@@ -113,32 +120,45 @@ static int luaU_lfsr32_next (lua_State *L) {
 **  - Either the first response (if even) or
 **      second (if odd).
 */
-static int luaU_even (lua_State *L) {
-    const char *pass_str;
-    const char *fail_str;
+static int luaU_is_even (lua_State *L) {
     int val;
 
     int n = lua_gettop(L);
-    if (n != 3) {
+    if (n != 1) {
         luaL_error(L, "unexpected argument");
     }
 
     val = luaL_checkinteger(L, 1);
-    pass_str = luaL_checkstring(L, 2);
-    fail_str = luaL_checkstring(L, 3);
-
     if(val & 1) {
-        // NOTE: 'val' is odd
         lua_pushboolean(L, 0);
-        lua_pushstring(L, fail_str);
-
     } else {
-        // NOTE: 'val' is even
         lua_pushboolean(L, 1);
-        lua_pushstring(L, pass_str);
     }
 
-    return 2;
+    return 1;
+}
+
+/*
+** Fetch the next 32-bit LFSR value from
+** hardware.
+**
+** Returns the next 32-bit hardware LFSR
+** value.
+*/
+static int luaU_hw_lfsr32 (lua_State *L) {
+    int n = lua_gettop(L);
+    if (n != 0) {
+        // NOTE: verify one argument has
+        // been passed to the function.
+
+        luaL_error(L, "unexpected argument");
+    }
+
+    lua_pushinteger(L, hw_read(1));
+        // NOTE: push 32-bit LFSR result (read from
+        // address one) onto the Lua stack.
+
+    return 1;
 }
 
 
@@ -153,9 +173,11 @@ static const luaL_Reg user_api_registry[] = {
     // below are the 'Example Lua API' functions that are
     // defined previously.
 
-    {"pin1_4xtoggle", luaU_pin1_4xtoggle},
+    {"quick_toggle", luaU_quick_toggle},
     {"lfsr32_next", luaU_lfsr32_next},
-    {"even", luaU_even},
+    {"is_even", luaU_is_even},
+
+    {"hw_lfsr32", luaU_hw_lfsr32},
 
     {NULL, NULL}
 };

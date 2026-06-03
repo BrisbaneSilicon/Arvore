@@ -1534,7 +1534,7 @@ class MainWindow(QMainWindow):
         def _run_programmer(*_):
             self._program_out.run_command(
                 str(prog),
-                ['--device', 'GW1NR-9C', '--operation_index', '2',
+                ['--device', 'GW1NR-9C', '--operation_index', '5',
                  '-f', str(bitstream)],
                 cwd=str(self._synth_dir()),
                 env=self._gowin_env(gowin_root),
@@ -1672,9 +1672,9 @@ class MainWindow(QMainWindow):
             return
         # Walk the user through putting the board in flash-mode.
         reply = QMessageBox.information(
-            self, 'Prepare ELM11 for Flash',
-            'Unplug-Plug the ELM11 while holding BTN2, ensuring LEDs 1-3 '
-            'remain illuminated after releasing BTN2.',
+            self, 'Prepare device for Flash',
+            'Disconnect the device from your PC, then reconnect it while holding BTN2.'
+            'Ensure LEDs 1-3 remain illuminated after releasing BTN2.',
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Ok)
         if reply != QMessageBox.StandardButton.Ok:
@@ -2027,9 +2027,11 @@ class MainWindow(QMainWindow):
         # hardware root (build.tcl references each at its own location). Only
         # the HDL flavour selected at workspace creation is deployed —
         # SystemVerilog ships `user.sv`, VHDL ships `user.vhd`.
-        # The active timing constraint (bundled per-frequency, e.g.
-        # `timing_70mhz.sdc`) is renamed to a fixed `timing.sdc` so downstream
-        # tooling can reference it by a stable name.
+        # The active timing constraint (bundled per-frequency,
+        # `timing_66mhz.sdc`) is renamed to a fixed `timing.sdc` so downstream
+        # tooling can reference it by a stable name. Other bundled `timing_*.sdc`
+        # variants are skipped.
+        active_timing = 'timing_66mhz.sdc'
         if lang == 'lua':
             # fw_root (workspace/hardware) was set up at the top of this method.
             hdl_file = 'user.vhd' if hdl == 'VHDL' else 'user.sv'
@@ -2044,13 +2046,15 @@ class MainWindow(QMainWindow):
                         if src.name != hdl_file:
                             continue
                         dst = fw_root / src.name
+                    elif src.name.startswith('timing') and src.suffix == '.sdc':
+                        # Deploy only the active frequency's constraints, as a
+                        # stable `timing.sdc`; ignore other timing variants.
+                        if src.name != active_timing:
+                            continue
+                        dst = fw_root / '.build' / 'timing.sdc'
                     else:
-                        # Generated image + constraints live under `.build/`.
-                        name = ('timing.sdc'
-                                if src.name.startswith('timing')
-                                and src.suffix == '.sdc'
-                                else src.name)
-                        dst = fw_root / '.build' / name
+                        # Generated image lives under `.build/`.
+                        dst = fw_root / '.build' / src.name
                     plan.append((src, dst))
 
             # Starter Lua application script, deployed to
