@@ -236,12 +236,23 @@ class HardwareOverlayPanel(QWidget):
 
     @classmethod
     def _cap_text(cls, mask: int, n_io: int) -> str:
-        """Comma-separated list of I/Os a capability bitmask covers."""
+        """List of I/Os a capability bitmask covers, with consecutive runs
+        collapsed into ranges (e.g. '1-3, 5, 8-9')."""
         if not n_io:
             n_io = mask.bit_length()
         # PINs are presented 1-based, while the mask bits are 0-based.
         ios = [i + 1 for i in range(n_io) if (mask >> i) & 1]
-        return ', '.join(str(i) for i in ios) if ios else '—'
+        if not ios:
+            return '—'
+        parts = []
+        start = prev = ios[0]
+        for x in ios[1:] + [None]:
+            if x is not None and x == prev + 1:
+                prev = x
+                continue
+            parts.append(str(start) if start == prev else f'{start}-{prev}')
+            start = prev = x
+        return ', '.join(parts)
 
     def _on_failed(self, message: str):
         # Keep whatever is already displayed (e.g. the bundled data) and just
