@@ -13,7 +13,7 @@ import urllib.request
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QTableWidget, QTableWidgetItem, QAbstractItemView,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -67,6 +67,7 @@ _TWO_LINE_HEADERS = {
     'General Timer',
     'Performance Timer',
     'Hardware Watchdog',
+    'Hardware Watchdog Timeout',
     'I/O Buffer',
     'Software Interrupts',
     'Hardware Bus',
@@ -120,6 +121,13 @@ class HardwareOverlayPanel(QWidget):
         header.addWidget(title)
         header.addStretch(1)
 
+        self._search = QLineEdit()
+        self._search.setPlaceholderText('Search…')
+        self._search.setClearButtonEnabled(True)
+        self._search.setFixedWidth(220)
+        self._search.textChanged.connect(self._apply_filter)
+        header.addWidget(self._search)
+
         self._status = QLabel('')
         self._status.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -140,6 +148,11 @@ class HardwareOverlayPanel(QWidget):
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
         root.addWidget(self._table, 1)
+
+        # Apply our own stylesheet up front — the main window only calls
+        # apply_theme() on a theme *switch*, so without this the panel would
+        # render unstyled (no header padding etc.) until the user changes theme.
+        self.apply_theme()
 
     @staticmethod
     def _int(value) -> int:
@@ -233,6 +246,32 @@ class HardwareOverlayPanel(QWidget):
                 self._table.setItem(r, c, item)
         self._table.resizeColumnsToContents()
         self._table.setUpdatesEnabled(True)
+        # Keep any active search applied across reloads.
+        self._apply_filter(self._search.text())
+
+    def _apply_filter(self, text: str):
+        """Show only rows containing the (case-insensitive) query in any cell.
+        Runs live as the search box is edited."""
+        query = text.strip().lower()
+        cols = self._table.columnCount()
+        shown = 0
+        for r in range(self._table.rowCount()):
+            if query:
+                match = False
+                for c in range(cols):
+                    item = self._table.item(r, c)
+                    if item and query in item.text().lower():
+                        match = True
+                        break
+            else:
+                match = True
+            self._table.setRowHidden(r, not match)
+            shown += match
+        total = self._table.rowCount()
+        if query:
+            self._status.setText(f'{shown} / {total} entries')
+        elif total:
+            self._status.setText(f'{total} entries')
 
     @classmethod
     def _cap_text(cls, mask: int, n_io: int) -> str:
@@ -277,6 +316,9 @@ class HardwareOverlayPanel(QWidget):
             f'alternate-background-color:{t["menubar_bg"]}; }}'
             f'QHeaderView::section {{ background:{t["menubar_bg"]}; '
             f'color:{t["menubar_fg"]}; border:1px solid {t["border"]}; '
-            f'padding:3px 6px; }}'
+            f'padding:3px 14px; }}'
             f'QTableWidget::item:selected {{ background:{t["selection"]}; }}'
+            f'QLineEdit {{ background:{t["dlg_input_bg"]}; '
+            f'color:{t["dlg_input_fg"]}; border:1px solid {t["border"]}; '
+            f'padding:3px 6px; }}'
         )

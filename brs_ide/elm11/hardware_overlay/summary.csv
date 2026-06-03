@@ -1,4 +1,4 @@
-Baud, Clk Mhz, General Timer, Performance Timer, Cores, Hardware Watchdog, I/O, I/O Count, SPI Out, SPI In, Uart Out, Uart In, PWM, GPIO Out, GPIO In, I/O Buffer, Software Interrupts, Hardware Bus
-115200, 66, 1, 1, 1, 1, 1, 16, 768, 3072, 3, 12, 255, 255, 255, 3, 1, 1
-115200, 66, 1, 0, 1, 0, 1, 16, 0, 0, 1, 2, 255, 255, 255, 0, 0, 1
-115200, 70, 1, 0, 1, 0, 1, 16, 0, 0, 1, 2, 255, 255, 255, 0, 0, 1
+Baud, Clk Mhz, General Timer, Performance Timer, Cores, Hardware Watchdog, Hardware Watchdog Timeout, I/O, I/O Count, SPI Out, SPI In, Uart Out, Uart In, PWM, GPIO Out, GPIO In, I/O Buffer, Software Interrupts, Hardware Bus
+115200, 66, 1, 1, 1, 1, 3600000, 1, 16, 768, 3072, 3, 12, 255, 255, 255, 3, 1, 1
+115200, 66, 1, 0, 1, 0, 0, 1, 16, 0, 0, 1, 2, 255, 255, 255, 0, 0, 1
+115200, 70, 1, 0, 1, 0, 0, 1, 16, 0, 0, 1, 2, 255, 255, 255, 0, 0, 1
