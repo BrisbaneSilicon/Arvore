@@ -1,0 +1,2 @@
+Baud rate, Clk frequency, General Timer Enable, Performance Timer Enable, I/O Enable, I/O Pins, CPU Cores, Hardware Watchdog Enable, I/O Modules Data Buffer Enable, I/O Module Support SPI Out, I/O Module Support SPI In, I/O Module Support Uart Out, I/O Module Support Uart In, I/O Module Support PWM, I/O Module Support GPIO Out, I/O Module Support GPIO In, I/O Software Interrupts Supported, Hardware Bus Enable
+115200, 66, 1, 1, 1, 16, 1, 1, 3, 768, 3072, 3, 12, 255, 255, 255, 1, 1

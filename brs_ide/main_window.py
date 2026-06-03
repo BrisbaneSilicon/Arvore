@@ -27,6 +27,7 @@ from .uploader import UploaderWorker
 from .settings import SettingsDialog
 from .docs_panel import DocsPanel
 from .command_mode import CommandModePanel
+from .hardware_overlay import HardwareOverlayPanel
 from . import theme
 
 
@@ -354,9 +355,15 @@ class MainWindow(QMainWindow):
         self._cmd_mode.set_terminal(self._terminal)
         self._cmd_mode.active_changed.connect(self._on_cmd_mode_active_changed)
 
+        # Hardware Overlay panel: page 2 of the centre stack. A view-only
+        # page (downloads + shows the ELM11 overlay summary table); unlike
+        # Command Mode it doesn't touch the device or serial stream.
+        self._overlay = HardwareOverlayPanel()
+
         self._center_stack = QStackedWidget()
         self._center_stack.addWidget(self._centre)     # page 0: editors + bottom
         self._center_stack.addWidget(self._cmd_mode)   # page 1: command mode
+        self._center_stack.addWidget(self._overlay)    # page 2: hardware overlay
         self._outer.addWidget(self._center_stack)
 
         # Right-most: toggleable documentation panel
@@ -728,14 +735,19 @@ class MainWindow(QMainWindow):
         self._theme_menu = vm.addMenu('Theme')
         self._rebuild_theme_menu()
         vm.addSeparator()
+        self._overlay_toggle = QAction('&Hardware Overlay Config', self)
+        self._overlay_toggle.setCheckable(True)
+        self._overlay_toggle.setShortcut(QKeySequence('F1'))
+        self._overlay_toggle.toggled.connect(self._on_overlay_toggled)
+        vm.addAction(self._overlay_toggle)
         self._docs_toggle = QAction('&Documentation Panel', self)
         self._docs_toggle.setCheckable(True)
-        self._docs_toggle.setShortcut(QKeySequence('F1'))
+        self._docs_toggle.setShortcut(QKeySequence('F2'))
         self._docs_toggle.toggled.connect(self._toggle_docs)
         vm.addAction(self._docs_toggle)
         self._split_toggle = QAction('&Split Editor', self)
         self._split_toggle.setCheckable(True)
-        self._split_toggle.setShortcut(QKeySequence('F2'))
+        self._split_toggle.setShortcut(QKeySequence('F3'))
         self._split_toggle.toggled.connect(self._toggle_split_editor)
         vm.addAction(self._split_toggle)
         vm.addSeparator()
@@ -905,8 +917,22 @@ class MainWindow(QMainWindow):
         # Toolbar trigger. Drives device activation; the resulting
         # active_changed (or a snap-back if activation is refused) updates the
         # view via _sync_cmd_mode_ui.
+        if checked and self._overlay_toggle.isChecked():
+            # Command Mode and the overlay share the centre stack — leave only
+            # one showing at a time.
+            self._overlay_toggle.setChecked(False)
         self._cmd_mode.set_active(checked)
         self._sync_cmd_mode_ui()
+
+    def _on_overlay_toggled(self, checked: bool):
+        # The overlay is a view-only page; toggling it just swaps the centre
+        # region. Turning it on while Command Mode is active exits Command
+        # Mode first so the two don't fight over the stack.
+        if checked and self._cmd_mode.is_active:
+            self._cmd_btn.setChecked(False)   # deactivates Command Mode
+        self._update_center_page()
+        if checked:
+            self._overlay.ensure_loaded()
 
     def _on_cmd_mode_active_changed(self, _active: bool):
         # Activation changed (incl. auto-deactivate on disconnect) — refresh
@@ -940,14 +966,23 @@ class MainWindow(QMainWindow):
             self._cmd_btn.blockSignals(True)
             self._cmd_btn.setChecked(active)
             self._cmd_btn.blockSignals(False)
-        self._center_stack.setCurrentWidget(
-            self._cmd_mode if active else self._centre)
+        self._update_center_page()
         # Command Mode owns the serial stream — silence the terminal on entry,
         # restore it (last) once exit chatter passes.
         if active:
             self._suppress_terminal()
         else:
             self._restore_terminal_deferred()
+
+    def _update_center_page(self):
+        """Pick which centre-stack page is shown. Command Mode wins (it owns
+        the device), then the Hardware Overlay, otherwise the editors+bottom."""
+        if self._cmd_mode.is_active:
+            self._center_stack.setCurrentWidget(self._cmd_mode)
+        elif self._overlay_toggle.isChecked():
+            self._center_stack.setCurrentWidget(self._overlay)
+        else:
+            self._center_stack.setCurrentWidget(self._centre)
 
     # ── File operations ───────────────────────────────────────────────────────
 
@@ -1849,6 +1884,7 @@ class MainWindow(QMainWindow):
         self._program_out.apply_theme()
         self._docs.apply_theme()
         self._cmd_mode.apply_theme()
+        self._overlay.apply_theme()
         for editor in self._all_editors():
             editor.apply_theme()
         self._update_pane_highlight()
@@ -2381,6 +2417,7 @@ class MainWindow(QMainWindow):
         self._save_workspace_tabs()
         self._save_tree_state()
         self._cmd_mode.shutdown()
+        self._overlay.shutdown()
         port = self._port_combo.currentText()
         if port:
             self._terminal.disconnect_port(port)
