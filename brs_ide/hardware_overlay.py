@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import csv
 import io
+import shutil
 import sys
 import urllib.request
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
-    QTableWidget, QTableWidgetItem, QAbstractItemView,
+    QTableWidget, QTableWidgetItem, QAbstractItemView, QMenu, QMessageBox,
     QStylePainter, QStyleOptionComboBox, QStyle, QStyledItemDelegate,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -27,14 +28,30 @@ from . import theme
 _CSV_URL = ('https://brisbanesilicon.com.au/software/'
             'elm11_hardware_overlay/summary.csv')
 
+# Per-row firmware images live beside the summary CSV (locally and on the web),
+# named `emblua_<stub>.vg`, where <stub> is the row's raw CSV fields joined by
+# '_' with the clock given in Hz (the CSV shows MHz). Installing one copies it
+# into the workspace as the stable `emblua.vg` the synth flow expects.
+_VG_PREFIX = 'emblua_'
+_VG_BASE_URL = _CSV_URL.rsplit('/', 1)[0] + '/'   # same web dir as the CSV
+
+
+def _ide_base() -> Path:
+    """Root of the bundled `brs_ide` data (dev, PyInstaller, install)."""
+    if hasattr(sys, '_MEIPASS'):
+        return Path(sys._MEIPASS) / 'brs_ide'
+    return Path(__file__).resolve().parent
+
 
 def _bundled_csv() -> Path:
     """Path to the CSV shipped with the IDE (dev, PyInstaller, install)."""
-    if hasattr(sys, '_MEIPASS'):
-        base = Path(sys._MEIPASS) / 'brs_ide'
-    else:
-        base = Path(__file__).resolve().parent
-    return base / 'elm11' / 'hardware_overlay' / 'summary.csv'
+    return _ide_base() / 'elm11' / 'hardware_overlay' / 'summary.csv'
+
+
+def _bundled_fw_dir() -> Path:
+    """Bundled firmware dir holding the per-frequency timing constraints
+    (`timing_<n>mhz.sdc`) alongside the HDL sources."""
+    return _ide_base() / 'elm11' / 'lua' / 'build' / 'fw'
 
 
 # These summary columns aren't scalars — each is an integer bitmask where bit
@@ -100,6 +117,36 @@ class _CsvDownloader(QThread):
             rows = [r for r in csv.reader(io.StringIO(raw))]
             self.rows_ready.emit(rows)
         except Exception as exc:                       # noqa: BLE001
+            self.failed.emit(str(exc))
+
+
+class _VgDownloader(QThread):
+    """Fetch a per-row `.vg` firmware image off the UI thread, write it to the
+    workspace destination, and best-effort cache it beside the summary CSV."""
+
+    done   = pyqtSignal()
+    failed = pyqtSignal(str)
+
+    def __init__(self, url: str, dest: Path, cache: Path, parent=None):
+        super().__init__(parent)
+        self._url = url
+        self._dest = dest
+        self._cache = cache
+
+    def run(self):
+        try:
+            req = urllib.request.Request(
+                self._url, headers={'User-Agent': 'BRS-IDE'})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = resp.read()
+            self._dest.parent.mkdir(parents=True, exist_ok=True)
+            self._dest.write_bytes(data)
+            try:                                   # cache for next time
+                self._cache.write_bytes(data)
+            except OSError:
+                pass                               # read-only install — ignore
+            self.done.emit()
+        except Exception as exc:                   # noqa: BLE001
             self.failed.emit(str(exc))
 
 
@@ -175,7 +222,16 @@ class HardwareOverlayPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._downloader: _CsvDownloader | None = None
+        self._vg_installer: _VgDownloader | None = None
         self._loaded = False
+        # Raw CSV headers/rows kept alongside the (display-transformed) table so
+        # a row can be mapped back to its `.vg` image name on install.
+        self._headers: list[str] = []
+        self._rows_raw: list[list[str]] = []
+        # Set by the owner: callable returning the destination Path for an
+        # installed overlay (the workspace's emblua.vg), or None if no suitable
+        # workspace is open.
+        self.deploy_target_provider = None
         self._build_ui()
 
     # ── UI construction ────────────────────────────────────────────────────
@@ -226,6 +282,10 @@ class HardwareOverlayPanel(QWidget):
             QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
+        # Right-click a row to install its overlay image.
+        self._table.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self._table.customContextMenuRequested.connect(self._on_table_menu)
         root.addWidget(self._table, 1)
 
         # Keep the filter dropdowns aligned to their columns as the table is
@@ -301,6 +361,9 @@ class HardwareOverlayPanel(QWidget):
         return True
 
     def _populate(self, headers: list, data: list):
+        # Keep the raw headers/rows so a table row maps back to its `.vg` image.
+        self._headers = list(headers)
+        self._rows_raw = [list(r) for r in data]
         # Column labels: apply display renames, then wrap the selected ones
         # onto two lines (replace the first space with \n).
         labels = []
@@ -434,6 +497,125 @@ class HardwareOverlayPanel(QWidget):
         super().showEvent(event)
         self._sync_filter_geometry()
 
+    # ── Install overlay image ───────────────────────────────────────────────
+
+    def _on_table_menu(self, pos):
+        """Right-click context menu: install the clicked row's overlay image."""
+        row = self._table.rowAt(pos.y())
+        if not 0 <= row < len(self._rows_raw):
+            return
+        self._table.selectRow(row)
+        menu = QMenu(self)
+        install = menu.addAction('Install')
+        if menu.exec(self._table.viewport().mapToGlobal(pos)) is install:
+            self._install_row(row)
+
+    def _vg_name(self, raw_row: list) -> str:
+        """`emblua_<stub>.vg` for a raw CSV row (clock converted MHz→Hz)."""
+        headers = list(self._headers)
+        fields = list(raw_row)
+        # The generated 'ID' column isn't part of the image filename — drop it.
+        if 'ID' in headers:
+            idx = headers.index('ID')
+            del headers[idx]
+            if idx < len(fields):
+                del fields[idx]
+        try:
+            ci = headers.index('Clk Mhz')
+            fields[ci] = str(int(float(fields[ci]) * 1_000_000))
+        except (ValueError, IndexError):
+            pass                                   # leave as-is if unparseable
+        return f'{_VG_PREFIX}{"_".join(fields)}.vg'
+
+    def _row_id(self, row: int) -> str:
+        """The row's overlay ID (the generated first column), e.g. '00007'."""
+        try:
+            return self._rows_raw[row][self._headers.index('ID')]
+        except (ValueError, IndexError):
+            return '?'
+
+    def _row_clk(self, row: int) -> str:
+        """The row's clock in whole MHz (e.g. '66'), for the timing filename."""
+        try:
+            val = self._rows_raw[row][self._headers.index('Clk Mhz')]
+            return str(int(float(val)))
+        except (ValueError, IndexError):
+            return ''
+
+    def _install_row(self, row: int):
+        """Copy (or offer to download) the row's `.vg` image into the workspace
+        as the stable `emblua.vg`, plus its clock-matched timing constraints."""
+        name = self._vg_name(self._rows_raw[row])
+        overlay_id = self._row_id(row)
+        clk = self._row_clk(row)
+        dest = (self.deploy_target_provider()
+                if self.deploy_target_provider else None)
+        if dest is None:
+            QMessageBox.warning(
+                self, 'Install Overlay',
+                'Open a Lua workspace before installing a hardware overlay.')
+            return
+        src = _bundled_csv().parent / name
+        if src.is_file():
+            self._copy_overlay(src, dest, overlay_id, clk)
+        elif QMessageBox.question(
+                self, 'Install Overlay',
+                f'{name} is not available locally.\n\n'
+                f'Download it from {_VG_BASE_URL}?'
+                ) == QMessageBox.StandardButton.Yes:
+            self._download_overlay(name, src, dest, overlay_id, clk)
+
+    def _copy_overlay(self, src: Path, dest: Path, overlay_id: str, clk: str):
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+        except OSError as exc:
+            QMessageBox.critical(
+                self, 'Install Overlay', f'Could not install overlay:\n{exc}')
+            return
+        self._deploy_timing(clk, dest.parent)
+        self._status.setText(f'Installed Hardware Overlay {overlay_id}')
+
+    def _download_overlay(self, name: str, cache: Path, dest: Path,
+                          overlay_id: str, clk: str):
+        if self._vg_installer is not None and self._vg_installer.isRunning():
+            return
+        self._status.setText(f'Downloading {name}…')
+        self._vg_installer = _VgDownloader(
+            _VG_BASE_URL + name, dest, cache, self)
+        self._vg_installer.done.connect(
+            lambda: self._on_vg_done(overlay_id, dest.parent, clk))
+        self._vg_installer.failed.connect(self._on_vg_failed)
+        self._vg_installer.start()
+
+    def _on_vg_done(self, overlay_id: str, dest_dir: Path, clk: str):
+        self._deploy_timing(clk, dest_dir)
+        self._status.setText(f'Installed Hardware Overlay {overlay_id}')
+
+    def _deploy_timing(self, clk: str, dest_dir: Path):
+        """Copy the clock-matched timing constraints into the workspace as the
+        stable `timing.sdc` the synth flow references. Warns (without failing
+        the install) if no constraints ship for that frequency."""
+        src = _bundled_fw_dir() / f'timing_{clk}mhz.sdc'
+        if not src.is_file():
+            QMessageBox.warning(
+                self, 'Install Overlay',
+                f'No timing constraints bundled for {clk} MHz '
+                f'({src.name}); timing.sdc was left unchanged.')
+            return
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest_dir / 'timing.sdc')
+        except OSError as exc:
+            QMessageBox.critical(
+                self, 'Install Overlay',
+                f'Could not deploy timing constraints:\n{exc}')
+
+    def _on_vg_failed(self, message: str):
+        self._status.setText('Download failed')
+        QMessageBox.critical(
+            self, 'Install Overlay', f'Could not download overlay:\n{message}')
+
     @classmethod
     def _cap_text(cls, mask: int, n_io: int) -> str:
         """List of I/Os a capability bitmask covers, with consecutive runs
@@ -462,9 +644,11 @@ class HardwareOverlayPanel(QWidget):
         self._status.setToolTip(message)
 
     def shutdown(self):
-        """Stop the download thread cleanly — call on application close."""
+        """Stop the download threads cleanly — call on application close."""
         if self._downloader is not None and self._downloader.isRunning():
             self._downloader.wait(3000)
+        if self._vg_installer is not None and self._vg_installer.isRunning():
+            self._vg_installer.wait(3000)
 
     # ── Theme ──────────────────────────────────────────────────────────────
 

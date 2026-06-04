@@ -9,8 +9,13 @@ program_name = "User Example"
 
 -- Program dependencies
 
-import('all')
-    -- NOTE: import entire base library
+import('ipairs')
+import('msleep')
+import('reset_all_io_type_cfg')
+import('set_io_type_cfg')
+    -- NOTE: if we were using a large amount
+    -- of the base API, we could just use
+    -- import('all')
 
 import('string', 'format')
 import('table', 'insert')
@@ -33,6 +38,10 @@ QUICK_TOGGLE_PIN = 1
 -- Main program begin
 
 print("\n -------- Program begin: "..program_name.." --------\n")
+msleep(500)
+
+print("CPU Freq: ".._freq.." MHz")
+print("CPU Core: ".._cI.."\n")
 msleep(500)
 
 print("Lua Version: ".._VERSION.."\n")

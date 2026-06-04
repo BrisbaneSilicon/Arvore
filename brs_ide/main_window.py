@@ -359,6 +359,7 @@ class MainWindow(QMainWindow):
         # page (downloads + shows the ELM11 overlay summary table); unlike
         # Command Mode it doesn't touch the device or serial stream.
         self._overlay = HardwareOverlayPanel()
+        self._overlay.deploy_target_provider = self._overlay_deploy_target
 
         self._center_stack = QStackedWidget()
         self._center_stack.addWidget(self._centre)     # page 0: editors + bottom
@@ -888,11 +889,36 @@ class MainWindow(QMainWindow):
         else:
             self._cmd_status.setText(state or target)
 
+    def _action_controls(self) -> list:
+        """Every interactive toolbar control gated by device/view state."""
+        return [
+            self._port_combo, self._connect_btn,
+            self._upload_btn, self._run_btn, self._stop_btn,
+            self._build_btn, self._clean_btn, self._flash_btn,
+            self._synth_btn, self._fw_clean_btn, self._fw_flash_btn,
+            self._cmd_btn,
+        ]
+
     def _update_device_buttons(self):
+        # The Hardware Overlay config page owns the whole centre region while
+        # shown; disable every toolbar action so no device/build operation can
+        # be launched from that view. Leaving it re-runs this and restores the
+        # proper per-state enablement below.
+        if self._overlay_toggle.isChecked():
+            for w in self._action_controls():
+                w.setEnabled(False)
+            self._refresh_status_label()
+            return
+
         connected = self._terminal.is_connected
         cmd_active = getattr(self, '_cmd_mode', None) and self._cmd_mode.is_active
         is_c_mode = self._workspace_mode == 'C'
         usable = connected and not cmd_active
+        # Restore the always-available controls (the conditional ones are set
+        # explicitly below) in case the overlay page just disabled them.
+        for w in (self._port_combo, self._connect_btn, self._build_btn,
+                  self._clean_btn, self._synth_btn, self._fw_clean_btn):
+            w.setEnabled(True)
         # Upload / Run / Stop act on a Lua program — only enabled when the
         # active editor tab holds a .lua file.
         cur = self._cur()
@@ -931,6 +957,9 @@ class MainWindow(QMainWindow):
         if checked and self._cmd_mode.is_active:
             self._cmd_btn.setChecked(False)   # deactivates Command Mode
         self._update_center_page()
+        # Disable the toolbar actions while the overlay page is shown; restore
+        # them (to their proper per-state values) when it's hidden.
+        self._update_device_buttons()
         if checked:
             self._overlay.ensure_loaded()
 
@@ -1448,6 +1477,14 @@ class MainWindow(QMainWindow):
     def _synth_dir(self) -> Path:
         """Directory holding the firmware synthesis flow (build.tcl + image)."""
         return self._workspace_root / 'hardware' / '.build'
+
+    def _overlay_deploy_target(self) -> Path | None:
+        """Where the Hardware Overlay panel installs a selected `.vg` image:
+        the workspace's firmware build dir, under the stable name `emblua.vg`
+        the synth flow expects. None when no Lua workspace is open."""
+        if self._workspace_root is None or self._workspace_mode != 'Lua':
+            return None
+        return self._synth_dir() / 'emblua.vg'
 
     @staticmethod
     def _gowin_env(gowin_root: Path) -> dict:

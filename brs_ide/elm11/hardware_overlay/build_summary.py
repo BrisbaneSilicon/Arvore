@@ -20,16 +20,19 @@ import argparse
 import sys
 from pathlib import Path
 
-# CSV columns, in the order the stub filename's fields appear.
-COLUMNS = [
+# Data columns, in the order the stub filename's fields appear.
+DATA_COLUMNS = [
     'Baud', 'Clk Mhz', 'General Timer', 'Perf Timer', 'Cores',
     'Watchdog', 'Watchdog Timeout', 'I/O', 'I/O Count',
     'SPI Out', 'SPI In', 'Uart Out', 'Uart In', 'PWM', 'GPIO Out', 'GPIO In',
     'I/O Buffer', 'Software Interrupts', 'Hardware Bus',
 ]
 
-# Field index emitted in MHz although the stub stores Hz.
-_CLK_FIELD = COLUMNS.index('Clk Mhz')
+# Full CSV header: a generated sequential 'ID' column, then the data columns.
+COLUMNS = ['ID'] + DATA_COLUMNS
+
+# Field index (within a data row) emitted in MHz although the stub stores Hz.
+_CLK_FIELD = DATA_COLUMNS.index('Clk Mhz')
 
 HERE = Path(__file__).resolve().parent
 STUBS_DIR = HERE / 'stubs'
@@ -43,23 +46,24 @@ def _hz_to_mhz(hz: str) -> str:
 
 
 def parse_stub(name: str) -> list[str]:
-    """Turn one stub filename into a list of CSV cell values."""
+    """Turn one stub filename into a list of data cell values (no ID)."""
     fields = name.split('_')
-    if len(fields) != len(COLUMNS):
+    if len(fields) != len(DATA_COLUMNS):
         raise ValueError(
-            f'{name!r}: expected {len(COLUMNS)} fields, got {len(fields)}')
+            f'{name!r}: expected {len(DATA_COLUMNS)} fields, got {len(fields)}')
     fields[_CLK_FIELD] = _hz_to_mhz(fields[_CLK_FIELD])
     return fields
 
 
 def build_rows(stubs_dir: Path) -> list[list[str]]:
-    """Parse every stub into a row, sorted numerically for stable output."""
+    """Parse every stub into a row, sorted numerically for stable output, with
+    a 1-based zero-padded 'ID' prepended ('00001', '00002', …)."""
     rows = []
     for path in stubs_dir.iterdir():
         if path.is_file() and not path.name.startswith('.'):
             rows.append(parse_stub(path.name))
     rows.sort(key=lambda r: [float(v) for v in r])
-    return rows
+    return [[f'{i:05d}'] + r for i, r in enumerate(rows, start=1)]
 
 
 def render_csv(rows: list[list[str]]) -> str:
