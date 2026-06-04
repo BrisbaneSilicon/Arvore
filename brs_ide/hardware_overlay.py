@@ -122,23 +122,27 @@ class _CenteredComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setItemDelegate(_CenterDelegate(self))
+        # Returns the width to centre the closed-state text within. Set by the
+        # owner to the matching table column's width so the text lines up with
+        # the (centred) cell text below it, rather than the combo's own width.
+        self._cell_width = None
 
     def showPopup(self):
-        # Keep the popup at the combo (column) width. Constrain the view
-        # *before* showPopup sizes the container (a post-show resize of the
-        # popup window is unreliable across platforms), then clamp the shown
-        # window too as a belt-and-suspenders.
-        w = self.width()
+        # Clamp the open popup to the cell (column) width. The style sizes the
+        # popup to its widest item (often wider than the combo), so we pin both
+        # the view and its container frame after it's shown, then re-anchor it
+        # under the combo since changing the width can otherwise shift it.
+        w = int(self._cell_width() if self._cell_width else self.width())
         view = self.view()
-        view.setMinimumWidth(w)
-        view.setMaximumWidth(w)
         view.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         super().showPopup()
-        win = view.window()
-        if win is not None and win is not self.window():
-            win.setFixedWidth(w)
-            win.move(self.mapToGlobal(self.rect().bottomLeft()))
+        container = view.parentWidget()
+        if container is not None:
+            container.setFixedWidth(w)
+        view.setFixedWidth(w)
+        if container is not None:
+            container.move(self.mapToGlobal(self.rect().bottomLeft()))
 
     def paintEvent(self, _event):
         painter = QStylePainter(self)
@@ -149,18 +153,22 @@ class _CenteredComboBox(QComboBox):
         # doesn't paint its own left-aligned text)…
         opt.currentText = ''
         painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt)
-        # …then draw the label centred across the *whole* combo. Inset by the
-        # arrow's width on both sides so the text's midpoint stays the widget
-        # centre (rather than the smaller area left of the arrow, which reads
-        # as left-of-centre). SC_ComboBoxEditField is unreliable under a
-        # stylesheet, so derive the rect from the widget bounds.
-        arrow = self.style().subControlRect(
-            QStyle.ComplexControl.CC_ComboBox, opt,
-            QStyle.SubControl.SC_ComboBoxArrow, self)
-        aw = arrow.width() if arrow.width() > 0 else 16
-        text_rect = self.rect().adjusted(aw, 0, -aw, 0)
+        # …then draw the label so its horizontal midpoint sits half the *cell*
+        # width from the left edge — the cell text below is centred on that same
+        # point, so the two line up. We place the text ourselves rather than
+        # relying on AlignCenter across a rect whose edges (and any arrow inset)
+        # the stylesheet may shift — that's what kept reading as off-centre.
+        fm = painter.fontMetrics()
+        tw = fm.horizontalAdvance(text)
+        cell_w = self._cell_width() if self._cell_width else self.width()
+        cx = cell_w / 2.0
+        text_rect = self.rect()
+        text_rect.setLeft(int(cx - tw / 2.0))
         painter.setPen(QColor(theme.current()['dlg_input_fg']))
-        painter.drawText(text_rect, int(Qt.AlignmentFlag.AlignCenter), text)
+        painter.drawText(
+            text_rect,
+            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+            text)
 
 
 class HardwareOverlayPanel(QWidget):
@@ -362,6 +370,9 @@ class HardwareOverlayPanel(QWidget):
                     seen.append(txt)
             combo = _CenteredComboBox(self._filter_bar)
             combo.setMinimumWidth(0)
+            # Centre the closed text on the matching column's width, so the '-'
+            # lines up with the centred cell text below it.
+            combo._cell_width = lambda c=c: self._table.columnWidth(c)
             combo.addItem('-')                      # index 0 ⇒ no filter
             combo.addItems(self._sorted_values(seen))
             combo.currentIndexChanged.connect(self._apply_filters)
