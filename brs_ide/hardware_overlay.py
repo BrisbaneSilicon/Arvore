@@ -57,25 +57,23 @@ _CAP_HEADERS = [
 # their raw integer value.
 _BOOL_HEADERS = {
     'General Timer',
-    'Performance Timer',
-    'Hardware Watchdog',
+    'Perf Timer',
+    'Watchdog',
     'Software Interrupts',
     'Hardware Bus',
+    'I/O',
 }
 
-# Display-only header relabelling (the CSV keeps its own names; we just show
-# something shorter/clearer).
-_HEADER_RENAMES = {
-    'Hardware Watchdog Timeout': 'Watchdog Timeout',
-    'Performance Timer': 'Perf Timer',
-}
+# Display-only header relabelling. The CSV already ships short names ('Perf
+# Timer', 'Watchdog Timeout'), so nothing needs renaming today; this is kept as
+# the hook for any future long→short mapping.
+_HEADER_RENAMES = {}
 
 # Headers (after renaming) wrapped onto two lines (the space is replaced with a
 # newline) to keep these columns from stretching the table too wide.
 _TWO_LINE_HEADERS = {
     'General Timer',
     'Perf Timer',
-    'Hardware Watchdog',
     'Watchdog Timeout',
     'I/O Buffer',
     'Software Interrupts',

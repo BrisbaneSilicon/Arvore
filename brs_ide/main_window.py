@@ -1709,7 +1709,7 @@ class MainWindow(QMainWindow):
         reply = QMessageBox.information(
             self, 'Prepare device for Flash',
             'Disconnect the device from your PC, then reconnect it while holding BTN2.'
-            'Ensure LEDs 1-3 remain illuminated after releasing BTN2.',
+            ' Ensure LEDs 1-3 remain illuminated after releasing BTN2.',
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Ok)
         if reply != QMessageBox.StandardButton.Ok:
