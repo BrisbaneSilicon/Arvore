@@ -350,7 +350,11 @@ class HardwareOverlayPanel(QWidget):
         self._refresh_btn.setEnabled(True)
         self._loaded = True
         headers = [str(c).strip() for c in rows[0]] if rows else []
-        data = [[str(v).strip() for v in r] for r in rows[1:]] if rows else []
+        data = [
+            cells for cells in
+            ([str(v).strip() for v in r] for r in rows[1:])
+            if any(cells)                              # skip blank/empty lines
+        ] if rows else []
         if not headers or not data:
             self._table.setRowCount(0)
             self._table.setColumnCount(0)
