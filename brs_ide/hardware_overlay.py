@@ -382,6 +382,7 @@ class HardwareOverlayPanel(QWidget):
         except ValueError:
             pins_col = -1
 
+        vg_dir = _bundled_csv().parent
         self._table.setUpdatesEnabled(False)
         self._table.clearContents()
         self._table.setColumnCount(len(headers))
@@ -390,6 +391,8 @@ class HardwareOverlayPanel(QWidget):
         for r, row in enumerate(data):
             n_io = (self._int(row[pins_col])
                     if 0 <= pins_col < len(row) else 0)
+            # Grey out rows whose `.vg` firmware image isn't present on disk.
+            present = (vg_dir / self._vg_name(row)).is_file()
             for c in range(len(headers)):
                 val = row[c] if c < len(row) else ''
                 if c in cap_cols:
@@ -400,6 +403,8 @@ class HardwareOverlayPanel(QWidget):
                 else:
                     item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if not present:
+                    item.setForeground(QColor(Qt.GlobalColor.gray))
                 self._table.setItem(r, c, item)
         self._table.resizeColumnsToContents()
         # Make every column the width of the widest one, so the (now uniform)
@@ -567,7 +572,7 @@ class HardwareOverlayPanel(QWidget):
                 f'{name} is not available locally.\n\n'
                 f'Download it from {_VG_BASE_URL}?'
                 ) == QMessageBox.StandardButton.Yes:
-            self._download_overlay(name, src, dest, overlay_id, clk)
+            self._download_overlay(name, src, dest, overlay_id, clk, row)
 
     def _copy_overlay(self, src: Path, dest: Path, overlay_id: str, clk: str):
         try:
@@ -581,20 +586,36 @@ class HardwareOverlayPanel(QWidget):
         self._status.setText(f'Installed Hardware Overlay {overlay_id}')
 
     def _download_overlay(self, name: str, cache: Path, dest: Path,
-                          overlay_id: str, clk: str):
+                          overlay_id: str, clk: str, row: int):
         if self._vg_installer is not None and self._vg_installer.isRunning():
             return
         self._status.setText(f'Downloading {name}…')
         self._vg_installer = _VgDownloader(
             _VG_BASE_URL + name, dest, cache, self)
         self._vg_installer.done.connect(
-            lambda: self._on_vg_done(overlay_id, dest.parent, clk))
+            lambda: self._on_vg_done(overlay_id, dest.parent, clk, row))
         self._vg_installer.failed.connect(self._on_vg_failed)
         self._vg_installer.start()
 
-    def _on_vg_done(self, overlay_id: str, dest_dir: Path, clk: str):
+    def _on_vg_done(self, overlay_id: str, dest_dir: Path, clk: str, row: int):
         self._deploy_timing(clk, dest_dir)
+        self._refresh_row_grey(row)                 # un-grey now it's cached
         self._status.setText(f'Installed Hardware Overlay {overlay_id}')
+
+    def _refresh_row_grey(self, row: int):
+        """Re-evaluate one row's `.vg` presence and (un)grey its cells."""
+        if not 0 <= row < len(self._rows_raw):
+            return
+        present = (_bundled_csv().parent
+                   / self._vg_name(self._rows_raw[row])).is_file()
+        for c in range(self._table.columnCount()):
+            item = self._table.item(row, c)
+            if item is None:
+                continue
+            if present:                             # clear the grey override
+                item.setData(Qt.ItemDataRole.ForegroundRole, None)
+            else:
+                item.setForeground(QColor(Qt.GlobalColor.gray))
 
     def _deploy_timing(self, clk: str, dest_dir: Path):
         """Copy the clock-matched timing constraints into the workspace as the
