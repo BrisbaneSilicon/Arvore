@@ -255,6 +255,16 @@ class HardwareOverlayPanel(QWidget):
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         header.addWidget(self._status)
 
+        # Filter rows by whether their `.vg` image is present locally.
+        # _CenteredComboBox (no _cell_width set) centres on its own width.
+        self._dl_filter = _CenteredComboBox()
+        self._dl_filter.addItems(
+            ['-', 'Downloaded', 'Not Downloaded'])
+        self._dl_filter.setToolTip(
+            'Filter rows based on downloaded state')
+        self._dl_filter.currentIndexChanged.connect(self._apply_filters)
+        header.addWidget(self._dl_filter)
+
         self._reset_btn = QPushButton('Clear Filters')
         self._reset_btn.setToolTip('Reset every column filter to (All)')
         self._reset_btn.clicked.connect(self._clear_filters)
@@ -474,18 +484,23 @@ class HardwareOverlayPanel(QWidget):
             combo.setGeometry(int(x), 0, int(header.sectionSize(c)), int(h))
 
     def _apply_filters(self, *_):
-        """Hide rows that don't match every active (non-'(All)') column filter."""
+        """Hide rows that don't match every active (non-'(All)') column filter
+        and the Downloaded filter."""
         selected = [(c, combo.currentText())
                     for c, combo in enumerate(self._filters)
                     if combo.currentIndex() > 0]
+        dl_mode = self._dl_filter.currentIndex()   # 0 all, 1 yes, 2 no
         rows = self._table.rowCount()
         shown = 0
         for r in range(rows):
             ok = all((self._table.item(r, c).text() if self._table.item(r, c)
                       else '') == val for c, val in selected)
+            if ok and dl_mode and r < len(self._rows_raw):
+                present = self._vg_path(self._rows_raw[r]).is_file()
+                ok = present if dl_mode == 1 else not present
             self._table.setRowHidden(r, not ok)
             shown += ok
-        if selected:
+        if selected or dl_mode:
             self._status.setText(f'{shown} / {rows} entries')
         elif rows:
             self._status.setText(f'{rows} entries')
@@ -495,6 +510,9 @@ class HardwareOverlayPanel(QWidget):
             combo.blockSignals(True)
             combo.setCurrentIndex(0)
             combo.blockSignals(False)
+        self._dl_filter.blockSignals(True)
+        self._dl_filter.setCurrentIndex(0)
+        self._dl_filter.blockSignals(False)
         self._apply_filters()
 
     def resizeEvent(self, event):
@@ -645,6 +663,8 @@ class HardwareOverlayPanel(QWidget):
                 item.setData(Qt.ItemDataRole.ForegroundRole, None)
             else:
                 item.setForeground(QColor(Qt.GlobalColor.gray))
+        # A newly-(un)downloaded row may now fall in/out of a Downloaded filter.
+        self._apply_filters()
 
     def _deploy_timing(self, clk: str, dest_dir: Path):
         """Copy the clock-matched timing constraints into the workspace as the
