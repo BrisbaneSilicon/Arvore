@@ -8,6 +8,7 @@ from PyQt6.QtCore import QProcess, QProcessEnvironment, pyqtSignal
 from PyQt6.QtGui import QColor, QPalette, QFont, QTextCursor, QTextCharFormat
 
 from . import theme
+from .settings import SettingsDialog
 
 
 class BuildOutput(QWidget):
@@ -22,16 +23,19 @@ class BuildOutput(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        font = QFont('Monospace', 10)
-        font.setStyleHint(QFont.StyleHint.TypeWriter)
-
         self._output = QPlainTextEdit()
         self._output.setReadOnly(True)
-        self._output.setFont(font)
         self._output.setMaximumBlockCount(2000)
         layout.addWidget(self._output)
 
+        self.apply_font()
         self.apply_theme()
+
+    def apply_font(self):
+        """Apply the configured global panel font size (monospaced)."""
+        font = QFont('Monospace', SettingsDialog.panel_font_size())
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+        self._output.setFont(font)
 
     def apply_theme(self):
         t = theme.current()

@@ -430,11 +430,12 @@ class MainWindow(QMainWindow):
 
     def _default_pane_for(self, path: Path) -> QTabWidget:
         """Pick the pane a newly-opened file lands in. In a split layout, C
-        sources/headers open in the right-hand pane and everything else in the
-        left; with a single pane, everything opens in the active pane."""
+        sources/headers and HDL sources (.sv/.vhd/.v) open in the right-hand
+        pane and everything else in the left; with a single pane, everything
+        opens in the active pane."""
         if len(self._editor_panes) < 2:
             return self._active_pane
-        if path.suffix.lower() in ('.c', '.h'):
+        if path.suffix.lower() in ('.c', '.h', '.sv', '.vhd', '.v'):
             return self._editor_panes[-1]
         return self._editor_panes[0]
 
@@ -870,6 +871,7 @@ class MainWindow(QMainWindow):
         status label is refreshed via `_update_device_buttons` to keep
         device-state / target-board composition in one place."""
         self._workspace_target = target
+        self._overlay.set_board(target)
         self._refresh_status_label()
 
     def _refresh_status_label(self):
@@ -1742,11 +1744,13 @@ class MainWindow(QMainWindow):
                 'Run Build first.')
             _abort_and_reacquire()
             return
-        # Walk the user through putting the board in flash-mode.
+        # Walk the user through putting the board in flash-mode. The Feather
+        # has two status LEDs to confirm, the base board three.
+        leds = '1-2' if self._workspace_target == 'ELM11-Feather' else '1-3'
         reply = QMessageBox.information(
             self, 'Prepare device for Flash',
             'Disconnect the device from your PC, then reconnect it while holding BTN2.'
-            ' Ensure LEDs 1-3 remain illuminated after releasing BTN2.',
+            f' Ensure LEDs {leds} remain illuminated after releasing BTN2.',
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Ok)
         if reply != QMessageBox.StandardButton.Ok:
@@ -1984,7 +1988,7 @@ class MainWindow(QMainWindow):
         # Both Lua and C workspaces get their language-specific build/ and
         # runtime/ trees seeded from the IDE's bundle.
         if is_new_workspace:
-            self._deploy_build_templates(path, saved_mode.lower(), hdl)
+            self._deploy_build_templates(path, saved_mode.lower(), hdl, target)
 
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
@@ -2032,10 +2036,12 @@ class MainWindow(QMainWindow):
                 hdl_combo.currentText())
 
     def _deploy_build_templates(self, workspace: Path, lang: str,
-                                hdl: str = 'SystemVerilog'):
+                                hdl: str = 'SystemVerilog',
+                                target: str = 'ELM11'):
         """Seed a freshly-created workspace with the bundled templates for
-        `lang` ('c' or 'lua'), sourced from `brs_ide/elm11/<lang>/`. Files
-        are laid out as:
+        `lang` ('c' or 'lua'), sourced from the board-specific tree
+        `brs_ide/<board>/<lang>/` (where <board> is the target board lowercased,
+        e.g. 'elm11' or 'elm11-feather'). Files are laid out as:
 
           * `<dest>/*.c`                — starter user source
           * `<dest>/.build/runtime/`    — prebuilt runtime objects
@@ -2052,6 +2058,11 @@ class MainWindow(QMainWindow):
         Existing files at the destinations are overwritten so the
         deployed templates always reflect the IDE's current bundle."""
         import shutil
+
+        # Templates are sourced from the per-board bundle. The target board
+        # string maps directly to its directory name ('ELM11' → 'elm11',
+        # 'ELM11-Feather' → 'elm11-feather').
+        board = target.lower()
 
         # Lua workspaces deploy their driver build tree under `driver/`,
         # alongside a sibling `hardware/` directory seeded with the bundled
@@ -2084,12 +2095,12 @@ class MainWindow(QMainWindow):
             return dest_root / '.build' / 'make' / src.name
 
         plan: list[tuple[Path, Path]] = []   # (source, destination)
-        build_src = _ide_data_dir(f'elm11/{lang}/build/sw')
+        build_src = _ide_data_dir(f'{board}/{lang}/build/sw')
         if build_src.is_dir():
             for src in build_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
                     plan.append((src, _target_for(src)))
-        runtime_src = _ide_data_dir(f'elm11/{lang}/runtime')
+        runtime_src = _ide_data_dir(f'{board}/{lang}/runtime')
         if runtime_src.is_dir():
             for src in runtime_src.iterdir():
                 if src.is_file() and not src.name.startswith('.'):
@@ -2108,7 +2119,7 @@ class MainWindow(QMainWindow):
         if lang == 'lua':
             # fw_root (workspace/hardware) was set up at the top of this method.
             hdl_file = 'user.vhd' if hdl == 'VHDL' else 'user.sv'
-            fw_src = _ide_data_dir(f'elm11/{lang}/build/fw')
+            fw_src = _ide_data_dir(f'{board}/{lang}/build/fw')
             if fw_src.is_dir():
                 for src in fw_src.iterdir():
                     if not (src.is_file() and not src.name.startswith('.')):
@@ -2133,7 +2144,7 @@ class MainWindow(QMainWindow):
             # Starter Lua application script, deployed to
             # `<workspace>/application/`, alongside the driver/ and hardware/
             # directories in the workspace root.
-            script_src = _ide_data_dir(f'elm11/{lang}/build/script/user.lua')
+            script_src = _ide_data_dir(f'{board}/{lang}/build/script/user.lua')
             if script_src.is_file():
                 plan.append((script_src, workspace / 'application' / 'user.lua'))
 
@@ -2357,6 +2368,10 @@ class MainWindow(QMainWindow):
             # Re-apply font to all open editors
             for editor in self._all_editors():
                 editor.apply_theme()
+            # Re-apply the global panel font to the bottom output windows.
+            for panel in (self._terminal, self._upload_out, self._build_out,
+                          self._synth_out, self._flash_out, self._program_out):
+                panel.apply_font()
 
     def _about(self):
         QMessageBox.about(self, 'ELM11 IDE',

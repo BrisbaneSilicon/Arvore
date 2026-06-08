@@ -1,0 +1,2 @@
+ID, Baud, Clk Mhz, General Timer, Perf Timer, Cores, Watchdog, Watchdog Timeout, I/O, I/O Count, SPI Out, SPI In, Uart Out, Uart In, PWM, GPIO Out, GPIO In, I/O Buffer, Software Interrupts, Hardware Bus
+00001, 115200, 51, 1, 0, 1, 0, 0, 1, 23, 0, 0, 0, 0, 0, 8388607, 8388607, 0, 0, 0

@@ -24,16 +24,22 @@ from PyQt6.QtGui import QColor
 from . import theme
 
 
-# Published summary of the ELM11 hardware overlay register/pin map.
-_CSV_URL = ('https://brisbanesilicon.com.au/software/'
-            'elm11_hardware_overlay/summary.csv')
+# Web root for the published per-board overlay data. Each board's summary CSV
+# and per-row `.vg` images live in `<board>_hardware_overlay/`, where <board>
+# mirrors the bundled board dir name ('elm11', 'elm11-feather').
+_WEB_ROOT = 'https://brisbanesilicon.com.au/software/'
+
+
+def _overlay_web_base(board: str) -> str:
+    """Web directory holding `board`'s summary CSV and `.vg` images."""
+    return f'{_WEB_ROOT}{board}_hardware_overlay/'
+
 
 # Per-row firmware images live beside the summary CSV (locally and on the web),
 # named `emblua_<stub>.vg`, where <stub> is the row's raw CSV fields joined by
 # '_' with the clock given in Hz (the CSV shows MHz). Installing one copies it
 # into the workspace as the stable `emblua.vg` the synth flow expects.
 _VG_PREFIX = 'emblua_'
-_VG_BASE_URL = _CSV_URL.rsplit('/', 1)[0] + '/'   # same web dir as the CSV
 
 
 def _ide_base() -> Path:
@@ -43,15 +49,20 @@ def _ide_base() -> Path:
     return Path(__file__).resolve().parent
 
 
-def _bundled_csv() -> Path:
-    """Path to the CSV shipped with the IDE (dev, PyInstaller, install)."""
-    return _ide_base() / 'elm11' / 'hardware_overlay' / 'summary.csv'
+def _bundled_overlay_dir(board: str) -> Path:
+    """Bundled overlay dir for `board` (holds summary.csv + cached `.vg`s)."""
+    return _ide_base() / board / 'hardware_overlay'
 
 
-def _bundled_fw_dir() -> Path:
-    """Bundled firmware dir holding the per-frequency timing constraints
+def _bundled_csv(board: str) -> Path:
+    """Path to `board`'s CSV shipped with the IDE (dev, PyInstaller, install)."""
+    return _bundled_overlay_dir(board) / 'summary.csv'
+
+
+def _bundled_fw_dir(board: str) -> Path:
+    """Bundled firmware dir holding `board`'s per-frequency timing constraints
     (`timing_<n>mhz.sdc`) alongside the HDL sources."""
-    return _ide_base() / 'elm11' / 'lua' / 'build' / 'fw'
+    return _ide_base() / board / 'lua' / 'build' / 'fw'
 
 
 # These summary columns aren't scalars — each is an integer bitmask where bit
@@ -224,6 +235,9 @@ class HardwareOverlayPanel(QWidget):
         self._downloader: _CsvDownloader | None = None
         self._vg_installer: _VgDownloader | None = None
         self._loaded = False
+        # Target board dir name ('elm11', 'elm11-feather'); selects which board's
+        # overlay data is shown. Updated by the owner via set_board().
+        self._board = 'elm11'
         # Raw CSV headers/rows kept alongside the (display-transformed) table so
         # a row can be mapped back to its `.vg` image name on install.
         self._headers: list[str] = []
@@ -320,6 +334,24 @@ class HardwareOverlayPanel(QWidget):
 
     # ── External wiring ────────────────────────────────────────────────────
 
+    def set_board(self, target: str):
+        """Select which board's overlay data is shown. `target` is the board
+        name ('ELM11', 'ELM11-Feather'); it maps directly to the bundle dir
+        when lowercased. Reloads the table if it's already populated."""
+        board = (target or 'ELM11').lower()
+        if board == self._board:
+            return
+        self._board = board
+        if self._loaded:                # re-populate from the new board's bundle
+            self._loaded = False
+            self.ensure_loaded()
+
+    def _csv_url(self) -> str:
+        return _overlay_web_base(self._board) + 'summary.csv'
+
+    def _vg_base_url(self) -> str:
+        return _overlay_web_base(self._board)
+
     def ensure_loaded(self):
         """On first reveal, load the CSV bundled with the IDE. Pressing
         Refresh fetches the latest copy from the website instead."""
@@ -328,7 +360,7 @@ class HardwareOverlayPanel(QWidget):
 
     def _load_bundled(self):
         """Read the shipped summary CSV synchronously (it's tiny and local)."""
-        path = _bundled_csv()
+        path = _bundled_csv(self._board)
         try:
             raw = path.read_text(encoding='utf-8-sig', errors='replace')
             rows = list(csv.reader(io.StringIO(raw)))
@@ -344,7 +376,7 @@ class HardwareOverlayPanel(QWidget):
             return
         self._status.setText('Downloading…')
         self._refresh_btn.setEnabled(False)
-        self._downloader = _CsvDownloader(_CSV_URL, self)
+        self._downloader = _CsvDownloader(self._csv_url(), self)
         self._downloader.rows_ready.connect(self._on_downloaded)
         self._downloader.failed.connect(self._on_failed)
         self._downloader.start()
@@ -540,7 +572,7 @@ class HardwareOverlayPanel(QWidget):
 
     def _vg_path(self, raw_row: list) -> Path:
         """Local (bundled/cache) path of a raw row's `.vg` firmware image."""
-        return _bundled_csv().parent / self._vg_name(raw_row)
+        return _bundled_overlay_dir(self._board) / self._vg_name(raw_row)
 
     def _vg_name(self, raw_row: list) -> str:
         """`emblua_<stub>.vg` for a raw CSV row (clock converted MHz→Hz)."""
@@ -593,7 +625,7 @@ class HardwareOverlayPanel(QWidget):
         elif QMessageBox.question(
                 self, 'Install Overlay',
                 f'{name} is not available locally.\n\n'
-                f'Download it from {_VG_BASE_URL}?'
+                f'Download it from {self._vg_base_url()}?'
                 ) == QMessageBox.StandardButton.Yes:
             self._download_overlay(name, src, dest, overlay_id, clk, row)
 
@@ -616,7 +648,7 @@ class HardwareOverlayPanel(QWidget):
             return
         self._status.setText(f'Downloading Hardware Overlay {overlay_id}')
         self._vg_installer = _VgDownloader(
-            _VG_BASE_URL + name, dest, cache, self)
+            self._vg_base_url() + name, dest, cache, self)
         self._vg_installer.done.connect(
             lambda: self._on_vg_done(overlay_id, dest.parent, clk, row))
         self._vg_installer.failed.connect(self._on_vg_failed)
@@ -640,7 +672,7 @@ class HardwareOverlayPanel(QWidget):
         self._status.setText(f'Downloading Hardware Overlay {overlay_id}')
         # dest == cache: download straight into the local cache directory.
         self._vg_installer = _VgDownloader(
-            _VG_BASE_URL + name, cache, cache, self)
+            self._vg_base_url() + name, cache, cache, self)
         self._vg_installer.done.connect(
             lambda: self._on_vg_cached(overlay_id, row))
         self._vg_installer.failed.connect(self._on_vg_failed)
@@ -670,7 +702,7 @@ class HardwareOverlayPanel(QWidget):
         """Copy the clock-matched timing constraints into the workspace as the
         stable `timing.sdc` the synth flow references. Warns (without failing
         the install) if no constraints ship for that frequency."""
-        src = _bundled_fw_dir() / f'timing_{clk}mhz.sdc'
+        src = _bundled_fw_dir(self._board) / f'timing_{clk}mhz.sdc'
         if not src.is_file():
             QMessageBox.warning(
                 self, 'Install Overlay',

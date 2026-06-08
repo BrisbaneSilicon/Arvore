@@ -132,6 +132,11 @@ class SettingsDialog(QDialog):
         self._font_size = QSpinBox()
         self._font_size.setRange(6, 48)
         f.addRow('Font size:', self._font_size)
+        # Global font size for the bottom panels (serial terminal + the various
+        # build/output panes). Family stays monospaced; only the size is tunable.
+        self._panel_font_size = QSpinBox()
+        self._panel_font_size.setRange(6, 48)
+        f.addRow('Output/terminal font size:', self._panel_font_size)
         tabs.addTab(editor_w, 'Editor')
 
         # ── Serial ────────────────────────────────────────────────────
@@ -200,6 +205,7 @@ class SettingsDialog(QDialog):
         if idx >= 0:
             self._font_combo.setCurrentIndex(idx)
         self._font_size.setValue(int(self._s.value('editor/font_size', 13)))
+        self._panel_font_size.setValue(int(self._s.value('panel/font_size', 10)))
         self._baud.setValue(int(self._s.value('serial/baud', 115200)))
         self._compiler.setText(self._s.value('c/compiler_path', ''))
         self._cflags.setText(self._s.value('c/compiler_flags', ''))
@@ -212,6 +218,7 @@ class SettingsDialog(QDialog):
     def _save(self):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
         self._s.setValue('editor/font_size',      self._font_size.value())
+        self._s.setValue('panel/font_size',       self._panel_font_size.value())
         self._s.setValue('serial/baud',           self._baud.value())
         self._s.setValue('c/compiler_path',       self._compiler.text())
         self._s.setValue('c/compiler_flags',      self._cflags.text())
@@ -229,6 +236,11 @@ class SettingsDialog(QDialog):
     @staticmethod
     def editor_font_size() -> int:
         return int(QSettings().value('editor/font_size', 13))
+
+    @staticmethod
+    def panel_font_size() -> int:
+        """Font size for the bottom panels (serial terminal + output panes)."""
+        return int(QSettings().value('panel/font_size', 10))
 
     @staticmethod
     def baud() -> int:

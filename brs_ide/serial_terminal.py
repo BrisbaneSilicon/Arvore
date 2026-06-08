@@ -13,6 +13,7 @@ import serial.tools.list_ports
 
 from . import theme
 from .highlighter import LuaHighlighter, SkipHighlight
+from .settings import SettingsDialog
 
 
 
@@ -182,22 +183,15 @@ class SerialTerminal(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
 
-        font = QFont('Monospace', 10)
-        font.setStyleHint(QFont.StyleHint.TypeWriter)
-
         self._output = QPlainTextEdit()
         self._output.setReadOnly(True)
-        self._output.setFont(font)
         self._output.setMaximumBlockCount(5000)
         self._highlighter = LuaHighlighter(self._output.document())
         layout.addWidget(self._output)
 
-        # Input row — a few sizes larger than the output for easier typing.
-        input_font = QFont('Monospace', 10)
-        input_font.setStyleHint(QFont.StyleHint.TypeWriter)
+        # Input row
         row = QHBoxLayout()
         self._input = QLineEdit()
-        self._input.setFont(input_font)
         self._input.setPlaceholderText('Type Lua here and press Enter…')
         self._input.returnPressed.connect(self._send_input)
         self._input.installEventFilter(self)
@@ -221,7 +215,16 @@ class SerialTerminal(QWidget):
         self._send_btn.setEnabled(False)
         self.connected.connect(self._on_connected)
 
+        self.apply_font()
         self.apply_theme()
+
+    def apply_font(self):
+        """Apply the configured global panel font size to both the REPL output
+        and the Lua entry box (monospaced)."""
+        font = QFont('Monospace', SettingsDialog.panel_font_size())
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+        self._output.setFont(font)
+        self._input.setFont(font)
 
     def apply_theme(self):
         t = theme.current()

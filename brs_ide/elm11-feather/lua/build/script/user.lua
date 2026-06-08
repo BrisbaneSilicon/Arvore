@@ -4,7 +4,7 @@
         NOTE:
 --]]
 
-program_name = "User Example: ELM11"
+program_name = "User Example: ELM11-Feather"
 
 
 -- Program dependencies
@@ -32,7 +32,7 @@ import('user', 'hw_lfsr32')
 
 -- Program configuration
 
-QUICK_TOGGLE_PIN = 1
+QUICK_TOGGLE_PIN = 2
 
 
 -- Main program begin

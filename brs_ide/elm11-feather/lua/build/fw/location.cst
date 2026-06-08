@@ -1,0 +1,90 @@
+######################### Locations #########################
+
+IO_LOC  "pad_clk_27Mhz"             52;
+
+IO_LOC  "pad_reset_button_n"        3;
+
+IO_LOC  "pad_ser_tx"                17;
+IO_LOC  "pad_ser_rx"                18;
+
+IO_LOC  "pad_leds[0]"               13;
+IO_LOC  "pad_leds[1]"               14;
+IO_LOC  "pad_leds[2]"               15;
+IO_LOC  "pad_leds[3]"               16;
+IO_LOC  "pad_leds[4]"               19;
+IO_LOC  "pad_leds[5]"               20;
+
+IO_LOC  "pad_io[0]"                 4;
+IO_LOC  "pad_io[1]"                 31;
+IO_LOC  "pad_io[2]"                 33;
+IO_LOC  "pad_io[3]"                 29;
+IO_LOC  "pad_io[4]"                 27;
+IO_LOC  "pad_io[5]"                 26;
+IO_LOC  "pad_io[6]"                 35;
+IO_LOC  "pad_io[7]"                 36;
+IO_LOC  "pad_io[8]"                 37;
+IO_LOC  "pad_io[9]"                 38;
+IO_LOC  "pad_io[10]"                39;
+IO_LOC  "pad_io[11]"                40;
+IO_LOC  "pad_io[12]"                41;
+IO_LOC  "pad_io[13]"                42;
+IO_LOC  "pad_io[14]"                75;
+IO_LOC  "pad_io[15]"                77;
+IO_LOC  "pad_io[16]"                74;
+IO_LOC  "pad_io[17]"                73;
+IO_LOC  "pad_io[18]"                72;
+IO_LOC  "pad_io[19]"                71;
+IO_LOC  "pad_io[20]"                70;
+IO_LOC  "pad_io[21]"                69;
+IO_LOC  "pad_io[22]"                68;
+
+IO_LOC  "pad_flash_clk"             59;
+IO_LOC  "pad_flash_csb"             60;
+IO_LOC  "pad_flash_mosi"            61;
+IO_LOC  "pad_flash_miso"            62;
+
+
+######################### Configuration #########################
+
+IO_PORT "pad_clk_27Mhz"             IO_TYPE=LVCMOS33    PULL_MODE=UP;
+
+IO_PORT "pad_reset_button_n"                            PULL_MODE=UP;
+
+IO_PORT "pad_ser_tx"                IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_ser_rx"                IO_TYPE=LVCMOS33    PULL_MODE=UP;
+
+IO_PORT "pad_flash_csb"             IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_flash_clk"             IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_flash_miso"            IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_flash_mosi"            IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+
+IO_PORT "pad_leds[0]"                                   PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_leds[1]"                                   PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_leds[2]"                                   PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_leds[3]"                                   PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_leds[4]"               IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+IO_PORT "pad_leds[5]"               IO_TYPE=LVCMOS33    PULL_MODE=UP    DRIVE=8;
+
+IO_PORT "pad_io[0]"                                     PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[1]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[2]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[3]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[4]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[5]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[6]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[7]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[8]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[9]"                 IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[10]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[11]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[12]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[13]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[14]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[15]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[16]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[17]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[18]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[19]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[20]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[21]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
+IO_PORT "pad_io[22]"                IO_TYPE=LVCMOS33    PULL_MODE=DOWN  DRIVE=8;
