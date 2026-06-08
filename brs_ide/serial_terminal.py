@@ -192,10 +192,12 @@ class SerialTerminal(QWidget):
         self._highlighter = LuaHighlighter(self._output.document())
         layout.addWidget(self._output)
 
-        # Input row
+        # Input row — a few sizes larger than the output for easier typing.
+        input_font = QFont('Monospace', 10)
+        input_font.setStyleHint(QFont.StyleHint.TypeWriter)
         row = QHBoxLayout()
         self._input = QLineEdit()
-        self._input.setFont(font)
+        self._input.setFont(input_font)
         self._input.setPlaceholderText('Type Lua here and press Enter…')
         self._input.returnPressed.connect(self._send_input)
         self._input.installEventFilter(self)
