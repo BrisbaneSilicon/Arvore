@@ -25,6 +25,11 @@ module user
         // i.e. to/from physical pins
 );
 
+    //  ------- Constants -------
+
+    reg [31:0] c_reg0 = 32'hdeadbeef;
+
+
     //  ------- Internal signals -------
 
     reg [31:0] i_lsfr = 1;
@@ -49,7 +54,7 @@ module user
     assign m_iobus_wren     = |s_wstrb;
 
     assign m_iobus_wrdata   = s_wrdata[15:0];
-    assign s_rddata         = (s_addr == 0) ? 32'hdeadbeef : i_lsfr;
+    assign s_rddata         = (s_addr == 0) ? c_reg0 : i_lsfr;
         // NOTE: address zero is the 'ID' register,
         // all other registers are the LFSR state.
 

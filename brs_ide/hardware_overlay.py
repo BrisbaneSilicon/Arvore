@@ -382,7 +382,6 @@ class HardwareOverlayPanel(QWidget):
         except ValueError:
             pins_col = -1
 
-        vg_dir = _bundled_csv().parent
         self._table.setUpdatesEnabled(False)
         self._table.clearContents()
         self._table.setColumnCount(len(headers))
@@ -392,7 +391,7 @@ class HardwareOverlayPanel(QWidget):
             n_io = (self._int(row[pins_col])
                     if 0 <= pins_col < len(row) else 0)
             # Grey out rows whose `.vg` firmware image isn't present on disk.
-            present = (vg_dir / self._vg_name(row)).is_file()
+            present = self._vg_path(row).is_file()
             for c in range(len(headers)):
                 val = row[c] if c < len(row) else ''
                 if c in cap_cols:
@@ -509,15 +508,21 @@ class HardwareOverlayPanel(QWidget):
     # ── Install overlay image ───────────────────────────────────────────────
 
     def _on_table_menu(self, pos):
-        """Right-click context menu: install the clicked row's overlay image."""
+        """Right-click context menu: install a row whose image is present, or
+        download one that's missing (greyed out)."""
         row = self._table.rowAt(pos.y())
         if not 0 <= row < len(self._rows_raw):
             return
         self._table.selectRow(row)
+        present = self._vg_path(self._rows_raw[row]).is_file()
         menu = QMenu(self)
-        install = menu.addAction('Install')
-        if menu.exec(self._table.viewport().mapToGlobal(pos)) is install:
-            self._install_row(row)
+        action = menu.addAction('Install' if present else 'Download')
+        if menu.exec(self._table.viewport().mapToGlobal(pos)) is action:
+            (self._install_row if present else self._download_row)(row)
+
+    def _vg_path(self, raw_row: list) -> Path:
+        """Local (bundled/cache) path of a raw row's `.vg` firmware image."""
+        return _bundled_csv().parent / self._vg_name(raw_row)
 
     def _vg_name(self, raw_row: list) -> str:
         """`emblua_<stub>.vg` for a raw CSV row (clock converted MHz→Hz)."""
@@ -564,7 +569,7 @@ class HardwareOverlayPanel(QWidget):
                 self, 'Install Overlay',
                 'Open a Lua workspace before installing a hardware overlay.')
             return
-        src = _bundled_csv().parent / name
+        src = self._vg_path(self._rows_raw[row])
         if src.is_file():
             self._copy_overlay(src, dest, overlay_id, clk)
         elif QMessageBox.question(
@@ -583,13 +588,15 @@ class HardwareOverlayPanel(QWidget):
                 self, 'Install Overlay', f'Could not install overlay:\n{exc}')
             return
         self._deploy_timing(clk, dest.parent)
-        self._status.setText(f'Installed Hardware Overlay {overlay_id}')
+        self._status.setText(
+            f'Installed Hardware Overlay {overlay_id}. '
+            f'Please proceed with Synth-Program.')
 
     def _download_overlay(self, name: str, cache: Path, dest: Path,
                           overlay_id: str, clk: str, row: int):
         if self._vg_installer is not None and self._vg_installer.isRunning():
             return
-        self._status.setText(f'Downloading {name}…')
+        self._status.setText(f'Downloading Hardware Overlay {overlay_id}')
         self._vg_installer = _VgDownloader(
             _VG_BASE_URL + name, dest, cache, self)
         self._vg_installer.done.connect(
@@ -600,14 +607,36 @@ class HardwareOverlayPanel(QWidget):
     def _on_vg_done(self, overlay_id: str, dest_dir: Path, clk: str, row: int):
         self._deploy_timing(clk, dest_dir)
         self._refresh_row_grey(row)                 # un-grey now it's cached
-        self._status.setText(f'Installed Hardware Overlay {overlay_id}')
+        self._status.setText(
+            f'Installed Hardware Overlay {overlay_id}. '
+            f'Please proceed with Synth-Program.')
+
+    def _download_row(self, row: int):
+        """Fetch a missing row's `.vg` image into the local cache (no deploy),
+        so the row un-greys and can be installed later."""
+        if self._vg_installer is not None and self._vg_installer.isRunning():
+            return
+        name = self._vg_name(self._rows_raw[row])
+        overlay_id = self._row_id(row)
+        cache = self._vg_path(self._rows_raw[row])
+        self._status.setText(f'Downloading Hardware Overlay {overlay_id}')
+        # dest == cache: download straight into the local cache directory.
+        self._vg_installer = _VgDownloader(
+            _VG_BASE_URL + name, cache, cache, self)
+        self._vg_installer.done.connect(
+            lambda: self._on_vg_cached(overlay_id, row))
+        self._vg_installer.failed.connect(self._on_vg_failed)
+        self._vg_installer.start()
+
+    def _on_vg_cached(self, overlay_id: str, row: int):
+        self._refresh_row_grey(row)
+        self._status.setText(f'Downloaded Hardware Overlay {overlay_id}')
 
     def _refresh_row_grey(self, row: int):
         """Re-evaluate one row's `.vg` presence and (un)grey its cells."""
         if not 0 <= row < len(self._rows_raw):
             return
-        present = (_bundled_csv().parent
-                   / self._vg_name(self._rows_raw[row])).is_file()
+        present = self._vg_path(self._rows_raw[row]).is_file()
         for c in range(self._table.columnCount()):
             item = self._table.item(row, c)
             if item is None:

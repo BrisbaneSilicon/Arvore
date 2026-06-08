@@ -30,11 +30,17 @@ end entity user;
 
 architecture rtl of user is
 
-    --  ------- Internal signals -------
+    ------- Constants -------
+
+    constant c_reg0 : std_logic_vector(31 downto 0) := x"8badf00d";
+
+
+    ------- Internal signals -------
 
     signal i_lsfr : std_logic_vector(31 downto 0) := x"00000001";
 
-    --  ------- Functions -------
+
+    ------- Functions -------
 
     -- NOTE: 32-bit LFSR helper function
     function lfsr_32bit_next (lfsr_in : std_logic_vector(31 downto 0))
@@ -53,7 +59,7 @@ architecture rtl of user is
 
 begin
 
-    --  ------- I/O Mapping -------
+    ------- I/O Mapping -------
 
     m_iobus_valid   <= s_valid;
     s_ready_i       <= m_iobus_ready;
@@ -61,13 +67,14 @@ begin
     m_iobus_wren    <= s_wstrb(3) or s_wstrb(2) or s_wstrb(1) or s_wstrb(0);
 
     m_iobus_wrdata  <= s_wrdata(15 downto 0);
-    s_rddata        <= x"8badf00d" when unsigned(s_addr) = 0 else i_lsfr;
+    s_rddata        <= c_reg0 when unsigned(s_addr) = 0 else i_lsfr;
         -- NOTE: address zero is the 'ID' register,
         -- all other registers are the LFSR state.
 
     m_iobus_tuser   <= (others => '0');
 
-    --  ------- Implementation -------
+
+    ------- Implementation -------
 
     process (clk)
     begin
