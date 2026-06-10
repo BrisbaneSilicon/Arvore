@@ -90,6 +90,7 @@ _BOOL_HEADERS = {
     'Software Interrupts',
     'Hardware Bus',
     'I/O',
+    'LVM Accel',
 }
 
 # Display-only header relabelling. The CSV already ships short names ('Perf

@@ -4,7 +4,7 @@
 Each stub's *filename* encodes one overlay configuration as underscore-separated
 fields, in the same order as the CSV columns below, e.g.::
 
-    115200_66000000_1_1_1_1_0_1_16_768_3072_3_12_255_0_0_3_65535_1
+    115200_66000000_1_1_1_1_0_1_16_768_3072_3_12_255_0_0_3_65535_1_0
 
 The file contents are ignored — only the name matters. The clock field is given
 in Hz in the filename and emitted in MHz to match the ``Clk Mhz`` column.
@@ -25,7 +25,7 @@ DATA_COLUMNS = [
     'Baud', 'Clk Mhz', 'General Timer', 'Perf Timer', 'Cores',
     'Watchdog', 'Watchdog Timeout', 'I/O', 'I/O Count',
     'SPI Out', 'SPI In', 'Uart Out', 'Uart In', 'PWM', 'GPIO Out', 'GPIO In',
-    'I/O Buffer', 'Software Interrupts', 'Hardware Bus',
+    'I/O Buffer', 'Software Interrupts', 'Hardware Bus','LVM Accel',
 ]
 
 # Full CSV header: a generated sequential 'ID' column, then the data columns.

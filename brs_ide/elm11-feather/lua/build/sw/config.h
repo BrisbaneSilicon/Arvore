@@ -80,6 +80,4 @@
 
 // #define ENABLE_LUA_ASSERTS
 
-#define LUA_STATE_IN_RAM
-
 #endif

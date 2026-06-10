@@ -13,6 +13,8 @@ import('ipairs')
 import('msleep')
 import('reset_all_io_type_cfg')
 import('set_io_type_cfg')
+import('hw_write')
+import('hw_read')
     -- NOTE: if we were using a large amount
     -- of the base API, we could just use
     -- import('all')
@@ -32,7 +34,7 @@ import('user', 'hw_lfsr32')
 
 -- Program configuration
 
-QUICK_TOGGLE_PIN = 1
+QUICK_TOGGLE_PIN = 2
 
 
 -- Main program begin
@@ -117,7 +119,8 @@ if id == 0xdeadbeef then
 elseif id == 0x8badf00d then
     print("Workspace default HDL is 'VHDL'")
 else
-    print("Workspace default unknown - you've modified 'user.sv/vhd'...")
+    print("Workspace default unknown! Either 'Hardware Bus' is False for ")
+    print("the loaded Hardware Overlay, or you've modified 'user.sv/user.vhd'...")
 end
 msleep(500)
 

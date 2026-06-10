@@ -25,7 +25,7 @@ DATA_COLUMNS = [
     'Baud', 'Clk Mhz', 'General Timer', 'Perf Timer', 'Cores',
     'Watchdog', 'Watchdog Timeout', 'I/O', 'I/O Count',
     'SPI Out', 'SPI In', 'Uart Out', 'Uart In', 'PWM', 'GPIO Out', 'GPIO In',
-    'I/O Buffer', 'Software Interrupts', 'Hardware Bus',
+    'I/O Buffer', 'Software Interrupts', 'Hardware Bus', 'LVM Accel',
 ]
 
 # Full CSV header: a generated sequential 'ID' column, then the data columns.
