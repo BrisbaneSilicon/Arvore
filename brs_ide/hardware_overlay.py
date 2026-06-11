@@ -93,21 +93,64 @@ _BOOL_HEADERS = {
     'LVM Accel',
 }
 
-# Display-only header relabelling. The CSV already ships short names ('Perf
-# Timer', 'Watchdog Timeout'), so nothing needs renaming today; this is kept as
-# the hook for any future long→short mapping.
-_HEADER_RENAMES = {}
-
-# Headers (after renaming) wrapped onto two lines (the space is replaced with a
-# newline) to keep these columns from stretching the table too wide.
-_TWO_LINE_HEADERS = {
-    'General Timer',
-    'Perf Timer',
-    'Watchdog Timeout',
-    'I/O Buffer',
-    'Software Interrupts',
-    'Hardware Bus',
+# Display-only header relabelling, applied before wrapping (see _wrap_header).
+# Used to abbreviate names that would otherwise wrap awkwardly.
+_HEADER_RENAMES = {
+    'General Timer': 'Gen. Timer',
+    'Perf Timer': 'Perf. Timer',
+    'Hardware Bus': 'HW Bus',
+    'Software Interrupts': 'SW Int.',
+    'Watchdog': 'Wdog',
+    'Watchdog Timeout': 'Wdog T.O',
+    'LVM Accel': 'LVM Accel.',
 }
+
+# Hover-tooltip text per column, keyed by the original CSV header. Edit any
+# value here to change the popup shown when hovering that header. Every column
+# is listed (in CSV order); a header not found here falls back to its full
+# original name.
+_HEADER_TOOLTIPS = {
+    'ID':                  'Hardware Overlay ID',
+    'Baud':                'User Comms Baud Rate',
+    'Clk Mhz':             'Clock (MHz)',
+    'General Timer':       'General Timer Enabled',
+    'Perf Timer':          'Performance Timer Enabled',
+    'Cores':               'CPU Cores',
+    'Watchdog':            'Watchdog Enabled',
+    'Watchdog Timeout':    'Watchdog Timeout (Milliseconds)',
+    'I/O':                 'I/O Enable',
+    'I/O Count':           'Number of I/O',
+    'SPI Out':             'SPI Out Capable Pins',
+    'SPI In':              'SPI In Capable Pins',
+    'Uart Out':            'UART Out Capable Pins',
+    'Uart In':             'UART In Capable Pins',
+    'PWM':                 'PWM Capable Pins',
+    'GPIO Out':            'GPIO Out Capable Pins',
+    'GPIO In':             'GPIO In Capable Pins',
+    'I/O Buffer':          'I/O Buffer Enabled on Pins',
+    'Software Interrupts': 'Software Interrupts Enabled',
+    'Hardware Bus':        'Hardware Bus Enabled',
+    'LVM Accel':           'LVM Acceleration Enabled',
+}
+
+# Maximum width (in characters) for any one line of a column heading. Headers
+# are wrapped to this so long names don't stretch the table: each word goes on
+# its own line, and a word longer than this is split across lines, each split
+# ending with a hyphen (which counts toward the width).
+_HEADER_WRAP = 6
+
+
+def _wrap_header(label: str) -> str:
+    """Wrap a column heading so no line exceeds `_HEADER_WRAP` characters,
+    placing each word on its own line and hyphenating any word too long to fit
+    on a single line."""
+    lines = []
+    for word in label.split():
+        while len(word) > _HEADER_WRAP:
+            lines.append(word[:_HEADER_WRAP - 1] + '-')
+            word = word[_HEADER_WRAP - 1:]
+        lines.append(word)
+    return '\n'.join(lines)
 
 
 class _CsvDownloader(QThread):
@@ -411,13 +454,9 @@ class HardwareOverlayPanel(QWidget):
         # Keep the raw headers/rows so a table row maps back to its `.vg` image.
         self._headers = list(headers)
         self._rows_raw = [list(r) for r in data]
-        # Column labels: apply display renames, then wrap the selected ones
-        # onto two lines (replace the first space with \n).
-        labels = []
-        for h in headers:
-            name = _HEADER_RENAMES.get(h, h)
-            labels.append(name.replace(' ', '\n', 1)
-                          if name in _TWO_LINE_HEADERS else name)
+        # Column labels: apply display renames, then wrap each so no line is
+        # wider than _HEADER_WRAP characters (long words are hyphenated).
+        labels = [_wrap_header(_HEADER_RENAMES.get(h, h)) for h in headers]
         cap_cols = {i for i, h in enumerate(headers) if h in _CAP_HEADERS}
         bool_cols = {i for i, h in enumerate(headers) if h in _BOOL_HEADERS}
         try:
@@ -429,6 +468,12 @@ class HardwareOverlayPanel(QWidget):
         self._table.clearContents()
         self._table.setColumnCount(len(headers))
         self._table.setHorizontalHeaderLabels(labels)
+        # Hovering a (abbreviated/wrapped) header shows its tooltip — an entry
+        # from _HEADER_TOOLTIPS, or the full original name as a fallback.
+        for c, h in enumerate(headers):
+            item = self._table.horizontalHeaderItem(c)
+            if item is not None:
+                item.setToolTip(_HEADER_TOOLTIPS.get(h, h))
         self._table.setRowCount(len(data))
         for r, row in enumerate(data):
             n_io = (self._int(row[pins_col])
