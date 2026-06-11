@@ -785,6 +785,12 @@ class MainWindow(QMainWindow):
         sb.setSizeGripEnabled(True)
         self._sb_conn = QLabel('  Not connected')
         sb.addWidget(self._sb_conn)
+        # Centre field: expands to fill the gap between the left/right widgets,
+        # with its text centred. Used for context hints (e.g. how to leave the
+        # Hardware Overlay page). Empty most of the time.
+        self._sb_center = QLabel('')
+        self._sb_center.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sb.addWidget(self._sb_center, 1)
         self._sb_mode = None
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -1008,12 +1014,16 @@ class MainWindow(QMainWindow):
     def _update_center_page(self):
         """Pick which centre-stack page is shown. Command Mode wins (it owns
         the device), then the Hardware Overlay, otherwise the editors+bottom."""
+        overlay_active = (not self._cmd_mode.is_active
+                          and self._overlay_toggle.isChecked())
         if self._cmd_mode.is_active:
             self._center_stack.setCurrentWidget(self._cmd_mode)
-        elif self._overlay_toggle.isChecked():
+        elif overlay_active:
             self._center_stack.setCurrentWidget(self._overlay)
         else:
             self._center_stack.setCurrentWidget(self._centre)
+        # Centre status hint: only shown while the Hardware Overlay page is up.
+        self._sb_center.setText('Press F1 to return' if overlay_active else '')
 
     # ── File operations ───────────────────────────────────────────────────────
 
