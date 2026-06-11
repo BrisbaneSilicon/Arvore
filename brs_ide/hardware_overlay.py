@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QAbstractItemView, QMenu, QMessageBox,
     QStylePainter, QStyleOptionComboBox, QStyle, QStyledItemDelegate,
+    QSplitter,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
@@ -271,6 +272,44 @@ class _CenteredComboBox(QComboBox):
             text)
 
 
+# Minimum height (in pixels) of the lower diagram pane on the Hardware Overlay
+# page. Tweak this to change how much vertical room the diagram is guaranteed.
+_DIAGRAM_MIN_HEIGHT = 500
+
+
+class _OverlayDiagram(QWidget):
+    """Lower section of the Hardware Overlay page: shows a diagram for the
+    overlay row currently selected in the table above.
+
+    The real diagram rendering hasn't landed yet — `show_overlay()` is the
+    single hook the panel calls on every selection change, with the row's ID
+    and its header→value map, ready to drive whatever drawing we add."""
+
+    _PROMPT = 'Select an overlay to view its diagram.'
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumHeight(_DIAGRAM_MIN_HEIGHT)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        self._label = QLabel(self._PROMPT)
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._label, 1)
+        # Current selection, kept so a future paint/redraw can re-read it.
+        self._overlay_id = ''
+        self._fields: dict = {}
+
+    def show_overlay(self, overlay_id: str, fields: dict):
+        """Update the diagram for the selected row. `overlay_id` is the row's
+        ID (empty when nothing is selected) and `fields` maps each CSV header
+        to that row's raw value."""
+        self._overlay_id = overlay_id
+        self._fields = dict(fields)
+        self._label.setText(
+            f'Diagram for Hardware Overlay {overlay_id}'
+            if overlay_id else self._PROMPT)
+
+
 class HardwareOverlayPanel(QWidget):
     """Centre-stack page presenting the downloaded hardware overlay summary."""
 
@@ -354,7 +393,20 @@ class HardwareOverlayPanel(QWidget):
         self._table.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_table_menu)
-        root.addWidget(self._table, 1)
+        # Selecting a row updates the diagram in the lower section.
+        self._table.itemSelectionChanged.connect(self._on_row_selected)
+
+        # Split the page vertically: the table sits on top, and a diagram that
+        # reflects the selected row sits below it (draggable divider between).
+        self._diagram = _OverlayDiagram(self)
+        self._split = QSplitter(Qt.Orientation.Vertical)
+        self._split.addWidget(self._table)
+        self._split.addWidget(self._diagram)
+        self._split.setStretchFactor(0, 3)      # table gets the lion's share
+        self._split.setStretchFactor(1, 1)
+        self._split.setCollapsible(0, False)
+        self._split.setCollapsible(1, False)
+        root.addWidget(self._split, 1)
 
         # Keep the filter dropdowns aligned to their columns as the table is
         # resized, columns are resized, or it's scrolled horizontally.
@@ -651,6 +703,21 @@ class HardwareOverlayPanel(QWidget):
             return str(int(float(val)))
         except (ValueError, IndexError):
             return ''
+
+    def _row_fields(self, row: int) -> dict:
+        """Map the row's CSV headers to their raw values, for the diagram."""
+        if not 0 <= row < len(self._rows_raw):
+            return {}
+        return dict(zip(self._headers, self._rows_raw[row]))
+
+    def _on_row_selected(self):
+        """Push the newly-selected row (if any) to the lower diagram section."""
+        sel = self._table.selectionModel().selectedRows()
+        if not sel:
+            self._diagram.show_overlay('', {})
+            return
+        row = sel[0].row()
+        self._diagram.show_overlay(self._row_id(row), self._row_fields(row))
 
     def _install_row(self, row: int):
         """Copy (or offer to download) the row's `.vg` image into the workspace
