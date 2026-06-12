@@ -17,10 +17,10 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QAbstractItemView, QMenu, QMessageBox,
     QStylePainter, QStyleOptionComboBox, QStyle, QStyledItemDelegate,
-    QSplitter,
+    QSplitter, QScrollArea,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QRectF, QPointF
-from PyQt6.QtGui import QColor, QPixmap, QPainter, QPen
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QRectF, QPointF, QTimer
+from PyQt6.QtGui import QColor, QPixmap, QPainter, QPen, QFont
 
 from . import theme
 
@@ -328,13 +328,13 @@ _PIN_MAPS = {
 # appear next to a pin. Each maps to its on-pill display text and colour. Edit
 # the text/colours freely; drop an entry to stop showing that capability.
 _CAP_LABELS = {
-    'GPIO Out':   'GPIO Out',
-    'GPIO In':    'GPIO In',
+    'GPIO Out':   'GPIO O',
+    'GPIO In':    'GPIO I',
     'PWM':        'PWM',
-    'Uart Out':   'UART Out',
-    'Uart In':    'UART In',
-    'SPI Out':    'SPI Out',
-    'SPI In':     'SPI In',
+    'Uart Out':   'UART O',
+    'Uart In':    'UART I',
+    'SPI Out':    'SPI O',
+    'SPI In':     'SPI I',
     'I/O Buffer': 'Buffer',
 }
 _CAP_COLORS = {
@@ -350,7 +350,21 @@ _CAP_COLORS = {
 
 # Fixed width (in pixels) of every capability label, so they line up in even
 # columns regardless of their text length.
-_CAP_PILL_WIDTH = 80
+_CAP_PILL_WIDTH = 60
+
+# When 'Hardware Bus' is enabled, the pins past 'I/O Count' (up to the last pin
+# in _PIN_MAPS) are consumed by the hardware bus rather than being configurable
+# I/O — they're labelled with this instead of capability pills.
+# Points to shave off the base font for the diagram's pin/feature/flag pills
+# (their heights follow the font, so this also tightens them up).
+_PILL_FONT_REDUCE = 1.5
+
+_HW_BUS_LABEL = 'Hardware Bus'
+_HW_BUS_COLOR = '#0d9488'
+# Bracket/connector line colour joining the bus pins to their shared label.
+_HW_BUS_LINE_COLOR = '#64748b'
+# Gap (px) from the pin tags out to the hardware-bus bracket spine.
+_HW_BUS_BRACKET_GAP = 18
 
 # Innermost label identifying each I/O pin, drawn closest to the board for every
 # pin (even ones with no capabilities) so it's obvious which pin is which. The
@@ -391,6 +405,77 @@ _FIXED_PILL_COLORS = {
     'GND':  '#000000',   # black — ground
 }
 
+# Feature callouts: a board-feature label drawn with a leader line pointing to a
+# spot on the photo (e.g. the UART baud at the USB-C connector). Unlike the pin
+# labels, these aren't per-pin — each shows a single overlay property. Keyed by
+# board dir name; each entry is a dict:
+#   field  — CSV header whose value fills the label (omit for a static label)
+#   text   — label template; '{}' is replaced with the field value
+#   point  — (x, y) fraction on the photo the leader line points to
+#   offset — (dx, dy) pixels from `point` to the label centre
+#   color  — pill colour
+# Placeholders — nudge `point`/`offset` to sit the label by the right feature.
+_FEATURE_CALLOUTS = {
+    'elm11-feather': [
+        {
+            'field': 'Baud',
+            'text': '{}',
+            'point': (0.50, 0.00),     # USB-C connector, top-centre of board
+            'offset': (0, -26),        # label sits just above it
+            'color': '#d1d5db',
+        },
+        {
+            'field': 'Clk Mhz',
+            'text': '{} MHz',
+            'point': (0.30, 0.795),     # FPGA IC, towards the bottom-left
+            'offset': (-130, 0),       # label sits well out to the left of it
+            'color': '#d1d5db',
+        },
+    ],
+}
+
+def _to_int(value) -> int:
+    """Best-effort int from a raw CSV cell (0 if blank/unparseable)."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _fmt_hms_ms(ms: int) -> str:
+    """Break a millisecond duration into 'H: h  M: m  S: s  MS: ms'."""
+    h, rem = divmod(int(ms), 3_600_000)
+    m, rem = divmod(rem, 60_000)
+    s, ms = divmod(rem, 1000)
+    return f'H: {h}  M: {m}  S: {s}  MS: {ms}'
+
+
+# Board-level capability flags (not tied to a pin or physical spot) listed on
+# the diagram when enabled (their field is non-zero). Each is (CSV header,
+# display label), with an optional 3rd element: a callable taking the fields
+# dict and returning extra detail appended in parentheses. Drawn top→bottom.
+_FLAG_CAPS = [
+    ('General Timer',       'General Timer'),
+    ('Perf Timer',          'Performance Timer'),
+    ('Watchdog',            'Watchdog',
+        lambda f: _fmt_hms_ms(_to_int(f.get('Watchdog Timeout')))),
+    ('Software Interrupts', 'Software Interrupts'),
+    ('LVM Accel',           'LVM Acceleration'),
+]
+# The enabled-flags list hangs off a single vertical spine connected by a leader
+# line to a point on the board (the FPGA IC). Per board:
+#   point  — (x, y) fraction on the photo the leader connects to (the FPGA)
+#   offset — (dx, dy) pixels from `point` to the top of the spine
+#   color  — pill colour
+# Each enabled flag's pill hangs off the spine; the stack grows downward.
+_FLAG_LIST = {
+    'elm11-feather': {
+        'point': (0.66, 0.795),     # FPGA IC, same as the freq callout
+        'offset': (100, 0),      # spine sits out to the right, slightly up
+        'color': '#d1d5db',
+    },
+}
+
 
 class _OverlayDiagram(QWidget):
     """Lower section of the Hardware Overlay page: a board photo annotated with
@@ -400,7 +485,7 @@ class _OverlayDiagram(QWidget):
     change, with the row's ID and its header→value map. The per-pin label
     positions live in `_PIN_MAPS` (placeholders, meant to be nudged)."""
 
-    _PROMPT = 'Select a Hardware Overlay to view its capabilities diagram.'
+    _PROMPT = 'Select a Hardware Overlay to view its Diagram.'
 
     # Flip to True while lining up _PIN_MAPS: overlays a numbered red marker at
     # every pin anchor and prints the fractional (x, y) under the cursor on each
@@ -409,14 +494,18 @@ class _OverlayDiagram(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(_DIAGRAM_MIN_WIDTH)
         self._board = ''
         self._pixmap: QPixmap | None = None
         self._pins: dict = {}
         self._fixed: list = []
+        self._features: list = []
+        self._flags_cfg: dict | None = None
         self._overlay_id = ''
         self._fields: dict = {}
         self._caption = ''
+        # Horizontal content bounds tracked while painting, so the widget can
+        # size itself (and its scroll area) to however far the labels extend.
+        self._xmin = self._xmax = 0.0
 
     def set_board(self, board: str):
         """Load `board`'s photo and pin map (called when the panel's board
@@ -424,6 +513,8 @@ class _OverlayDiagram(QWidget):
         self._board = board
         self._pins = _PIN_MAPS.get(board, {})
         self._fixed = _FIXED_PINS.get(board, [])
+        self._features = _FEATURE_CALLOUTS.get(board, [])
+        self._flags_cfg = _FLAG_LIST.get(board)
         pm = QPixmap(str(_bundled_overlay_dir(board) / _BOARD_IMAGE))
         self._pixmap = pm if not pm.isNull() else None
         self.update()
@@ -449,20 +540,52 @@ class _OverlayDiagram(QWidget):
         # Nothing selected: just the prompt, centred — no board image.
         if not self._overlay_id:
             self._draw_message(painter, self._PROMPT)
+            self._fit_width(None)
             return
         if self._pixmap is None:
             self._draw_message(painter, 'No board diagram available.')
+            self._fit_width(None)
             return
         img = self._image_rect()
+        self._xmin, self._xmax = img.left(), img.right()
         painter.drawPixmap(
             img, self._pixmap, QRectF(self._pixmap.rect()))
         if self._DEBUG_CLICK:
             self._draw_pin_markers(painter, img)
+        # Slightly smaller font for the labels (and so their pills); the caption
+        # keeps the base size.
+        base = painter.font()
+        small = QFont(base)
+        if base.pointSizeF() > 0:
+            small.setPointSizeF(max(6.0, base.pointSizeF() - _PILL_FONT_REDUCE))
+        painter.setFont(small)
         # Fixed-function pins are constant for the board — always shown.
         self._draw_fixed_pins(painter, img)
         self._draw_pins(painter, img)
+        self._draw_features(painter, img)
+        self._draw_flags(painter, img)
         if self._caption:
+            painter.setFont(base)
             self._draw_caption(painter)
+        self._fit_width(img)
+
+    def _grow(self, *xs):
+        """Extend the tracked horizontal content bounds to include `xs`."""
+        self._xmin = min(self._xmin, *xs)
+        self._xmax = max(self._xmax, *xs)
+
+    def _fit_width(self, img):
+        """Size the widget to its content so the scroll area can scroll to any
+        labels that overflow the board. Width is symmetric about the centred
+        board (so neither side clips); a deferred set avoids re-entrant paints."""
+        if img is None:
+            needed = 0
+        else:
+            margin = 16
+            ext = max(img.left() - self._xmin, self._xmax - img.right(), 0)
+            needed = int(self._pixmap.width() + 2 * ext + 2 * margin)
+        if needed != self.minimumWidth():
+            QTimer.singleShot(0, lambda n=needed: self.setMinimumWidth(n))
 
     def _draw_caption(self, painter: QPainter):
         """Header text at the top-centre of the pane (e.g. the installed-overlay
@@ -484,18 +607,78 @@ class _OverlayDiagram(QWidget):
 
     def _draw_pins(self, painter: QPainter, img: QRectF):
         """Per-pin labels for the selected overlay row: an innermost pin-number
-        tag (every pin), then a pill per supported capability."""
+        tag (every pin), then a pill per supported capability. Pins past
+        'I/O Count' are the hardware bus when it's enabled, else skipped — and
+        those bus pins share one joined label per side (see _draw_hardware_bus)."""
         n_io = self._int(self._fields.get('I/O Count'))
+        hw_bus = self._int(self._fields.get('Hardware Bus')) != 0
+        bus_pins = []                       # (pin, anchor, side) past I/O Count
         for pin, (xf, yf, side) in self._pins.items():
-            if n_io and pin > n_io:
-                continue
-            pills = [(self._pin_label(pin), _PIN_LABEL_COLOR, _PIN_LABEL_WIDTH)]
-            pills += [(_CAP_LABELS.get(c, c), _CAP_COLORS.get(c, '#888888'))
-                      for c in _CAP_LABELS
-                      if (self._int(self._fields.get(c)) >> (pin - 1)) & 1]
             anchor = QPointF(img.left() + xf * img.width(),
                              img.top() + yf * img.height())
+            if n_io and pin > n_io:
+                if hw_bus:
+                    bus_pins.append((pin, anchor, side))
+                continue                    # else: unused pin — nothing to show
+            # Reserve one fixed-width slot per capability (in _CAP_LABELS order)
+            # so each category always lands in the same column — an absent one
+            # leaves an empty (None-colour) spacer rather than shifting the rest.
+            pills = [(self._pin_label(pin), _PIN_LABEL_COLOR, _PIN_LABEL_WIDTH)]
+            for c in _CAP_LABELS:
+                if (self._int(self._fields.get(c)) >> (pin - 1)) & 1:
+                    pills.append((_CAP_LABELS[c], _CAP_COLORS.get(c, '#888888'),
+                                  _CAP_PILL_WIDTH))
+                else:
+                    pills.append(('', None, _CAP_PILL_WIDTH))   # empty column
+            while len(pills) > 1 and pills[-1][1] is None:      # trim trailing
+                pills.pop()
             self._draw_pill_row(painter, anchor, side, pills)
+        if bus_pins:
+            self._draw_hardware_bus(painter, bus_pins)
+
+    def _draw_hardware_bus(self, painter: QPainter, bus_pins: list):
+        """Draw the hardware-bus pins' number tags, then a single 'Hardware Bus'
+        label per side joined to them by a bracket (a vertical spine off the
+        tags), rather than repeating the label on every pin."""
+        fm = painter.fontMetrics()
+        pad_x, gap, stub, h = 6, 4, 10, fm.height() + 4
+        bus_w = fm.horizontalAdvance(_HW_BUS_LABEL) + 2 * pad_x
+        by_side: dict[str, list] = {}
+        for pin, anchor, side in bus_pins:
+            by_side.setdefault(side, []).append((pin, anchor))
+        for side, items in by_side.items():
+            items.sort(key=lambda pa: pa[1].y())
+            sign = 1 if side == 'right' else -1
+            # 1) each bus pin's number tag (dot + stub + tag pill).
+            for pin, anchor in items:
+                self._draw_pill_row(
+                    painter, anchor, side,
+                    [(self._pin_label(pin), _PIN_LABEL_COLOR, _PIN_LABEL_WIDTH)])
+            # 2) bracket spine just outside the tag column, with a short
+            #    connector from each tag to it.
+            anchor_x = items[0][1].x()
+            tag_outer = anchor_x + sign * (stub + _PIN_LABEL_WIDTH)
+            bracket_x = tag_outer + sign * _HW_BUS_BRACKET_GAP
+            ys = [a.y() for _, a in items]
+            y_top, y_bot, mid = min(ys), max(ys), (min(ys) + max(ys)) / 2
+            painter.setPen(QPen(QColor(_HW_BUS_LINE_COLOR), 1))
+            painter.drawLine(QPointF(bracket_x, y_top), QPointF(bracket_x, y_bot))
+            for _, a in items:
+                painter.drawLine(QPointF(tag_outer, a.y()),
+                                 QPointF(bracket_x, a.y()))
+            # 3) one 'Hardware Bus' label, centred on the span, off the bracket.
+            lx = bracket_x + sign * stub
+            painter.drawLine(QPointF(bracket_x, mid), QPointF(lx, mid))
+            bus_h = 2 * h           # double height to emphasise it's a bus
+            rect = QRectF(lx if sign > 0 else lx - bus_w,
+                          mid - bus_h / 2, bus_w, bus_h)
+            self._grow(rect.left(), rect.right())
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(_HW_BUS_COLOR))
+            painter.drawRoundedRect(rect, 4, 4)
+            painter.setPen(QColor('#ffffff'))
+            painter.drawText(rect, int(Qt.AlignmentFlag.AlignCenter),
+                             _HW_BUS_LABEL)
 
     def _pin_label(self, pin: int) -> str:
         """Display label for an I/O pin — a per-board/pin override if set in
@@ -515,24 +698,109 @@ class _OverlayDiagram(QWidget):
                 painter, anchor, side,
                 [('', _PIN_LABEL_COLOR, _PIN_LABEL_WIDTH), (label, color)])
 
+    def _draw_features(self, painter: QPainter, img: QRectF):
+        """Feature callouts: a single-value label with a leader line pointing to
+        a spot on the photo (e.g. UART baud at the USB-C connector)."""
+        fm = painter.fontMetrics()
+        pad_x, h = 6, fm.height() + 4
+        t = theme.current()
+        for feat in self._features:
+            field = feat.get('field')
+            value = self._fields.get(field, '') if field else ''
+            if field and not value:
+                continue
+            text = feat.get('text', '{}').format(value)
+            px = img.left() + feat['point'][0] * img.width()
+            py = img.top() + feat['point'][1] * img.height()
+            dx, dy = feat.get('offset', (0, -26))
+            cx, cy = px + dx, py + dy            # label centre
+            # Leader line from the label to the feature point (+ a small dot).
+            painter.setPen(QPen(QColor(t['border']), 1))
+            painter.setBrush(QColor(t['window_fg']))
+            painter.drawLine(QPointF(cx, cy), QPointF(px, py))
+            painter.drawEllipse(QPointF(px, py), 2.5, 2.5)
+            # Pill centred on (cx, cy).
+            w = fm.horizontalAdvance(text) + 2 * pad_x
+            rect = QRectF(cx - w / 2, cy - h / 2, w, h)
+            self._grow(rect.left(), rect.right())
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(feat.get('color', '#0ea5e9')))
+            painter.drawRoundedRect(rect, 4, 4)
+            painter.setPen(QColor(feat.get('text_color', '#1f2937')))
+            painter.drawText(rect, int(Qt.AlignmentFlag.AlignCenter), text)
+
+    def _draw_flags(self, painter: QPainter, img: QRectF):
+        """Board-level capability flags (General Timer, Watchdog, …) this overlay
+        has enabled, hung off a single vertical spine that connects by a leader
+        line to the FPGA IC."""
+        cfg = self._flags_cfg
+        if not cfg:
+            return
+        labels = []
+        for entry in _FLAG_CAPS:
+            header, label = entry[0], entry[1]
+            if self._int(self._fields.get(header)) == 0:
+                continue
+            detail = entry[2] if len(entry) > 2 else None
+            if detail:
+                label = f'{label}  ({detail(self._fields)})'
+            labels.append(label)
+        if not labels:
+            return
+        fm = painter.fontMetrics()
+        pad_x, gap, stub, h = 6, 6, 12, fm.height() + 4
+        t = theme.current()
+        px = img.left() + cfg['point'][0] * img.width()
+        py = img.top() + cfg['point'][1] * img.height()
+        ox, oy = cfg.get('offset', (130, -60))
+        sx, y0 = px + ox, py + oy            # spine x, first pill centre y
+        last = y0 + (len(labels) - 1) * (h + gap)
+        color = cfg.get('color', '#d1d5db')
+        text_color = cfg.get('text_color', '#1f2937')
+        # Leader from the FPGA to the top of the spine, then the spine itself.
+        painter.setPen(QPen(QColor(t['border']), 1))
+        painter.setBrush(QColor(t['window_fg']))
+        painter.drawEllipse(QPointF(px, py), 2.5, 2.5)
+        painter.drawLine(QPointF(px, py), QPointF(sx, y0))
+        painter.drawLine(QPointF(sx, y0), QPointF(sx, last))
+        self._grow(px, sx)
+        for i, label in enumerate(labels):
+            cy = y0 + i * (h + gap)
+            painter.setPen(QPen(QColor(t['border']), 1))
+            painter.drawLine(QPointF(sx, cy), QPointF(sx + stub, cy))
+            w = fm.horizontalAdvance(label) + 2 * pad_x
+            rect = QRectF(sx + stub, cy - h / 2, w, h)
+            self._grow(rect.left(), rect.right())
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(color))
+            painter.drawRoundedRect(rect, 4, 4)
+            painter.setPen(QColor(text_color))
+            painter.drawText(rect, int(Qt.AlignmentFlag.AlignCenter), label)
+
     def _draw_pill_row(self, painter: QPainter, anchor: QPointF,
                        side: str, pills: list):
-        """Draw a pin anchor dot, a connector stub, and a row of labelled pills
-        stretching outward in `side`. Each pill is a (label, colour) tuple, or
-        (label, colour, width) to override the default _CAP_PILL_WIDTH."""
+        """Draw a pin anchor dot, a single connector running under the whole row
+        out to the outermost pill, then the labelled pills on top. Each pill is a
+        (label, colour) tuple, or (label, colour, width) to override the default
+        _CAP_PILL_WIDTH."""
         fm = painter.fontMetrics()
         gap, stub = 4, 10
         h = fm.height() + 4
         t = theme.current()
-        # Pin anchor dot + connector stub out to the first pill.
-        x = anchor.x() + (stub if side == 'right' else -stub)
+        sign = 1 if side == 'right' else -1
+        widths = [p[2] if len(p) > 2 else _CAP_PILL_WIDTH for p in pills]
+        span = sum(widths) + gap * (len(pills) - 1)
+        end_x = anchor.x() + sign * (stub + span)   # far edge of the last pill
+        self._grow(anchor.x(), end_x)
+        # Anchor dot + one line running under all pills to the outermost edge.
         painter.setPen(QPen(QColor(t['border']), 1))
         painter.setBrush(QColor(t['window_fg']))
         painter.drawEllipse(anchor, 2.5, 2.5)
-        painter.drawLine(anchor, QPointF(x, anchor.y()))
-        for pill in pills:
+        painter.drawLine(anchor, QPointF(end_x, anchor.y()))
+        # Pills drawn on top of the line.
+        x = anchor.x() + sign * stub
+        for (pill, w) in zip(pills, widths):
             label, color = pill[0], pill[1]
-            w = pill[2] if len(pill) > 2 else _CAP_PILL_WIDTH
             if side == 'right':
                 rect = QRectF(x, anchor.y() - h / 2, w, h)
                 x = rect.right() + gap
@@ -650,7 +918,7 @@ class HardwareOverlayPanel(QWidget):
         header.addWidget(self._dl_filter)
 
         # Toggle the I/O diagram side-panel (off by default, like a dock).
-        self._diagram_btn = QPushButton('I/O Diagram')
+        self._diagram_btn = QPushButton('Diagram')
         self._diagram_btn.setCheckable(True)
         self._diagram_btn.setToolTip(
             'Show the I/O diagram for the selected overlay alongside the table')
@@ -693,16 +961,29 @@ class HardwareOverlayPanel(QWidget):
 
         # Side-panel layout: the table fills the page, and an I/O diagram for
         # the selected row can be toggled in on the right (see _diagram_btn).
+        # The diagram sits in a scroll area so its outward labels can be reached
+        # with a horizontal scrollbar when they overflow the pane.
         self._diagram = _OverlayDiagram(self)
         self._diagram.set_board(self._board)
+        self._diagram_scroll = QScrollArea()
+        self._diagram_scroll.setWidgetResizable(True)
+        self._diagram_scroll.setWidget(self._diagram)
+        self._diagram_scroll.setMinimumWidth(_DIAGRAM_MIN_WIDTH)
+        self._diagram_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._diagram_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Keep the (centred) board in view as the content width / pane resizes.
+        self._diagram_scroll.horizontalScrollBar().rangeChanged.connect(
+            self._center_diagram)
         self._split = QSplitter(Qt.Orientation.Horizontal)
         self._split.addWidget(self._table)
-        self._split.addWidget(self._diagram)
+        self._split.addWidget(self._diagram_scroll)
         self._split.setStretchFactor(0, 3)      # table gets the lion's share
         self._split.setStretchFactor(1, 1)
         self._split.setCollapsible(0, False)
         self._split.setCollapsible(1, False)
-        self._diagram.setVisible(self._diagram_btn.isChecked())   # off initially
+        self._diagram_scroll.setVisible(self._diagram_btn.isChecked())  # off init
         root.addWidget(self._split, 1)
 
         # Keep the filter dropdowns aligned to their columns as the table is
@@ -856,6 +1137,7 @@ class HardwareOverlayPanel(QWidget):
         # Rebuild the per-column filter dropdowns from the freshly shown values.
         self._build_filters()
         self._apply_filters()
+        self._highlight_installed_row()
         # No row is selected yet — seed the diagram with the installed overlay.
         self._on_row_selected()
 
@@ -1012,15 +1294,23 @@ class HardwareOverlayPanel(QWidget):
 
     def _toggle_diagram(self, checked: bool):
         """Show or hide the I/O diagram side-panel."""
-        self._diagram.setVisible(checked)
+        self._diagram_scroll.setVisible(checked)
+
+    def _center_diagram(self, *_):
+        """Centre the diagram's horizontal scroll on the (centred) board."""
+        bar = self._diagram_scroll.horizontalScrollBar()
+        bar.setValue((bar.minimum() + bar.maximum()) // 2)
 
     def _on_row_selected(self):
-        """Push the selected row to the diagram. With nothing selected, fall
-        back to showing the overlay currently installed in the workspace."""
+        """Push the selected row to the diagram (always captioned). With nothing
+        selected, fall back to the overlay the workspace records as installed."""
         sel = self._table.selectionModel().selectedRows()
         if sel:
             row = sel[0].row()
-            self._diagram.show_overlay(self._row_id(row), self._row_fields(row))
+            overlay_id = self._row_id(row)
+            self._diagram.show_overlay(
+                overlay_id, self._row_fields(row),
+                caption=self._overlay_caption(overlay_id))
             return
         self._show_installed_overlay()
 
@@ -1035,7 +1325,15 @@ class HardwareOverlayPanel(QWidget):
             return
         self._diagram.show_overlay(
             self._row_id(row), self._row_fields(row),
-            caption=f'Installed — Overlay {overlay_id}')
+            caption=self._overlay_caption(overlay_id))
+
+    def _overlay_caption(self, overlay_id: str) -> str:
+        """Diagram header for an overlay — 'Overlay <id>', suffixed '(Installed)'
+        when it's the one recorded as installed in the workspace."""
+        installed = (self.installed_overlay_getter()
+                     if self.installed_overlay_getter else None)
+        suffix = ' (Installed)' if overlay_id and overlay_id == installed else ''
+        return f'Overlay {overlay_id}{suffix}'
 
     def _row_by_id(self, overlay_id: str) -> int | None:
         """Index of the row with the given overlay ID, or None if not present."""
@@ -1047,6 +1345,52 @@ class HardwareOverlayPanel(QWidget):
             if idx < len(raw) and raw[idx] == overlay_id:
                 return r
         return None
+
+    def _highlight_installed_row(self):
+        """Lightly tint the table row of the overlay recorded as installed
+        (cleared from every other row)."""
+        overlay_id = (self.installed_overlay_getter()
+                      if self.installed_overlay_getter else None)
+        target = self._row_by_id(overlay_id) if overlay_id else None
+        bg = self._installed_bg()
+        for r in range(self._table.rowCount()):
+            for c in range(self._table.columnCount()):
+                item = self._table.item(r, c)
+                if item is None:
+                    continue
+                if r == target:
+                    item.setBackground(bg)
+                else:
+                    item.setData(Qt.ItemDataRole.BackgroundRole, None)
+
+    @staticmethod
+    def _installed_bg() -> QColor:
+        """A light tint for the installed row — the theme's selection colour
+        blended toward the table background so it reads as a gentle highlight."""
+        t = theme.current()
+        sel, base = QColor(t['selection']), QColor(t['tree_bg'])
+        f = 0.30
+        return QColor(
+            int(base.red() * (1 - f) + sel.red() * f),
+            int(base.green() * (1 - f) + sel.green() * f),
+            int(base.blue() * (1 - f) + sel.blue() * f))
+
+    def deploy_default_overlay(self, overlay_id: str):
+        """Install `overlay_id` into the open workspace non-interactively — used
+        to seed a brand-new workspace with a default overlay. Quietly does
+        nothing if the workspace, row, or local `.vg` image isn't available."""
+        self.ensure_loaded()
+        row = self._row_by_id(overlay_id)
+        if row is None:
+            return
+        src = self._vg_path(self._rows_raw[row])
+        dest = (self.deploy_target_provider()
+                if self.deploy_target_provider else None)
+        if dest is None or not src.is_file():
+            return
+        # Copies the image to emblua.vg, deploys timing.sdc, and records it as
+        # the installed overlay (see _copy_overlay → _mark_installed).
+        self._copy_overlay(src, dest, overlay_id, self._row_clk(row))
 
     def _install_row(self, row: int):
         """Copy (or offer to download) the row's `.vg` image into the workspace
@@ -1086,9 +1430,14 @@ class HardwareOverlayPanel(QWidget):
             f'Please proceed with Synth-Program.')
 
     def _mark_installed(self, overlay_id: str):
-        """Persist the just-installed overlay ID for the workspace (owner-set)."""
+        """Persist the just-installed overlay ID for the workspace (owner-set),
+        and refresh the diagram if it's showing the installed view (no row
+        selected) so the new overlay appears immediately."""
         if self.installed_overlay_setter:
             self.installed_overlay_setter(overlay_id)
+        self._highlight_installed_row()
+        if not self._table.selectionModel().selectedRows():
+            self._show_installed_overlay()
 
     def _download_overlay(self, name: str, cache: Path, dest: Path,
                           overlay_id: str, clk: str, row: int):
@@ -1225,3 +1574,5 @@ class HardwareOverlayPanel(QWidget):
             f'color:{t["dlg_input_fg"]}; '
             f'selection-background-color:{t["selection"]}; }}'
         )
+        # Re-tint the installed row for the new theme (no-op before populate).
+        self._highlight_installed_row()

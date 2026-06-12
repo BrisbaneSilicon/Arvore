@@ -1975,11 +1975,12 @@ class MainWindow(QMainWindow):
         # cancels the dialog, create nothing: don't swap roots, touch history,
         # or deploy templates — leave the current workspace untouched.
         hdl = 'SystemVerilog'
+        customize_overlay = False
         if is_new_workspace:
             cfg = self._prompt_new_workspace_config(path.name)
             if cfg is None:
                 return
-            target, mode, hdl = cfg
+            target, mode, hdl, customize_overlay = cfg
             saved_mode = mode
         else:
             target = s.value(target_key, 'ELM11')
@@ -2017,18 +2018,27 @@ class MainWindow(QMainWindow):
         # runtime/ trees seeded from the IDE's bundle.
         if is_new_workspace:
             self._deploy_build_templates(path, saved_mode.lower(), hdl, target)
+            # For a Lua workspace: if the user wants to customize the overlay,
+            # open the Hardware Overlay page and let them install one; otherwise
+            # seed a default overlay so it can be synthesised straight away.
+            if saved_mode == 'Lua':
+                if customize_overlay:
+                    self._overlay_toggle.setChecked(True)
+                else:
+                    self._overlay.deploy_default_overlay('00001')
 
         self._rebuild_workspaces_menu()
         self._restore_workspace_tabs(path)
 
     def _prompt_new_workspace_config(self, name: str):
         """Ask the user to pick a Target Board, Language Mode and Default HDL
-        for a freshly-opened workspace. Returns `(target_board, mode, hdl)`,
-        where `hdl` is 'SystemVerilog' or 'VHDL', or `None` if the user
-        cancels (in which case the workspace should not be created)."""
+        for a freshly-opened workspace, plus whether to customize the hardware
+        overlay. Returns `(target_board, mode, hdl, customize_overlay)`, where
+        `hdl` is 'SystemVerilog' or 'VHDL', or `None` if the user cancels (in
+        which case the workspace should not be created)."""
         from PyQt6.QtWidgets import (
             QDialog, QVBoxLayout, QFormLayout, QComboBox,
-            QDialogButtonBox, QLabel,
+            QDialogButtonBox, QLabel, QCheckBox,
         )
         dlg = QDialog(self)
         dlg.setWindowTitle('New Workspace')
@@ -2051,6 +2061,14 @@ class MainWindow(QMainWindow):
         form.addRow('Default HDL:', hdl_combo)
         root.addLayout(form)
 
+        # Hardware overlays only apply to Lua workspaces — disable the option
+        # (but keep it visible) when C is selected.
+        customize_cb = QCheckBox('Customize Hardware Overlay')
+        customize_cb.setChecked(True)
+        mode_combo.currentTextChanged.connect(
+            lambda m: customize_cb.setEnabled(m == 'Lua'))
+        root.addWidget(customize_cb)
+
         btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel)
@@ -2061,7 +2079,8 @@ class MainWindow(QMainWindow):
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return None
         return (target_combo.currentText(), mode_combo.currentText(),
-                hdl_combo.currentText())
+                hdl_combo.currentText(),
+                customize_cb.isChecked() and customize_cb.isEnabled())
 
     def _deploy_build_templates(self, workspace: Path, lang: str,
                                 hdl: str = 'SystemVerilog',
