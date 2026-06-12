@@ -352,6 +352,45 @@ _CAP_COLORS = {
 # columns regardless of their text length.
 _CAP_PILL_WIDTH = 80
 
+# Innermost label identifying each I/O pin, drawn closest to the board for every
+# pin (even ones with no capabilities) so it's obvious which pin is which. The
+# capability pills extend outward beyond it. _PIN_LABELS optionally overrides
+# the text per board/pin; anything unlisted just shows the pin number.
+_PIN_LABEL_COLOR = '#334155'
+# Fixed width (in pixels) of the pin-number label — independent of the
+# capability pill width, since it only holds a short number.
+_PIN_LABEL_WIDTH = 32
+_PIN_LABELS = {
+    # 'elm11-feather': {1: 'D0', 2: 'D1', ...},
+}
+
+# Fixed-function pins that aren't part of the configurable I/O (power, reset,
+# etc.). These are constant for the board, so they're drawn for every overlay
+# regardless of the selected row. Keyed by board dir name; each entry is
+# (x_fraction, y_fraction, side, label) — same coordinate scheme as _PIN_MAPS.
+# Placeholders — nudge the positions/labels to match the board.
+_FIXED_PINS = {
+    'elm11-feather': [
+        (0.00, 0.168, 'left',  '3V3'),
+        (0.00, 0.242, 'left',  'GND'),
+        (1.00, 0.280, 'right', 'VBAT'),
+        (1.00, 0.315, 'right', 'NC'),
+        (1.00, 0.353, 'right', '5V'),
+    ],
+}
+# Default pill colour for fixed-function pins (so they read distinctly from the
+# capability pills). Per-label overrides below take precedence.
+_FIXED_PILL_COLOR = '#475569'
+
+# Per-label pill colour for fixed-function pins, keyed by the pin label. Labels
+# not listed here use _FIXED_PILL_COLOR.
+_FIXED_PILL_COLORS = {
+    '3V3':  '#dc2626',   # red   — supply rails
+    '5V':   '#dc2626',   # red
+    'VBAT': '#f87171',   # light red — battery
+    'GND':  '#000000',   # black — ground
+}
+
 
 class _OverlayDiagram(QWidget):
     """Lower section of the Hardware Overlay page: a board photo annotated with
@@ -361,7 +400,7 @@ class _OverlayDiagram(QWidget):
     change, with the row's ID and its header→value map. The per-pin label
     positions live in `_PIN_MAPS` (placeholders, meant to be nudged)."""
 
-    _PROMPT = 'Select an overlay to view its I/O diagram.'
+    _PROMPT = 'Select a Hardware Overlay to view its capabilities diagram.'
 
     # Flip to True while lining up _PIN_MAPS: overlays a numbered red marker at
     # every pin anchor and prints the fractional (x, y) under the cursor on each
@@ -374,6 +413,7 @@ class _OverlayDiagram(QWidget):
         self._board = ''
         self._pixmap: QPixmap | None = None
         self._pins: dict = {}
+        self._fixed: list = []
         self._overlay_id = ''
         self._fields: dict = {}
 
@@ -382,6 +422,7 @@ class _OverlayDiagram(QWidget):
         changes). Unknown boards just show the 'no diagram' message."""
         self._board = board
         self._pins = _PIN_MAPS.get(board, {})
+        self._fixed = _FIXED_PINS.get(board, [])
         pm = QPixmap(str(_bundled_overlay_dir(board) / _BOARD_IMAGE))
         self._pixmap = pm if not pm.isNull() else None
         self.update()
@@ -402,6 +443,10 @@ class _OverlayDiagram(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         t = theme.current()
         painter.fillRect(self.rect(), QColor(t['window_bg']))
+        # Nothing selected: just the prompt, centred — no board image.
+        if not self._overlay_id:
+            self._draw_message(painter, self._PROMPT)
+            return
         if self._pixmap is None:
             self._draw_message(painter, 'No board diagram available.')
             return
@@ -410,9 +455,8 @@ class _OverlayDiagram(QWidget):
             img, self._pixmap, QRectF(self._pixmap.rect()))
         if self._DEBUG_CLICK:
             self._draw_pin_markers(painter, img)
-        if not self._overlay_id:
-            self._draw_message(painter, self._PROMPT, bottom=True)
-            return
+        # Fixed-function pins are constant for the board — always shown.
+        self._draw_fixed_pins(painter, img)
         self._draw_pins(painter, img)
 
     def _image_rect(self) -> QRectF:
@@ -422,20 +466,43 @@ class _OverlayDiagram(QWidget):
         return QRectF((self.width() - w) / 2, (self.height() - h) / 2, w, h)
 
     def _draw_pins(self, painter: QPainter, img: QRectF):
+        """Per-pin labels for the selected overlay row: an innermost pin-number
+        tag (every pin), then a pill per supported capability."""
         n_io = self._int(self._fields.get('I/O Count'))
         for pin, (xf, yf, side) in self._pins.items():
             if n_io and pin > n_io:
                 continue
-            caps = [c for c in _CAP_LABELS
-                    if (self._int(self._fields.get(c)) >> (pin - 1)) & 1]
-            if not caps:
-                continue
+            pills = [(self._pin_label(pin), _PIN_LABEL_COLOR, _PIN_LABEL_WIDTH)]
+            pills += [(_CAP_LABELS.get(c, c), _CAP_COLORS.get(c, '#888888'))
+                      for c in _CAP_LABELS
+                      if (self._int(self._fields.get(c)) >> (pin - 1)) & 1]
             anchor = QPointF(img.left() + xf * img.width(),
                              img.top() + yf * img.height())
-            self._draw_cap_row(painter, anchor, side, caps)
+            self._draw_pill_row(painter, anchor, side, pills)
 
-    def _draw_cap_row(self, painter: QPainter, anchor: QPointF,
-                      side: str, caps: list):
+    def _pin_label(self, pin: int) -> str:
+        """Display label for an I/O pin — a per-board/pin override if set in
+        _PIN_LABELS, else the pin number."""
+        return _PIN_LABELS.get(self._board, {}).get(pin, str(pin))
+
+    def _draw_fixed_pins(self, painter: QPainter, img: QRectF):
+        """Constant labels for the board's fixed-function pins (power, reset,
+        etc.) — independent of the selected overlay."""
+        for xf, yf, side, label in self._fixed:
+            anchor = QPointF(img.left() + xf * img.width(),
+                             img.top() + yf * img.height())
+            color = _FIXED_PILL_COLORS.get(label, _FIXED_PILL_COLOR)
+            # Lead with a dummy (numberless) pin tag so the function label lines
+            # up with the I/O pins' first capability column.
+            self._draw_pill_row(
+                painter, anchor, side,
+                [('', _PIN_LABEL_COLOR, _PIN_LABEL_WIDTH), (label, color)])
+
+    def _draw_pill_row(self, painter: QPainter, anchor: QPointF,
+                       side: str, pills: list):
+        """Draw a pin anchor dot, a connector stub, and a row of labelled pills
+        stretching outward in `side`. Each pill is a (label, colour) tuple, or
+        (label, colour, width) to override the default _CAP_PILL_WIDTH."""
         fm = painter.fontMetrics()
         gap, stub = 4, 10
         h = fm.height() + 4
@@ -446,35 +513,43 @@ class _OverlayDiagram(QWidget):
         painter.setBrush(QColor(t['window_fg']))
         painter.drawEllipse(anchor, 2.5, 2.5)
         painter.drawLine(anchor, QPointF(x, anchor.y()))
-        for cap in caps:
-            label = _CAP_LABELS.get(cap, cap)
-            w = _CAP_PILL_WIDTH
+        for pill in pills:
+            label, color = pill[0], pill[1]
+            w = pill[2] if len(pill) > 2 else _CAP_PILL_WIDTH
             if side == 'right':
                 rect = QRectF(x, anchor.y() - h / 2, w, h)
                 x = rect.right() + gap
             else:
                 rect = QRectF(x - w, anchor.y() - h / 2, w, h)
                 x = rect.left() - gap
+            if color is None:           # dummy spacer: reserve the column only
+                continue
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(_CAP_COLORS.get(cap, '#888888')))
+            painter.setBrush(QColor(color))
             painter.drawRoundedRect(rect, 4, 4)
             painter.setPen(QColor('#ffffff'))
             painter.drawText(rect, int(Qt.AlignmentFlag.AlignCenter), label)
 
     def _draw_pin_markers(self, painter: QPainter, img: QRectF):
-        """Debug aid: number every pin anchor (red) so _PIN_MAPS can be nudged
-        to line up with the photo's pins, regardless of the selected overlay."""
-        red = QColor('#ff0000')
-        for pin, (xf, yf, side) in self._pins.items():
+        """Debug aid: mark every anchor so the maps can be nudged to line up
+        with the photo. Configurable I/O pins are red (numbered); fixed-function
+        pins are orange (labelled). Independent of the selected overlay."""
+        def mark(xf, yf, side, text, color):
             p = QPointF(img.left() + xf * img.width(),
                         img.top() + yf * img.height())
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(red)
+            painter.setBrush(color)
             painter.drawEllipse(p, 3, 3)
-            painter.setPen(red)
+            painter.setPen(color)
             painter.drawText(
                 QPointF(p.x() + (6 if side == 'right' else -20), p.y() - 5),
-                str(pin))
+                text)
+
+        red, orange = QColor('#ff0000'), QColor('#ff8c00')
+        for pin, (xf, yf, side) in self._pins.items():
+            mark(xf, yf, side, str(pin), red)
+        for xf, yf, side, label in self._fixed:
+            mark(xf, yf, side, label, orange)
 
     def _draw_message(self, painter: QPainter, text: str, bottom: bool = False):
         painter.setPen(QColor(theme.current()['window_fg']))
