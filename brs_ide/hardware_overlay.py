@@ -416,6 +416,7 @@ class _OverlayDiagram(QWidget):
         self._fixed: list = []
         self._overlay_id = ''
         self._fields: dict = {}
+        self._caption = ''
 
     def set_board(self, board: str):
         """Load `board`'s photo and pin map (called when the panel's board
@@ -427,12 +428,14 @@ class _OverlayDiagram(QWidget):
         self._pixmap = pm if not pm.isNull() else None
         self.update()
 
-    def show_overlay(self, overlay_id: str, fields: dict):
-        """Annotate the board for the selected row. `overlay_id` is the row's
-        ID (empty when nothing is selected); `fields` maps each CSV header to
-        that row's raw value."""
+    def show_overlay(self, overlay_id: str, fields: dict, caption: str = ''):
+        """Annotate the board for an overlay. `overlay_id` is the overlay's ID
+        (empty ⇒ show the prompt instead); `fields` maps each CSV header to its
+        raw value; `caption` is optional header text (e.g. to mark the row as
+        the currently-installed overlay)."""
         self._overlay_id = overlay_id
         self._fields = dict(fields)
+        self._caption = caption
         self.update()
 
     # ── Painting ────────────────────────────────────────────────────────────
@@ -458,6 +461,20 @@ class _OverlayDiagram(QWidget):
         # Fixed-function pins are constant for the board — always shown.
         self._draw_fixed_pins(painter, img)
         self._draw_pins(painter, img)
+        if self._caption:
+            self._draw_caption(painter)
+
+    def _draw_caption(self, painter: QPainter):
+        """Header text at the top-centre of the pane (e.g. the installed-overlay
+        marker)."""
+        font = painter.font()
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QColor(theme.current()['window_fg']))
+        painter.drawText(
+            self.rect().adjusted(8, 6, -8, 0),
+            int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop),
+            self._caption)
 
     def _image_rect(self) -> QRectF:
         """Photo rect: drawn at the image's native pixel size (no scaling) and
@@ -595,6 +612,10 @@ class HardwareOverlayPanel(QWidget):
         # installed overlay (the workspace's emblua.vg), or None if no suitable
         # workspace is open.
         self.deploy_target_provider = None
+        # Set by the owner: read/persist the installed overlay ID for the open
+        # workspace (tracked alongside target/mode). Both None if unavailable.
+        self.installed_overlay_getter = None   # callable() -> str | None
+        self.installed_overlay_setter = None   # callable(overlay_id: str)
         self._build_ui()
 
     # ── UI construction ────────────────────────────────────────────────────
@@ -835,6 +856,8 @@ class HardwareOverlayPanel(QWidget):
         # Rebuild the per-column filter dropdowns from the freshly shown values.
         self._build_filters()
         self._apply_filters()
+        # No row is selected yet — seed the diagram with the installed overlay.
+        self._on_row_selected()
 
     # ── Per-column filtering ────────────────────────────────────────────────
 
@@ -992,13 +1015,38 @@ class HardwareOverlayPanel(QWidget):
         self._diagram.setVisible(checked)
 
     def _on_row_selected(self):
-        """Push the newly-selected row (if any) to the diagram side-panel."""
+        """Push the selected row to the diagram. With nothing selected, fall
+        back to showing the overlay currently installed in the workspace."""
         sel = self._table.selectionModel().selectedRows()
-        if not sel:
+        if sel:
+            row = sel[0].row()
+            self._diagram.show_overlay(self._row_id(row), self._row_fields(row))
+            return
+        self._show_installed_overlay()
+
+    def _show_installed_overlay(self):
+        """Show the overlay the workspace records as installed (tracked like
+        target/mode), or the prompt if none is recorded / not in the table."""
+        overlay_id = (self.installed_overlay_getter()
+                      if self.installed_overlay_getter else None)
+        row = self._row_by_id(overlay_id) if overlay_id else None
+        if row is None:
             self._diagram.show_overlay('', {})
             return
-        row = sel[0].row()
-        self._diagram.show_overlay(self._row_id(row), self._row_fields(row))
+        self._diagram.show_overlay(
+            self._row_id(row), self._row_fields(row),
+            caption=f'Installed — Overlay {overlay_id}')
+
+    def _row_by_id(self, overlay_id: str) -> int | None:
+        """Index of the row with the given overlay ID, or None if not present."""
+        try:
+            idx = self._headers.index('ID')
+        except ValueError:
+            return None
+        for r, raw in enumerate(self._rows_raw):
+            if idx < len(raw) and raw[idx] == overlay_id:
+                return r
+        return None
 
     def _install_row(self, row: int):
         """Copy (or offer to download) the row's `.vg` image into the workspace
@@ -1032,9 +1080,15 @@ class HardwareOverlayPanel(QWidget):
                 self, 'Install Overlay', f'Could not install overlay:\n{exc}')
             return
         self._deploy_timing(clk, dest.parent)
+        self._mark_installed(overlay_id)
         self._status.setText(
             f'Installed Hardware Overlay {overlay_id}. '
             f'Please proceed with Synth-Program.')
+
+    def _mark_installed(self, overlay_id: str):
+        """Persist the just-installed overlay ID for the workspace (owner-set)."""
+        if self.installed_overlay_setter:
+            self.installed_overlay_setter(overlay_id)
 
     def _download_overlay(self, name: str, cache: Path, dest: Path,
                           overlay_id: str, clk: str, row: int):
@@ -1051,6 +1105,7 @@ class HardwareOverlayPanel(QWidget):
     def _on_vg_done(self, overlay_id: str, dest_dir: Path, clk: str, row: int):
         self._deploy_timing(clk, dest_dir)
         self._refresh_row_grey(row)                 # un-grey now it's cached
+        self._mark_installed(overlay_id)
         self._status.setText(
             f'Installed Hardware Overlay {overlay_id}. '
             f'Please proceed with Synth-Program.')

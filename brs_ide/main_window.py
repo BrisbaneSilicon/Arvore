@@ -360,6 +360,9 @@ class MainWindow(QMainWindow):
         # Command Mode it doesn't touch the device or serial stream.
         self._overlay = HardwareOverlayPanel()
         self._overlay.deploy_target_provider = self._overlay_deploy_target
+        # Track the installed overlay ID per workspace, like target/mode.
+        self._overlay.installed_overlay_getter = self._overlay_installed_id
+        self._overlay.installed_overlay_setter = self._set_overlay_installed_id
 
         self._center_stack = QStackedWidget()
         self._center_stack.addWidget(self._centre)     # page 0: editors + bottom
@@ -1498,6 +1501,21 @@ class MainWindow(QMainWindow):
             return None
         return self._synth_dir() / 'emblua.vg'
 
+    def _overlay_installed_id(self) -> str | None:
+        """The overlay ID currently installed in the open workspace (tracked in
+        QSettings like target/mode), or None if none recorded / no workspace."""
+        if self._workspace_root is None:
+            return None
+        return QSettings().value(
+            f'workspaces/overlay/{self._workspace_root}', None)
+
+    def _set_overlay_installed_id(self, overlay_id: str):
+        """Record the overlay just installed into the open workspace."""
+        if self._workspace_root is None:
+            return
+        QSettings().setValue(
+            f'workspaces/overlay/{self._workspace_root}', overlay_id)
+
     @staticmethod
     def _gowin_env(gowin_root: Path) -> dict:
         """Environment overrides the Gowin CLI tools (gw_sh / programmer_cli)
@@ -2340,6 +2358,7 @@ class MainWindow(QMainWindow):
         s.setValue('workspaces/history', history)
         s.remove(f'workspaces/mode/{entry}')
         s.remove(f'workspaces/target/{entry}')
+        s.remove(f'workspaces/overlay/{entry}')
         s.remove(f'workspaces/open_files/{entry}')
         s.remove(f'workspaces/active_tab/{entry}')
         s.remove(f'workspaces/pane_count/{entry}')
@@ -2361,6 +2380,7 @@ class MainWindow(QMainWindow):
         for entry in history:
             s.remove(f'workspaces/mode/{entry}')
             s.remove(f'workspaces/target/{entry}')
+            s.remove(f'workspaces/overlay/{entry}')
             s.remove(f'workspaces/open_files/{entry}')
             s.remove(f'workspaces/active_tab/{entry}')
             s.remove(f'workspaces/pane_count/{entry}')
