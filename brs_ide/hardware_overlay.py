@@ -348,6 +348,10 @@ _CAP_COLORS = {
     'I/O Buffer': '#6b7280',
 }
 
+# Fixed width (in pixels) of every capability label, so they line up in even
+# columns regardless of their text length.
+_CAP_PILL_WIDTH = 80
+
 
 class _OverlayDiagram(QWidget):
     """Lower section of the Hardware Overlay page: a board photo annotated with
@@ -433,7 +437,7 @@ class _OverlayDiagram(QWidget):
     def _draw_cap_row(self, painter: QPainter, anchor: QPointF,
                       side: str, caps: list):
         fm = painter.fontMetrics()
-        pad_x, gap, stub = 6, 4, 10
+        gap, stub = 4, 10
         h = fm.height() + 4
         t = theme.current()
         # Pin anchor dot + connector stub out to the first pill.
@@ -444,7 +448,7 @@ class _OverlayDiagram(QWidget):
         painter.drawLine(anchor, QPointF(x, anchor.y()))
         for cap in caps:
             label = _CAP_LABELS.get(cap, cap)
-            w = fm.horizontalAdvance(label) + 2 * pad_x
+            w = _CAP_PILL_WIDTH
             if side == 'right':
                 rect = QRectF(x, anchor.y() - h / 2, w, h)
                 x = rect.right() + gap
