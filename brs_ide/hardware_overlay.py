@@ -19,8 +19,8 @@ from PyQt6.QtWidgets import (
     QStylePainter, QStyleOptionComboBox, QStyle, QStyledItemDelegate,
     QSplitter,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QRectF, QPointF
+from PyQt6.QtGui import QColor, QPixmap, QPainter, QPen
 
 from . import theme
 
@@ -272,42 +272,229 @@ class _CenteredComboBox(QComboBox):
             text)
 
 
-# Minimum height (in pixels) of the lower diagram pane on the Hardware Overlay
-# page. Tweak this to change how much vertical room the diagram is guaranteed.
-_DIAGRAM_MIN_HEIGHT = 500
+# Minimum width (in pixels) of the diagram side-panel on the Hardware Overlay
+# page. Tweak this to change how much room the diagram is guaranteed when shown.
+_DIAGRAM_MIN_WIDTH = 320
+
+# ── Diagram (lower pane) configuration ──────────────────────────────────────
+# Board image shown behind the pin labels, looked up inside each board's
+# `hardware_overlay/` dir. Use a PNG with a transparent background so the
+# surround follows the theme background.
+_BOARD_IMAGE = 'board.png'
+
+# Per-pin anchor points on the board photo, keyed by board dir name then by
+# 1-based pin number: (x_fraction, y_fraction, side). The fractions are of the
+# *displayed image* (0..1 across width/height), so the labels track the photo
+# as the pane resizes. `side` ('left'/'right') is the direction that pin's
+# capability labels stretch out from the board.
+#
+# These are PLACEHOLDERS — nudge each (x, y) until its label row lines up with
+# the matching pin. Set _OverlayDiagram._DEBUG_CLICK = True to print the
+# fraction under the cursor on click, which makes tuning quick.
+_PIN_MAPS = {
+    'elm11-feather': {
+        # Left edge, top → bottom (labels stretch left).
+        1:  (0.000, 0.133, 'left'),
+        2:  (0.000, 0.205, 'left'),
+        3:  (0.000, 0.280, 'left'),
+        4:  (0.000, 0.316, 'left'),
+        5:  (0.000, 0.353, 'left'),
+        6:  (0.000, 0.389, 'left'),
+        7:  (0.000, 0.427, 'left'),
+        8:  (0.000, 0.465, 'left'),
+        9:  (0.000, 0.502, 'left'),
+        10: (0.000, 0.539, 'left'),
+        11: (0.000, 0.574, 'left'),
+        12: (0.000, 0.614, 'left'),
+        13: (0.000, 0.652, 'left'),
+        14: (0.000, 0.687, 'left'),
+
+        # Right edge, top → bottom (labels stretch right).
+        15: (1.000, 0.392, 'right'),
+        16: (1.000, 0.428, 'right'),
+        17: (1.000, 0.466, 'right'),
+        18: (1.000, 0.504, 'right'),
+        19: (1.000, 0.541, 'right'),
+        20: (1.000, 0.578, 'right'),
+        21: (1.000, 0.615, 'right'),
+        22: (1.000, 0.652, 'right'),
+        23: (1.000, 0.689, 'right'),
+    },
+}
+
+
+
+# Per-pin capability columns to surface as labels, in the left→right order they
+# appear next to a pin. Each maps to its on-pill display text and colour. Edit
+# the text/colours freely; drop an entry to stop showing that capability.
+_CAP_LABELS = {
+    'GPIO Out':   'GPIO Out',
+    'GPIO In':    'GPIO In',
+    'PWM':        'PWM',
+    'Uart Out':   'UART Out',
+    'Uart In':    'UART In',
+    'SPI Out':    'SPI Out',
+    'SPI In':     'SPI In',
+    'I/O Buffer': 'Buffer',
+}
+_CAP_COLORS = {
+    'GPIO Out':   '#3b82f6',
+    'GPIO In':    '#2563eb',
+    'PWM':        '#a855f7',
+    'Uart Out':   '#10b981',
+    'Uart In':    '#059669',
+    'SPI Out':    '#f59e0b',
+    'SPI In':     '#d97706',
+    'I/O Buffer': '#6b7280',
+}
 
 
 class _OverlayDiagram(QWidget):
-    """Lower section of the Hardware Overlay page: shows a diagram for the
-    overlay row currently selected in the table above.
+    """Lower section of the Hardware Overlay page: a board photo annotated with
+    the I/O capabilities of the overlay row selected in the table above.
 
-    The real diagram rendering hasn't landed yet — `show_overlay()` is the
-    single hook the panel calls on every selection change, with the row's ID
-    and its header→value map, ready to drive whatever drawing we add."""
+    `show_overlay()` is the single hook the panel calls on every selection
+    change, with the row's ID and its header→value map. The per-pin label
+    positions live in `_PIN_MAPS` (placeholders, meant to be nudged)."""
 
-    _PROMPT = 'Select an overlay to view its diagram.'
+    _PROMPT = 'Select an overlay to view its I/O diagram.'
+
+    # Flip to True while lining up _PIN_MAPS: overlays a numbered red marker at
+    # every pin anchor and prints the fractional (x, y) under the cursor on each
+    # click. Set back to False once the anchors line up with the photo's pins.
+    _DEBUG_CLICK = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(_DIAGRAM_MIN_HEIGHT)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        self._label = QLabel(self._PROMPT)
-        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._label, 1)
-        # Current selection, kept so a future paint/redraw can re-read it.
+        self.setMinimumWidth(_DIAGRAM_MIN_WIDTH)
+        self._board = ''
+        self._pixmap: QPixmap | None = None
+        self._pins: dict = {}
         self._overlay_id = ''
         self._fields: dict = {}
 
+    def set_board(self, board: str):
+        """Load `board`'s photo and pin map (called when the panel's board
+        changes). Unknown boards just show the 'no diagram' message."""
+        self._board = board
+        self._pins = _PIN_MAPS.get(board, {})
+        pm = QPixmap(str(_bundled_overlay_dir(board) / _BOARD_IMAGE))
+        self._pixmap = pm if not pm.isNull() else None
+        self.update()
+
     def show_overlay(self, overlay_id: str, fields: dict):
-        """Update the diagram for the selected row. `overlay_id` is the row's
-        ID (empty when nothing is selected) and `fields` maps each CSV header
-        to that row's raw value."""
+        """Annotate the board for the selected row. `overlay_id` is the row's
+        ID (empty when nothing is selected); `fields` maps each CSV header to
+        that row's raw value."""
         self._overlay_id = overlay_id
         self._fields = dict(fields)
-        self._label.setText(
-            f'Diagram for Hardware Overlay {overlay_id}'
-            if overlay_id else self._PROMPT)
+        self.update()
+
+    # ── Painting ────────────────────────────────────────────────────────────
+
+    def paintEvent(self, _event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        t = theme.current()
+        painter.fillRect(self.rect(), QColor(t['window_bg']))
+        if self._pixmap is None:
+            self._draw_message(painter, 'No board diagram available.')
+            return
+        img = self._image_rect()
+        painter.drawPixmap(
+            img, self._pixmap, QRectF(self._pixmap.rect()))
+        if self._DEBUG_CLICK:
+            self._draw_pin_markers(painter, img)
+        if not self._overlay_id:
+            self._draw_message(painter, self._PROMPT, bottom=True)
+            return
+        self._draw_pins(painter, img)
+
+    def _image_rect(self) -> QRectF:
+        """Photo rect: drawn at the image's native pixel size (no scaling) and
+        centred, so the side gutters hold the outward-stretching labels."""
+        w, h = self._pixmap.width(), self._pixmap.height()
+        return QRectF((self.width() - w) / 2, (self.height() - h) / 2, w, h)
+
+    def _draw_pins(self, painter: QPainter, img: QRectF):
+        n_io = self._int(self._fields.get('I/O Count'))
+        for pin, (xf, yf, side) in self._pins.items():
+            if n_io and pin > n_io:
+                continue
+            caps = [c for c in _CAP_LABELS
+                    if (self._int(self._fields.get(c)) >> (pin - 1)) & 1]
+            if not caps:
+                continue
+            anchor = QPointF(img.left() + xf * img.width(),
+                             img.top() + yf * img.height())
+            self._draw_cap_row(painter, anchor, side, caps)
+
+    def _draw_cap_row(self, painter: QPainter, anchor: QPointF,
+                      side: str, caps: list):
+        fm = painter.fontMetrics()
+        pad_x, gap, stub = 6, 4, 10
+        h = fm.height() + 4
+        t = theme.current()
+        # Pin anchor dot + connector stub out to the first pill.
+        x = anchor.x() + (stub if side == 'right' else -stub)
+        painter.setPen(QPen(QColor(t['border']), 1))
+        painter.setBrush(QColor(t['window_fg']))
+        painter.drawEllipse(anchor, 2.5, 2.5)
+        painter.drawLine(anchor, QPointF(x, anchor.y()))
+        for cap in caps:
+            label = _CAP_LABELS.get(cap, cap)
+            w = fm.horizontalAdvance(label) + 2 * pad_x
+            if side == 'right':
+                rect = QRectF(x, anchor.y() - h / 2, w, h)
+                x = rect.right() + gap
+            else:
+                rect = QRectF(x - w, anchor.y() - h / 2, w, h)
+                x = rect.left() - gap
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(_CAP_COLORS.get(cap, '#888888')))
+            painter.drawRoundedRect(rect, 4, 4)
+            painter.setPen(QColor('#ffffff'))
+            painter.drawText(rect, int(Qt.AlignmentFlag.AlignCenter), label)
+
+    def _draw_pin_markers(self, painter: QPainter, img: QRectF):
+        """Debug aid: number every pin anchor (red) so _PIN_MAPS can be nudged
+        to line up with the photo's pins, regardless of the selected overlay."""
+        red = QColor('#ff0000')
+        for pin, (xf, yf, side) in self._pins.items():
+            p = QPointF(img.left() + xf * img.width(),
+                        img.top() + yf * img.height())
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(red)
+            painter.drawEllipse(p, 3, 3)
+            painter.setPen(red)
+            painter.drawText(
+                QPointF(p.x() + (6 if side == 'right' else -20), p.y() - 5),
+                str(pin))
+
+    def _draw_message(self, painter: QPainter, text: str, bottom: bool = False):
+        painter.setPen(QColor(theme.current()['window_fg']))
+        rect = self.rect().adjusted(8, 8, -8, -8)
+        align = (Qt.AlignmentFlag.AlignHCenter | (
+            Qt.AlignmentFlag.AlignBottom if bottom
+            else Qt.AlignmentFlag.AlignVCenter))
+        painter.drawText(rect, int(align), text)
+
+    def mousePressEvent(self, event):
+        if self._DEBUG_CLICK and self._pixmap is not None:
+            img = self._image_rect()
+            if img.width() and img.height():
+                xf = (event.position().x() - img.left()) / img.width()
+                yf = (event.position().y() - img.top()) / img.height()
+                print(f'[overlay-diagram] pin fraction: ({xf:.3f}, {yf:.3f})')
+        super().mousePressEvent(event)
+
+    @staticmethod
+    def _int(value) -> int:
+        try:
+            return int(str(value).strip())
+        except (TypeError, ValueError):
+            return 0
 
 
 class HardwareOverlayPanel(QWidget):
@@ -362,6 +549,14 @@ class HardwareOverlayPanel(QWidget):
         self._dl_filter.currentIndexChanged.connect(self._apply_filters)
         header.addWidget(self._dl_filter)
 
+        # Toggle the I/O diagram side-panel (off by default, like a dock).
+        self._diagram_btn = QPushButton('I/O Diagram')
+        self._diagram_btn.setCheckable(True)
+        self._diagram_btn.setToolTip(
+            'Show the I/O diagram for the selected overlay alongside the table')
+        self._diagram_btn.toggled.connect(self._toggle_diagram)
+        header.addWidget(self._diagram_btn)
+
         self._reset_btn = QPushButton('Clear Filters')
         self._reset_btn.setToolTip('Reset every column filter to (All)')
         self._reset_btn.clicked.connect(self._clear_filters)
@@ -393,19 +588,21 @@ class HardwareOverlayPanel(QWidget):
         self._table.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_table_menu)
-        # Selecting a row updates the diagram in the lower section.
+        # Selecting a row updates the diagram side-panel.
         self._table.itemSelectionChanged.connect(self._on_row_selected)
 
-        # Split the page vertically: the table sits on top, and a diagram that
-        # reflects the selected row sits below it (draggable divider between).
+        # Side-panel layout: the table fills the page, and an I/O diagram for
+        # the selected row can be toggled in on the right (see _diagram_btn).
         self._diagram = _OverlayDiagram(self)
-        self._split = QSplitter(Qt.Orientation.Vertical)
+        self._diagram.set_board(self._board)
+        self._split = QSplitter(Qt.Orientation.Horizontal)
         self._split.addWidget(self._table)
         self._split.addWidget(self._diagram)
         self._split.setStretchFactor(0, 3)      # table gets the lion's share
         self._split.setStretchFactor(1, 1)
         self._split.setCollapsible(0, False)
         self._split.setCollapsible(1, False)
+        self._diagram.setVisible(self._diagram_btn.isChecked())   # off initially
         root.addWidget(self._split, 1)
 
         # Keep the filter dropdowns aligned to their columns as the table is
@@ -438,6 +635,7 @@ class HardwareOverlayPanel(QWidget):
         if board == self._board:
             return
         self._board = board
+        self._diagram.set_board(board)  # swap the photo + pin map
         if self._loaded:                # re-populate from the new board's bundle
             self._loaded = False
             self.ensure_loaded()
@@ -710,8 +908,12 @@ class HardwareOverlayPanel(QWidget):
             return {}
         return dict(zip(self._headers, self._rows_raw[row]))
 
+    def _toggle_diagram(self, checked: bool):
+        """Show or hide the I/O diagram side-panel."""
+        self._diagram.setVisible(checked)
+
     def _on_row_selected(self):
-        """Push the newly-selected row (if any) to the lower diagram section."""
+        """Push the newly-selected row (if any) to the diagram side-panel."""
         sel = self._table.selectionModel().selectedRows()
         if not sel:
             self._diagram.show_overlay('', {})
