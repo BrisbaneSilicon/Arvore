@@ -182,39 +182,42 @@ class _TitleBar(QWidget):
         super().__init__(window)
         self._win = window
         self.setObjectName('TitleBar')
-        self.setFixedHeight(30)
+        self.setFixedHeight(38)
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(8, 0, 0, 0)
-        row.setSpacing(6)
-
-        self._icon = QLabel()
-        row.addWidget(self._icon)
-        self._title = QLabel(window.windowTitle())
-        self._title.setObjectName('TitleBarText')
-        row.addWidget(self._title)
-        row.addStretch(1)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(0)
 
         self._min_btn   = QPushButton('—')   # —
         self._max_btn   = QPushButton('□')   # □
         self._close_btn = QPushButton('✕')   # ✕
         for b in (self._min_btn, self._max_btn, self._close_btn):
-            b.setFixedSize(44, 30)
+            b.setFixedSize(44, 38)
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        # Reserve a left spacer the same width as the right-hand window controls
+        # so the title, sandwiched between equal stretches, ends up centred over
+        # the whole bar rather than offset by the controls.
+        controls_width = 44 * 3
+
+        left = QWidget()
+        left.setFixedWidth(controls_width)
+        row.addWidget(left)
+
+        row.addStretch(1)
+        self._title = QLabel(window.windowTitle())
+        self._title.setObjectName('TitleBarText')
+        self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        row.addWidget(self._title)
+        row.addStretch(1)
+
+        for b in (self._min_btn, self._max_btn, self._close_btn):
             row.addWidget(b)
         self._min_btn.clicked.connect(window.showMinimized)
         self._max_btn.clicked.connect(self._toggle_max)
         self._close_btn.clicked.connect(window.close)
 
         window.windowTitleChanged.connect(self._title.setText)
-        window.windowIconChanged.connect(self._set_icon)
-        self._set_icon(window.windowIcon())
-
-    def _set_icon(self, icon):
-        if icon is not None and not icon.isNull():
-            self._icon.setPixmap(icon.pixmap(18, 18))
-        else:
-            self._icon.clear()
 
     def _toggle_max(self):
         if self._win.isMaximized():
@@ -242,7 +245,8 @@ class _TitleBar(QWidget):
         t = theme.current()
         self.setStyleSheet(
             f'#TitleBar {{ background:{t["menubar_bg"]}; }}'
-            f'#TitleBarText {{ color:{t["menubar_fg"]}; font-weight:bold; }}'
+            f'#TitleBarText {{ color:{t["menubar_fg"]}; font-weight:bold; '
+            f'font-size:16pt; }}'
             f'#TitleBar QPushButton {{ background:transparent; '
             f'color:{t["menubar_fg"]}; border:none; font-size:11pt; }}'
             f'#TitleBar QPushButton:hover {{ background:{t["btn_hover"]}; }}'
@@ -261,7 +265,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         log.debug('MainWindow init')
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
-        self.setWindowTitle('BrisbaneSilicon IDE')
+        self.setWindowTitle('Arvore')
         self.setMinimumSize(1100, 720)
         self.setStyleSheet(theme.main_stylesheet(theme.current()))
 
@@ -1052,7 +1056,7 @@ class MainWindow(QMainWindow):
             p = Path(path)
             self._workspace_root = None
             self._tree.set_root(p)
-            self.setWindowTitle('BrisbaneSilicon IDE')
+            self.setWindowTitle('Arvore')
 
     def _open_path(self, path: Path, pane: QTabWidget | None = None):
         log.debug('Open path: %s', path)
@@ -1998,7 +2002,7 @@ class MainWindow(QMainWindow):
         # Opening a workspace (new or existing) shows the root expanded with
         # all nested folders collapsed — no full auto-expand cascade.
         self._tree.set_root(path, is_workspace=True, auto_expand=False)
-        self.setWindowTitle(f'BrisbaneSilicon IDE — {path.name}')
+        self.setWindowTitle(f'Arvore — {path.name}')
 
         raw = s.value('workspaces/history', [])
         # QSettings may return a string instead of list when there's only one entry
@@ -2347,7 +2351,7 @@ class MainWindow(QMainWindow):
         self._save_workspace_tabs()
         self._workspace_root = None
         self._tree.set_root(Path.home())
-        self.setWindowTitle('BrisbaneSilicon IDE')
+        self.setWindowTitle('Arvore')
         if self._sb_mode:
             self._sb_mode.setVisible(False)
         self._workspace_target = ''
@@ -2450,7 +2454,7 @@ class MainWindow(QMainWindow):
                             else ([raw] if raw else []))
                 if expanded:
                     self._tree.restore_expanded(expanded)
-                self.setWindowTitle(f'BrisbaneSilicon IDE — {p.name}')
+                self.setWindowTitle(f'Arvore — {p.name}')
                 saved_mode = s.value(f'workspaces/mode/{p}', 'Lua')
                 self._set_target(s.value(f'workspaces/target/{p}', 'ELM11'))
                 self._set_mode(saved_mode)
