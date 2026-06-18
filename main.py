@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """ELM11 IDE — entry point."""
+import os
 import sys
 import logging
 import argparse
@@ -8,6 +9,26 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QIcon
 from brs_ide.main_window import MainWindow
+
+
+def _apply_ui_scale():
+    """Apply the saved UI zoom factor.
+
+    Qt's high-DPI scale factor has to be set *before* the QApplication is
+    constructed, so we read the value straight from QSettings here (using an
+    explicit constructor since the application object doesn't exist yet).
+    Changing the zoom therefore requires a restart — the Settings dialog
+    offers to relaunch when the value changes. An externally-set
+    QT_SCALE_FACTOR always wins, so power users can still override it."""
+    settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope,
+                         'BrisbaneSilicon', 'ELM11 IDE')
+    try:
+        scale = float(settings.value('ui/scale', 1.0))
+    except (TypeError, ValueError):
+        scale = 1.0
+    scale = max(0.5, min(3.0, scale))
+    if abs(scale - 1.0) > 1e-3 and 'QT_SCALE_FACTOR' not in os.environ:
+        os.environ['QT_SCALE_FACTOR'] = f'{scale:.3f}'
 
 
 def _icon_path() -> Path:
@@ -27,6 +48,8 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help='Enable verbose debug logging to stdout')
     args, remaining = parser.parse_known_args()
+
+    _apply_ui_scale()
 
     log = logging.getLogger('brs_ide')
     if args.debug:

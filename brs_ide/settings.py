@@ -139,6 +139,22 @@ class SettingsDialog(QDialog):
         f.addRow('Output/terminal font size:', self._panel_font_size)
         tabs.addTab(editor_w, 'Editor')
 
+        # ── Interface ─────────────────────────────────────────────────
+        ui_w = QWidget()
+        f = QFormLayout(ui_w)
+        # Whole-application zoom. Qt applies this as its high-DPI scale
+        # factor, which can only be set at startup — so a change here takes
+        # effect after a restart (the IDE offers to relaunch).
+        self._ui_scale = QSpinBox()
+        self._ui_scale.setRange(50, 300)
+        self._ui_scale.setSingleStep(10)
+        self._ui_scale.setSuffix(' %')
+        f.addRow('Interface zoom:', self._ui_scale)
+        hint = QLabel('Applies after restarting the IDE.')
+        hint.setStyleSheet('color:%s;' % theme.current()['syn_comment'])
+        f.addRow('', hint)
+        tabs.addTab(ui_w, 'Interface')
+
         # ── Serial ────────────────────────────────────────────────────
         serial_w = QWidget()
         f = QFormLayout(serial_w)
@@ -206,6 +222,7 @@ class SettingsDialog(QDialog):
             self._font_combo.setCurrentIndex(idx)
         self._font_size.setValue(int(self._s.value('editor/font_size', 13)))
         self._panel_font_size.setValue(int(self._s.value('panel/font_size', 10)))
+        self._ui_scale.setValue(int(round(self.ui_scale() * 100)))
         self._baud.setValue(int(self._s.value('serial/baud', 115200)))
         self._compiler.setText(self._s.value('c/compiler_path', ''))
         self._cflags.setText(self._s.value('c/compiler_flags', ''))
@@ -219,6 +236,7 @@ class SettingsDialog(QDialog):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
         self._s.setValue('editor/font_size',      self._font_size.value())
         self._s.setValue('panel/font_size',       self._panel_font_size.value())
+        self._s.setValue('ui/scale',              self._ui_scale.value() / 100.0)
         self._s.setValue('serial/baud',           self._baud.value())
         self._s.setValue('c/compiler_path',       self._compiler.text())
         self._s.setValue('c/compiler_flags',      self._cflags.text())
@@ -245,6 +263,16 @@ class SettingsDialog(QDialog):
     @staticmethod
     def baud() -> int:
         return int(QSettings().value('serial/baud', 115200))
+
+    @staticmethod
+    def ui_scale() -> float:
+        """Whole-application zoom factor (1.0 == 100%). Applied as Qt's
+        high-DPI scale factor at startup, so changes need a restart."""
+        try:
+            scale = float(QSettings().value('ui/scale', 1.0))
+        except (TypeError, ValueError):
+            scale = 1.0
+        return max(0.5, min(3.0, scale))
 
     @staticmethod
     def show_hidden_files() -> bool:

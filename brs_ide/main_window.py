@@ -2416,6 +2416,7 @@ class MainWindow(QMainWindow):
     # ── Settings / About ──────────────────────────────────────────────────────
 
     def _open_settings(self):
+        old_scale = SettingsDialog.ui_scale()
         if SettingsDialog(self).exec():
             self._update_device_buttons()
             # Re-apply font to all open editors
@@ -2425,6 +2426,13 @@ class MainWindow(QMainWindow):
             for panel in (self._terminal, self._upload_out, self._build_out,
                           self._synth_out, self._flash_out, self._program_out):
                 panel.apply_font()
+            # The interface zoom is a Qt high-DPI scale factor, which can only
+            # be applied at startup — so let the user know to restart.
+            if abs(SettingsDialog.ui_scale() - old_scale) > 1e-3:
+                QMessageBox.information(
+                    self, 'Restart required',
+                    'The interface zoom will take effect the next time you '
+                    'start the IDE.')
 
     def _about(self):
         QMessageBox.about(self, 'ELM11 IDE',
