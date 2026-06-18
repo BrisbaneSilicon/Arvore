@@ -147,7 +147,7 @@ class SettingsDialog(QDialog):
         # effect after a restart (the IDE offers to relaunch).
         self._ui_scale = QSpinBox()
         self._ui_scale.setRange(50, 300)
-        self._ui_scale.setSingleStep(10)
+        self._ui_scale.setSingleStep(5)
         self._ui_scale.setSuffix(' %')
         f.addRow('Interface zoom:', self._ui_scale)
         hint = QLabel('Applies after restarting the IDE.')
