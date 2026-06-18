@@ -41,8 +41,8 @@ LUA_BUILTINS = [
 ]
 
 ELM11_CONSTANTS = [
-    *[f'PIN{i}'          for i in range(1, 17)],
-    *[f'PIN{i}_BITMASK'  for i in range(1, 17)],
+    *[f'PIN{i}'          for i in range(1, 33)],
+    *[f'PIN{i}_BITMASK'  for i in range(1, 33)],
     *[f'CORE{i}'         for i in range(1, 9)],
     'LOW', 'HIGH', 'TOGGLE',
     'NONE', 'GPIO_OUT', 'GPIO_IN', 'PWM',
