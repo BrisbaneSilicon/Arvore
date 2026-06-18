@@ -27,7 +27,7 @@
 #define C_COMMAND_MODE_SEPARATOR                                '|'
 #define STR_COMMAND_MODE_SEPARATOR                              "|"
 
-#define MAX_NUM_IO_PINS                                         (32)
+#define MAX_NUM_IO_PINS                                         (24)
 #define MAX_NUM_ADC_PINS                                        (8)
 #define MAX_NUM_DAC_PINS                                        (8)
 
