@@ -6,46 +6,24 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "init.h"
 #include "printf.h"
 #include "ctype.h"
 
 #include "config.h"
 
 
-#if defined(TD_GW1NR_9_C6I5_S) || defined(TD_GW1NR_9_C7I6_B) || defined(TD_GW1NR_9_C7I6)
-    #define FLASH_STORAGE_ENABLE
-#endif
-
-#define STR_DEVICE_NAME_CAPS                                    "EMBLUA"
-#define STR_DEVICE_NAME                                         "embLua"
-#define STR_DEVICE_NAME_CAMELCASE                               "embLua"
-#define STR_DEVICE_DESCRIPTION                                  "the worlds most accessible physical computing device"
-
-#define STR_CMD_UNSUPPORTED_FOR_STACK_SIZE_LESS_8K              "Command currently unsupported for stack size < 8192 bytes!"
+// --------------------- Defines -----------------------
 
 #define C_COMMAND_MODE_SEPARATOR                                '|'
 #define STR_COMMAND_MODE_SEPARATOR                              "|"
 
-#define MAX_NUM_IO_PINS                                         (24)
-#define MAX_NUM_ADC_PINS                                        (8)
-#define MAX_NUM_DAC_PINS                                        (8)
-
-#define NO_PRINT_PROGRESS                                       (0)
-#define PRINT_PROGRESS                                          (1)
-
-#define UNINTERRUPTIBLE_SLEEP                                   (0)
-#define INTERRUPTIBLE_SLEEP                                     (1)
-#define USER_CANCELLABLE_SLEEP                                  (2)
-    // REVISIT: change to enum
+#define MAX_NUM_IO_PINS                                         (32)
 
 #define USER_COMMS_RX_INTERRUPT_INTERRUPTIBLE_SLEEP_BITFLAG     (0x1)
 #define IO_SOFTWARE_INTERRUPT_INTERRUPTIBLE_SLEEP_BITFLAG       (0x2)
 #define SLEEP_IS_MICROSECONDS_BITFLAG                           (0x4)
 
 #define SLEEP_REMAINING_TIMEOUT_BITFLAGS                        (0x03FF)
-#define USER_EXIT_PROGRAM_INTERRUPT_BITFLAGS                    (0x6000)
-    // NOTE: covers both individual and shared comms
 
 #define COMMAND_MODE_DUMMY_ROWS_AT_TOP                          (2)
 #define PRINT_CODE_MODE_MIN_CONSOLE_HEIGHT                      (20)
@@ -115,32 +93,14 @@
 
 #define IO_NUM_DIGITAL_PINS_SHIFT                               (0)
 #define IO_NUM_DIGITAL_PINS_MASK                                (0x3F)
-#define IO_NUM_ADC_SHIFT                                        (6)
-#define IO_NUM_ADC_MASK                                         (0x1F)
-#define IO_NUM_DAC_SHIFT                                        (11)
-#define IO_NUM_DAC_MASK                                         (0x1F)
-#define IO_ADC_PINS_ENABLED_SHIFT                               (16)
-#define IO_ADC_PINS_ENABLED_MASK                                (0xFF)
-#define IO_DAC_PINS_ENABLED_SHIFT                               (24)
-#define IO_DAC_PINS_ENABLED_MASK                                (0xFF)
-
-#define ANALOG_IO_ENABLED                                       (9)
-#define ADC_ANALOG_BUFFER_CONFIG_RD_INDEX                       (10)
-#define ADC_ANALOG_SW_INT_CONFIG_RD_INDEX                       (11)
-#define DAC_ANALOG_BUFFER_CONFIG_RD_INDEX                       (12)
-#define DAC_ANALOG_SW_INT_CONFIG_RD_INDEX                       (13)
-
-#define ANALOG_IO_ENABLED_SHIFT                                 (0)
-#define ANALOG_IO_ENABLED_BITMASK                               (0x1)
-#define ANALOG_DAC_ENABLED_SHIFT                                (1)
-#define ANALOG_DAC_ENABLED_BITMASK                              (0x1)
-#define ANALOG_ADC_ENABLED_SHIFT                                (2)
-#define ANALOG_ADC_ENABLED_BITMASK                              (0x1)
 
 #define HEAP_SIZE_SHIFT                                         (8)
 #define HEAP_SIZE_BITMASK                                       (0xFFFF)
 #define STACK_SIZE_SHIFT                                        (24)
 #define STACK_SIZE_BITMASK                                      (0xFF)
+
+
+// ----------------- Typedefs / Enums ------------------
 
 typedef struct {
     volatile uint32_t UNUSED_0;
@@ -190,7 +150,6 @@ typedef struct {
     union {
         volatile uint32_t BOARD_LED_OUT_WO;
         volatile uint32_t IO_NUM_DIGITAL_PINS_RO;
-        volatile uint32_t IO_NUM_ADC_RO;
         volatile uint32_t IO_NUM_DAC_RO;
         volatile uint32_t BOARD_BOOT_STATE_RW;
     };
@@ -257,15 +216,6 @@ typedef struct {
 
     volatile uint32_t UART_SHARED_COMMS;
 
-/*
-    volatile uint32_t ANALOG_SPI_WO;
-    volatile uint32_t ANALOG_ADC_AUTOSCAN_ENABLE_WO;
-    union {
-        volatile uint32_t ANALOG_ADC_AUTOSCAN_CHANNEL_READ_INDEX_WO;
-        volatile uint32_t ANALOG_ADC_AUTOSCAN_DATA_RO;
-    };
-*/
-
     volatile uint32_t XBAR_LOCK_WO;
     volatile uint32_t XBAR_LOCK_RO;
 
@@ -290,12 +240,11 @@ typedef struct {
     };
 
 
-    // NOTE: dummy entries so code compiles!!!
-    volatile uint32_t ANALOG_SPI_WO;
-    volatile uint32_t ANALOG_ADC_AUTOSCAN_ENABLE_WO;
+    volatile uint32_t DUMMY_UINT0;
+    volatile uint32_t DUMMY_UINT1;
     union {
-        volatile uint32_t ANALOG_ADC_AUTOSCAN_CHANNEL_READ_INDEX_WO;
-        volatile uint32_t ANALOG_ADC_AUTOSCAN_DATA_RO;
+        volatile uint32_t DUMMY_UNN_UINT0;
+        volatile uint32_t DUMMY_UNN_UINT1;
     };
 
 } UTILS;
@@ -384,6 +333,9 @@ typedef enum e_cores
     e_core8
 } e_cores;
 
+
+// --------------------- Defines (enum dependent) -----------------------
+
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
@@ -393,121 +345,23 @@ typedef enum e_cores
     #define SOFTWARE_VERSION XSTR(VERSION)
 #endif
 
-#ifndef TD_GW1NR_9_C6I5_S
-    // NOTE: TD == Target Device
+#define SPI_XIP_BASE_ADDR                                       (0x00000000)
+#define SPI_CFG_BASE_ADDR                                       (0x20000000)
+#define IO_UTILS_BASE_ADDR                                      (0x40000000)
+#define BROM_BASE_ADDR                                          (0x60000000)
+#define FPGA_BUS_BASE_ADDR                                      (0x68000000)
+#define USER_COMMS_BASE_ADDR                                    (0x70000000)
+#define LVM_ADDR                                                (0x78000000)
 
-    #ifndef TD_GW1NR_9_C7I6
-        #ifndef TD_GW1NR_9_C7I6_B
-            #ifndef TD_KV260
-                #ifndef TD_ARTY_S7
-                    #ifndef TD_MIMAS_A7_MINI
-                        #error "Unknown TARGET DEVICE !"
-                    #endif
-                #endif
-            #endif
-        #endif
-    #endif
-#endif
+#define SRAM_BASE_ADDR                                          (0x80000000)
+#define HEAP1_BASE_ADDR                                         (SRAM_BASE_ADDR + 0x20000000)
+#define HEAP2_BASE_ADDR                                         (SRAM_BASE_ADDR + 0x10000000)
+#define HEAP3_BASE_ADDR                                         (SRAM_BASE_ADDR + 0x08000000)
 
-// TODO: just have this in one place... memory_map.h in
-// 'shared' directory or something...
-#ifdef TD_MIMAS_A7_MINI
-    #define SPI_XIP_BASE_ADDR       (0x10000000)
-    #define SPI_CFG_BASE_ADDR       (0x20000000)
-    #define IO_UTILS_BASE_ADDR      (0x40000000)
-    #define USER_COMMS_BASE_ADDR    (0x70000000)
-    #define SRAM_BASE_ADDR          (0x80000000)
-#endif
-
-#ifdef TD_ARTY_S7
-    #define SPI_XIP_BASE_ADDR       (0x10000000)
-    #define FPGA_BUS_BASE_ADDR      (0x20000000)
-    #define IO_UTILS_BASE_ADDR      (0x40000000)
-    #define USER_COMMS_BASE_ADDR    (0x70000000)
-
-    #define SRAM_BASE_ADDR          (0x80000000)
-    #define HEAP1_BASE_ADDR         (SRAM_BASE_ADDR + 0x20000000)
-    #define HEAP2_BASE_ADDR         (SRAM_BASE_ADDR + 0x10000000)
-    #define HEAP3_BASE_ADDR         (SRAM_BASE_ADDR + 0x08000000)
-        // NOTE: cannot have bit-flag < than 0xFF000000
-
-    #define MMAP_BASE_ADDR          (0x80000000)
-    #define MMAP1_BASE_ADDR         (MMAP_BASE_ADDR + 0x00800000)
-    #define MMAP2_BASE_ADDR         (MMAP_BASE_ADDR + 0x00400000)
-    #define MMAP3_BASE_ADDR         (MMAP_BASE_ADDR + 0x00200000)
-#endif
-
-#ifdef TD_KV260
-    #define IO_UTILS_BASE_ADDR      (0x40000000)
-    #define USER_COMMS_BASE_ADDR    (0x60000000)
-    #define SRAM_BASE_ADDR          (0x80000000)
-#endif
-
-#ifdef TD_GW1NR_9_C6I5_S
-    #define SPI_XIP_BASE_ADDR       (0x00000000)
-    #define SPI_CFG_BASE_ADDR       (0x20000000)
-    #define IO_UTILS_BASE_ADDR      (0x40000000)
-    #define FPGA_BUS_BASE_ADDR      (0x60000000)
-    #define BROM_BASE_ADDR          (0x60000000)
-        // NOTE: same address as 'FPGA_BUS_BASE_ADDR' - check RTL
-        // and hardware compilation configuration to determine which
-        // is being addressed.
-    #define USER_COMMS_BASE_ADDR    (0x70000000)
-    #define LVM_ADDR                (0x78000000)
-
-    #define SRAM_BASE_ADDR          (0x80000000)
-    #define HEAP1_BASE_ADDR         (SRAM_BASE_ADDR + 0x20000000)
-    #define HEAP2_BASE_ADDR         (SRAM_BASE_ADDR + 0x10000000)
-    #define HEAP3_BASE_ADDR         (SRAM_BASE_ADDR + 0x08000000)
-
-    #define MMAP_BASE_ADDR          (0x80000000)
-    #define MMAP1_BASE_ADDR         (MMAP_BASE_ADDR + 0x00800000)
-    #define MMAP2_BASE_ADDR         (MMAP_BASE_ADDR + 0x00400000)
-    #define MMAP3_BASE_ADDR         (MMAP_BASE_ADDR + 0x00200000)
-#endif
-
-#ifdef TD_GW1NR_9_C7I6_B
-    #define SPI_XIP_BASE_ADDR       (0x00000000)
-    #define SPI_CFG_BASE_ADDR       (0x20000000)
-    #define IO_UTILS_BASE_ADDR      (0x40000000)
-    #define FPGA_BUS_BASE_ADDR      (0x60000000)
-    #define BROM_BASE_ADDR          (0x60000000)
-        // NOTE: same address as 'FPGA_BUS_BASE_ADDR' - check RTL
-        // and hardware compilation configuration to determine which
-        // is being addressed.
-    #define USER_COMMS_BASE_ADDR    (0x70000000)
-    #define LVM_ADDR                (0x78000000)
-
-    #define SRAM_BASE_ADDR          (0x80000000)
-    #define HEAP1_BASE_ADDR         (SRAM_BASE_ADDR + 0x20000000)
-    #define HEAP2_BASE_ADDR         (SRAM_BASE_ADDR + 0x10000000)
-    #define HEAP3_BASE_ADDR         (SRAM_BASE_ADDR + 0x08000000)
-
-    #define MMAP_BASE_ADDR          (0x80000000)
-    #define MMAP1_BASE_ADDR         (MMAP_BASE_ADDR + 0x00800000)
-    #define MMAP2_BASE_ADDR         (MMAP_BASE_ADDR + 0x00400000)
-    #define MMAP3_BASE_ADDR         (MMAP_BASE_ADDR + 0x00200000)
-#endif
-
-#ifdef TD_GW1NR_9_C7I6
-    #define SPI_XIP_BASE_ADDR       (0x00000000)
-    #define SPI_CFG_BASE_ADDR       (0x20000000)
-    #define IO_UTILS_BASE_ADDR      (0x40000000)
-    #define BROM_BASE_ADDR          (0x60000000)
-    #define FPGA_BUS_BASE_ADDR      (0x68000000)
-    #define USER_COMMS_BASE_ADDR    (0x70000000)
-    #define LVM_ADDR                (0x78000000)
-
-    #define SRAM_BASE_ADDR          (0x80000000)
-    #define HEAP1_BASE_ADDR         (SRAM_BASE_ADDR + 0x20000000)
-    #define HEAP2_BASE_ADDR         (SRAM_BASE_ADDR + 0x10000000)
-    #define HEAP3_BASE_ADDR         (SRAM_BASE_ADDR + 0x08000000)
-
-    #define MMAP_BASE_ADDR          (0x80000000)
-    #define MMAP1_BASE_ADDR         (MMAP_BASE_ADDR + 0x00800000)
-    #define MMAP2_BASE_ADDR         (MMAP_BASE_ADDR + 0x00400000)
-    #define MMAP3_BASE_ADDR         (MMAP_BASE_ADDR + 0x00200000)
-#endif
+#define MMAP_BASE_ADDR                                          (0x80000000)
+#define MMAP1_BASE_ADDR                                         (MMAP_BASE_ADDR + 0x00800000)
+#define MMAP2_BASE_ADDR                                         (MMAP_BASE_ADDR + 0x00400000)
+#define MMAP3_BASE_ADDR                                         (MMAP_BASE_ADDR + 0x00200000)
 
 #define NOOP                                                    (void)0
 
@@ -518,8 +372,6 @@ typedef enum e_cores
 #define FPGA_BUS0                                               ((volatile uint32_t *)FPGA_BUS_BASE_ADDR)
 #define FPGA_BUS_NONBLOCKING_FLAG                               (0x01000000)
 #define FPGA_BUS_READ_PREVIOUS_TRANSACTION_RESULT_FLAG          (0x02000000)
-
-#define LVM                                                     ((volatile uint32_t *)LVM_ADDR)
 
 #define SYSTEM_TIMER_CTRL_LOCK_BITFLAG                          (0x01)
 #define SYSTEM_TIMER_CTRL_RD_MILLISECONDS_BITFLAG               (0x02)
@@ -535,8 +387,6 @@ typedef enum e_cores
 #define STACK_OVERFLOW_TRACE_ENABLE_BITFLAG                     (0x80000000)
 
 #define SPI_CLK_DIVIDER_FREQ_HZ                                 (1000000)
-
-#define USER_EXIT_PROGRAM_INTERRUPT_MASK                        (0x00000006)
 
 #define QSPI_IN_CFG_MODE_FLAG                                   (0x20)
 
@@ -567,22 +417,12 @@ typedef enum e_cores
 
 #define ANSI_BACKGROUND_COLOR_DARK                              "\x1b[48;5;232m"
 
-#define REPL_MODE                                               (0)
-#define COMMAND_MODE                                            (1)
 
+// --------------- Function Prototypes ----------------
 
-
-uint8_t user_exit_program_interrupt() ATTRIB_RUNTIMECODE;
-
-#ifdef DEBUG_VPRINT_CPU_ACCESS
-    uint32_t get_cpu_addr_access_low_water_mark(void) ATTRIB_RUNTIMECODE;
-    uint32_t get_cpu_addr_access_high_water_mark(void) ATTRIB_RUNTIMECODE;
-    uint8_t print_cpu_access_trace(void) ATTRIB_RUNTIMECODE;
-#else
-    uint32_t get_cpu_addr_access_low_water_mark(void);
-    uint32_t get_cpu_addr_access_high_water_mark(void);
-    uint8_t print_cpu_access_trace(void);
-#endif
+uint32_t get_cpu_addr_access_low_water_mark(void);
+uint32_t get_cpu_addr_access_high_water_mark(void);
+uint8_t print_cpu_access_trace(void);
 
 
 void init_globals(void);
@@ -725,13 +565,5 @@ uint8_t user_button_is_pressed(void) __attribute__ ((unused));
 
 void disable_user_comms_rx_esc_seq_filter(void);
 void enable_user_comms_rx_esc_seq_filter(void);
-
-void set_color_for_repl_mode(void);
-void set_color_for_command_mode(void);
-void set_color_for_command_mode_bright(void);
-void set_color_for_command_mode_category(void);
-void set_color_for_command_mode_error(void);
-void set_color_for_command_mode_command(void);
-void set_color_for_command_mode_highlighting(void);
 
 #endif

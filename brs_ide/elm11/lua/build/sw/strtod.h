@@ -13,6 +13,7 @@
 #include "global.h"
 #include "config.h"
 
+// --------------- Function Prototypes ----------------
 
 float strtod_f(const char *nptr, char **endptr) ATTRIB_F3CODE;
 

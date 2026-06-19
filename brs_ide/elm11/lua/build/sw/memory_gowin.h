@@ -1,7 +1,3 @@
-#ifndef TD_MIMAS_A7_MINI
-#ifndef TD_ARTY_S7
-#ifndef TD_KV260
-
 #ifndef MEMORY_GOWIN_H
 #define MEMORY_GOWIN_H
 
@@ -16,7 +12,8 @@
 #include "global.h"
 #include "config.h"
 
-// Functions
+
+// --------------- Function Prototypes ----------------
 
 uint8_t initialise_memory(e_print_level print_level, uint8_t in_command_mode);
 uint32_t get_memory_total_bytes(void);
@@ -55,8 +52,4 @@ void print_fast_memory_state(void);
 void print_fast_memory_alloc_size_occurances(void);
 void reset_fast_memory_alloc_size_occurances(void) ATTRIB_F3CODE;
 
-#endif
-
-#endif
-#endif
 #endif

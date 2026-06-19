@@ -952,6 +952,9 @@ class HardwareOverlayPanel(QWidget):
             QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
+        # Let cells wrap (we break long comma-separated I/O lists onto multiple
+        # lines so the columns don't have to be very wide — see _wrap_commas).
+        self._table.setWordWrap(True)
         # Right-click a row to install its overlay image.
         self._table.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1114,12 +1117,15 @@ class HardwareOverlayPanel(QWidget):
             for c in range(len(headers)):
                 val = row[c] if c < len(row) else ''
                 if c in cap_cols:
-                    item = QTableWidgetItem(self._cap_text(self._int(val), n_io))
+                    text = self._cap_text(self._int(val), n_io)
                 elif c in bool_cols:
-                    item = QTableWidgetItem(
-                        'true' if self._int(val) != 0 else 'false')
+                    text = 'true' if self._int(val) != 0 else 'false'
                 else:
-                    item = QTableWidgetItem(val)
+                    text = val
+                # Display wraps at each comma; the original (comma-joined) form
+                # is kept in UserRole so the filter dropdowns stay single-line.
+                item = QTableWidgetItem(self._wrap_commas(text))
+                item.setData(Qt.ItemDataRole.UserRole, text)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if not present:
                     item.setForeground(QColor(Qt.GlobalColor.gray))
@@ -1133,6 +1139,8 @@ class HardwareOverlayPanel(QWidget):
             maxw = max(self._table.columnWidth(c) for c in range(cols))
             for c in range(cols):
                 self._table.setColumnWidth(c, maxw)
+        # Grow row heights to fit the now-wrapped multi-line cells.
+        self._table.resizeRowsToContents()
         self._table.setUpdatesEnabled(True)
         # Rebuild the per-column filter dropdowns from the freshly shown values.
         self._build_filters()
@@ -1142,6 +1150,21 @@ class HardwareOverlayPanel(QWidget):
         self._on_row_selected()
 
     # ── Per-column filtering ────────────────────────────────────────────────
+
+    @staticmethod
+    def _wrap_commas(text: str) -> str:
+        """Break a comma-separated cell value onto one line per item, so wide
+        I/O lists wrap instead of forcing very wide columns."""
+        return text.replace(', ', '\n')
+
+    @staticmethod
+    def _cell_value(item) -> str:
+        """The cell's logical (unwrapped) value — UserRole holds the original
+        comma-joined string; fall back to the displayed text."""
+        if item is None:
+            return ''
+        v = item.data(Qt.ItemDataRole.UserRole)
+        return v if v is not None else item.text()
 
     def _build_filters(self):
         """Make one dropdown per column, populated with that column's distinct
@@ -1155,7 +1178,7 @@ class HardwareOverlayPanel(QWidget):
             seen, uniq = [], set()
             for r in range(rows):
                 item = self._table.item(r, c)
-                txt = item.text() if item else ''
+                txt = self._cell_value(item)
                 if txt not in uniq:
                     uniq.add(txt)
                     seen.append(txt)
@@ -1205,8 +1228,8 @@ class HardwareOverlayPanel(QWidget):
         rows = self._table.rowCount()
         shown = 0
         for r in range(rows):
-            ok = all((self._table.item(r, c).text() if self._table.item(r, c)
-                      else '') == val for c, val in selected)
+            ok = all(self._cell_value(self._table.item(r, c)) == val
+                     for c, val in selected)
             if ok and dl_mode and r < len(self._rows_raw):
                 present = self._vg_path(self._rows_raw[r]).is_file()
                 ok = present if dl_mode == 1 else not present

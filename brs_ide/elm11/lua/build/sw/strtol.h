@@ -9,6 +9,8 @@
 #include "global.h"
 #include "config.h"
 
+// --------------- Function Prototypes ----------------
+
 long strtol(const char *nptr, char **endptr, int base) ATTRIB_F3CODE;
 
 #endif

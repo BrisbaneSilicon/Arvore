@@ -7,6 +7,9 @@
 
 #include "config.h"
 
+
+// ---------------------- Defines ----------------------
+
 #define FLASH_MAX_CORES_SUPPORTED                   (2)
 
 #define FLASH_PAGE_BYTES                            (256)
@@ -16,28 +19,31 @@
 #define MAX_BYTES_PER_PROGRAM                       (FLASH_PAGE_BYTES * MAX_FLASH_PAGES_PER_PROGRAM)-1
     // NOTE: -1 for required NULL delimiter
     //
-    // 24576 bytes / program... at 128 programs max,
-    // ends up being 3 MB total...
+    // 24576 bytes / program... at 128 programs
+    // max, ends up being 3 MB total...
 
 // NOTE: addresses of data in flash
 #define PIN_CONFIG_START_ADDR                       (0x00)
-#define PIN_CONFIG_END_ADDR                         ((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS + MAX_NUM_ADC_PINS + MAX_NUM_DAC_PINS) - 1)
-    // REVISIT: for now, waste one page per I/O pin...
+#define PIN_CONFIG_END_ADDR                         ((PIN_CONFIG_START_ADDR + MAX_NUM_IO_PINS) - 1)
+    // REVISIT: for now, waste one page per I/O
+    // pin...
 
 #define STORAGE_METADATA_ADDR                       (PIN_CONFIG_END_ADDR+1)
 
 #define PROGRAM_ENTRY_TABLE_START_ADDR              (STORAGE_METADATA_ADDR+1)
 #define PROGRAM_ENTRY_TABLE_END_ADDR                (PROGRAM_ENTRY_TABLE_START_ADDR + (MAX_NUM_PROGRAMS/PROGRAM_ENTRY_TABLE_ENTRIES_PER_FLASH_PAGE))
-    // REVISIT: for now, potentially waste one page here...
+    // REVISIT: for now, potentially waste one
+    // page here...
 
 #define PROGRAM_DATA_START_ADDR                     (PROGRAM_ENTRY_TABLE_END_ADDR+1)
 #define PROGRAM_DATA_INC_ADDR                       (MAX_FLASH_PAGES_PER_PROGRAM)
 
 
 #define PROG_ENTRY_NAME_MAX_CHARS                   (29)
-    // NOTE: sized so 'PROG_ENTRY_NAME_MAX_CHARS' plus
-    // 1 plus sizeof(uint16_t) == 32 characters, which
-    // will fit evenly into 'FLASH_PAGE_BYTES'...
+    // NOTE: sized so 'PROG_ENTRY_NAME_MAX_CHARS'
+    // plus 1 plus sizeof(uint16_t) == 32
+    // characters, which will fit evenly into
+    // 'FLASH_PAGE_BYTES'...
 #define PROG_ENTRY_NAME_MAX_CHARS_PLUS_NTC          (PROG_ENTRY_NAME_MAX_CHARS + 1)
     // NOTE: NTC == Null Terminating Character
 #define PROGRAM_NAME_MAX_CHARS                      (32)
@@ -132,10 +138,10 @@ assert_defined_type_size_equal_or_less_than( st_storage_metadata, FLASH_PAGE_BYT
 #define QSPI0               ((volatile PICOQSPI*)SPI_CFG_BASE_ADDR)
 
 
+// --------------- Function Prototypes ----------------
+
 void spi_flashio(volatile uint8_t *pdata, int length, int wren) ATTRIB_RUNTIMECODE_FLASHIO;
-
 void spi_flashio_wrapper(volatile uint8_t *pdata, int length, int wren) ATTRIB_F1CODE_BUILDSWITCH;
-
 void init_flash(void) ATTRIB_F1CODE_BUILDSWITCH;
 
 uint8_t read_board_id(uint8_t *board_id) ATTRIB_F1CODE_BUILDSWITCH;
