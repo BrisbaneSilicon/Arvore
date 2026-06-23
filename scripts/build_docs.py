@@ -14,7 +14,7 @@ from pathlib import Path
 
 HERE    = Path(__file__).resolve().parent
 REPO    = HERE.parent
-OUT     = REPO / 'brs_ide' / 'docs_data.json'
+OUT     = REPO / 'ide' / 'docs_data.json'
 DEFAULT = REPO / 'embLua_ProductDocumentation.pdf'
 
 # Page ranges derived from the PDF table of contents.

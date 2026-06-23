@@ -32,10 +32,10 @@ from . import theme
 
 
 def _ide_data_dir(name: str) -> Path:
-    """Resolve a bundled data directory (`brs_ide/<name>/`) for dev,
+    """Resolve a bundled data directory (`ide/<name>/`) for dev,
     PyInstaller, and system-install layouts."""
     if hasattr(sys, '_MEIPASS'):
-        return Path(sys._MEIPASS) / 'brs_ide' / name
+        return Path(sys._MEIPASS) / 'ide' / name
     return Path(__file__).resolve().parent / name
 
 
@@ -108,7 +108,7 @@ class _PortComboBox(QComboBox):
 
 
 def _c_runtime_objects() -> list[str]:
-    """Return every `*.o` file shipped in `brs_ide/elm11/c/runtime/`."""
+    """Return every `*.o` file shipped in `ide/elm11/c/runtime/`."""
     base = _ide_data_dir('elm11/c/runtime')
     if not base.is_dir():
         return []
@@ -1761,7 +1761,7 @@ class MainWindow(QMainWindow):
 
         # Locate the bundled firmware uploader and the Memory image.
         if hasattr(sys, '_MEIPASS'):
-            uploader = Path(sys._MEIPASS) / 'brs_ide' / 'firmware_uploader.py'
+            uploader = Path(sys._MEIPASS) / 'ide' / 'firmware_uploader.py'
         else:
             uploader = Path(__file__).resolve().parent / 'firmware_uploader.py'
         if not uploader.is_file():
@@ -2091,7 +2091,7 @@ class MainWindow(QMainWindow):
                                 target: str = 'ELM11'):
         """Seed a freshly-created workspace with the bundled templates for
         `lang` ('c' or 'lua'), sourced from the board-specific tree
-        `brs_ide/<board>/<lang>/` (where <board> is the target board lowercased,
+        `ide/<board>/<lang>/` (where <board> is the target board lowercased,
         e.g. 'elm11' or 'elm11-feather'). Files are laid out as:
 
           * `<dest>/*.c`                — starter user source

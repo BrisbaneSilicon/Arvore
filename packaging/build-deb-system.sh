@@ -18,7 +18,7 @@ VERSION="${VERSION:-0.1.0}"
 PKG="elm11-ide-system_${VERSION}_all"
 STAGE="$DIST/$PKG"
 
-ICON_SRC="$ROOT/brs_ide/elm11-ide.png"
+ICON_SRC="$ROOT/ide/elm11-ide.png"
 if [[ ! -f "$ICON_SRC" ]]; then
     echo "error: icon missing at $ICON_SRC — drop a 256x256 PNG there." >&2
     exit 1
@@ -28,12 +28,12 @@ echo "[1/3] Staging $STAGE"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/DEBIAN"
 mkdir -p "$STAGE/usr/bin"
-mkdir -p "$STAGE/usr/lib/python3/dist-packages/brs_ide"
+mkdir -p "$STAGE/usr/lib/python3/dist-packages/ide"
 mkdir -p "$STAGE/usr/share/applications"
 mkdir -p "$STAGE/usr/share/icons/hicolor/256x256/apps"
 
 # Python package
-cp -r "$ROOT/brs_ide/." "$STAGE/usr/lib/python3/dist-packages/brs_ide/"
+cp -r "$ROOT/ide/." "$STAGE/usr/lib/python3/dist-packages/ide/"
 
 # Launcher — short Python shim, relies on system PyQt6 + pyserial.
 # Shebang pinned to /usr/bin/python3 so it uses the distro's interpreter
@@ -49,7 +49,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QIcon
-from brs_ide.main_window import MainWindow
+from ide.main_window import MainWindow
 
 
 def main():

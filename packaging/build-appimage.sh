@@ -18,7 +18,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 DIST="$ROOT/dist"
 APPDIR="$DIST/ELM11_IDE.AppDir"
 
-ICON_SRC="$ROOT/brs_ide/elm11-ide.png"
+ICON_SRC="$ROOT/ide/elm11-ide.png"
 if [[ ! -f "$ICON_SRC" ]]; then
     echo "error: icon missing at $ICON_SRC — drop a 256x256 PNG there." >&2
     exit 1

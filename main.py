@@ -8,7 +8,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QIcon
-from brs_ide.main_window import MainWindow
+from ide.main_window import MainWindow
 
 
 def _apply_ui_scale():
@@ -36,7 +36,7 @@ def _icon_path() -> Path:
     PyInstaller bundle, or a system install."""
     # PyInstaller sets sys._MEIPASS to the bundle root at runtime.
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
-    for rel in ('brs_ide/elm11-ide.png', 'elm11-ide.png'):
+    for rel in ('ide/elm11-ide.png', 'elm11-ide.png'):
         p = base / rel
         if p.is_file():
             return p
@@ -51,7 +51,7 @@ def main():
 
     _apply_ui_scale()
 
-    log = logging.getLogger('brs_ide')
+    log = logging.getLogger('ide')
     if args.debug:
         logging.basicConfig(
             level=logging.DEBUG,

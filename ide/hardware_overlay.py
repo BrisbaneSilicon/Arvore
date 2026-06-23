@@ -44,9 +44,9 @@ _VG_PREFIX = 'emblua_'
 
 
 def _ide_base() -> Path:
-    """Root of the bundled `brs_ide` data (dev, PyInstaller, install)."""
+    """Root of the bundled `ide` data (dev, PyInstaller, install)."""
     if hasattr(sys, '_MEIPASS'):
-        return Path(sys._MEIPASS) / 'brs_ide'
+        return Path(sys._MEIPASS) / 'ide'
     return Path(__file__).resolve().parent
 
 

@@ -15,7 +15,7 @@ APPS_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
 mkdir -p "$APPS_DIR" "$ICON_DIR"
 
-cp "$ROOT/brs_ide/elm11-ide.png" "$ICON_DIR/elm11-ide.png"
+cp "$ROOT/ide/elm11-ide.png" "$ICON_DIR/elm11-ide.png"
 
 cat > "$APPS_DIR/elm11-ide.desktop" <<EOF
 [Desktop Entry]
