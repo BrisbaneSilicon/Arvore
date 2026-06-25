@@ -9,7 +9,8 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 *   [Overview](#overview)
 *   [Getting Started](#getting-started)
     *   [Prerequisites](#prerequisites)
-
+    *   [License Setup](#license-setup)
+        *   [Public License Servers](#public-license-servers)
 <br><br>
 
 ## Overview
@@ -41,7 +42,7 @@ Fulfill the below pre-requisites.
    - A free license for GOWIN EDA. See section [License Setup](#license-setup) below.
    
 
-## License Setup
+### License Setup
 
 There are two options (both free) for licensing GOWIN EDA.
 1. Using a local license file.
@@ -50,3 +51,47 @@ There are two options (both free) for licensing GOWIN EDA.
 Option (1) requires applying for a license from GOWIN [here](https://www.gowinsemi.com/en/support/license/). It can take up to a few working days for GOWIN to provide you with a license, which will be valid for a period of one year. Option (2) requires the same initial step if you wish to host your own license server. Alternatively you can point the GOWIN license manager at a public license server; this is likely the quickest path forwards. See [Public License Servers](#public-license-servers) for a list of public license servers.
 
 <br><br>
+
+#### Linux
+
+Launch a bash terminal and perform the following:
+
+1. Change directory to the GOWIN IDE installation 'bin' directory.
+   - `cd <GOWIN IDE install directory>/IDE/bin/`
+2. Run the licensing manager.
+   - `./license_config_gui`
+   - Alternatively you can run the GOWIN IDE `./gw_ide` and click 'Help' - 'Manage License'.
+3. Either point the licensing manager at your local license file (Option 1 above) or a floating license server.
+4. Press 'Check' to validate the license.
+   - If the license has been successfully validated, it should produce a popup window __INFO__ with the message __Server is OK__.
+5. Click 'Save' to save your license setup.
+<br>
+
+> [!WARNING]
+> Sometimes the first license check (step 4) will fail - simply repeat the step to validate the license.
+
+### Windows
+
+To configure the license on Windows GOWIN EDA:
+
+1. Open GOWIN EDA (`gw_ide.exe`) from your install directory.
+2. Click 'Help' - 'Manage License'.
+3. Either point the licensing manager at your local license file (Option 1 above) or a floating license server.
+4. Press 'Check' to validate the license.
+   - If the license has been successfully validated, it should produce a popup window __INFO__ with the message __Server is OK__.
+5. Click 'Save' to save your license setup.
+<br>
+
+> [!WARNING]
+> Sometimes the first license check (step 4) will fail - simply repeat the step to validate the license.
+
+#### Public License Servers
+
+A list of public GOWIN EDA license servers is below. These are community reported and might not be official or stable (see the previous instructions on how to check their validity).
+
+| IP Address | Port |
+| :------: | :------: |
+| 106.55.34.119 | 10559 |
+| 43.128.7.128 | 10559 |
+
+<br>
