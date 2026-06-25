@@ -1,37 +1,37 @@
-; Inno Setup script for the ELM11 IDE Windows installer.
+; Inno Setup script for the Arvore Windows installer.
 ;
 ; Prerequisites (on Windows):
 ;   1. Python 3.10+ installed.
 ;   2. `pip install pyinstaller PyQt6 pyserial`
 ;   3. Inno Setup 6 — https://jrsoftware.org/isdl.php
-;   4. An elm11-ide.ico file next to this .iss (use an online PNG→ICO
-;      converter or ImageMagick:  magick elm11-ide.png -define icon:auto-resize elm11-ide.ico)
+;   4. An arvore.ico file next to this .iss (use an online PNG→ICO
+;      converter or ImageMagick:  magick arvore.png -define icon:auto-resize arvore.ico)
 ;
 ; Build:
 ;   cd <repo root>
-;   pyinstaller --clean --noconfirm packaging\elm11-ide.spec
-;   ISCC.exe packaging\elm11-ide.iss
+;   pyinstaller --clean --noconfirm packaging\arvore.spec
+;   ISCC.exe packaging\arvore.iss
 ;
 ; Output:
-;   dist\ELM11_IDE_Setup_<version>.exe
+;   dist\Arvore_Setup_<version>.exe
 
-#define MyAppName       "ELM11 IDE"
+#define MyAppName       "Arvore"
 #define MyAppVersion    "0.1.0"
 #define MyAppPublisher  "BrisbaneSilicon"
 #define MyAppURL        "https://brisbanesilicon.com.au"
-#define MyAppExeName    "elm11-ide.exe"
-#define SrcDir          "..\dist\elm11-ide"
-#define OutputBase      "ELM11_IDE_Setup_" + MyAppVersion
+#define MyAppExeName    "arvore.exe"
+#define SrcDir          "..\dist\arvore"
+#define OutputBase      "Arvore_Setup_" + MyAppVersion
 
 [Setup]
-AppId={{7B6E4A9C-2D1F-4A5E-9B2A-ELM11-IDE-0001}
+AppId={{B5E1B2A7-4C3D-4E9F-A1D6-7F2C9E0B3A84}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
-DefaultDirName={autopf}\ELM11 IDE
-DefaultGroupName=ELM11 IDE
+DefaultDirName={autopf}\Arvore
+DefaultGroupName=Arvore
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 ArchitecturesAllowed=x64compatible
@@ -42,7 +42,7 @@ Compression=lzma2/ultra
 SolidCompression=yes
 OutputDir=..\dist
 OutputBaseFilename={#OutputBase}
-SetupIconFile=elm11-ide.ico
+SetupIconFile=arvore.ico
 WizardStyle=modern
 
 [Languages]

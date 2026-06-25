@@ -2435,8 +2435,8 @@ class MainWindow(QMainWindow):
                     'start the IDE.')
 
     def _about(self):
-        QMessageBox.about(self, 'ELM11 IDE',
-            '<b>ELM11 IDE</b><br>'
+        QMessageBox.about(self, 'Arvore',
+            '<b>Arvore</b><br>'
             'An IDE for the ELM11 Embedded Lua Machine<br><br>'
             '© BrisbaneSilicon<br>'
             'brisbanesilicon.com.au')

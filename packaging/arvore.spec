@@ -1,6 +1,6 @@
-# PyInstaller spec for the ELM11 IDE.
-# Build with:  pyinstaller packaging/elm11-ide.spec
-# Output:      dist/elm11-ide/  (folder-style bundle)
+# PyInstaller spec for the Arvore.
+# Build with:  pyinstaller packaging/arvore.spec
+# Output:      dist/arvore/  (folder-style bundle)
 
 import sys
 from pathlib import Path
@@ -9,7 +9,7 @@ ROOT = Path(SPECPATH).parent
 IS_WIN = sys.platform.startswith('win')
 # Windows wants a .ico file for the .exe icon; Linux/macOS use the PNG
 # elsewhere at runtime via setWindowIcon.
-WIN_ICON = ROOT / 'packaging' / 'elm11-ide.ico'
+WIN_ICON = ROOT / 'packaging' / 'arvore.ico'
 EXE_ICON = str(WIN_ICON) if IS_WIN and WIN_ICON.is_file() else None
 
 a = Analysis(
@@ -21,7 +21,7 @@ a = Analysis(
         (str(ROOT / 'ide' / 'docs_data.json'),   'ide'),
         (str(ROOT / 'ide' / 'docs_c_data.json'), 'ide'),
         # Window / taskbar icon used by QApplication.setWindowIcon.
-        (str(ROOT / 'ide' / 'elm11-ide.png'), 'ide'),
+        (str(ROOT / 'ide' / 'arvore.png'), 'ide'),
         # Bundled flash helper invoked by the toolbar Flash button.
         (str(ROOT / 'ide' / 'firmware_uploader.py'), 'ide'),
         # Pre-built ELM11 C runtime objects — every user C program links
@@ -47,7 +47,7 @@ pyz = PYZ(a.pure, a.zipped_data)
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name='elm11-ide',
+    name='arvore',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -66,5 +66,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='elm11-ide',
+    name='arvore',
 )

@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=ELM11 IDE
+Name=Arvore
 GenericName=Embedded Lua IDE
 Comment=IDE for the ELM11 Embedded Lua Machine
-Exec=elm11-ide
-Icon=elm11-ide
+Exec=arvore
+Icon=arvore
 Terminal=false
 Categories=Development;IDE;
 Keywords=lua;elm11;embedded;ide;serial;
-StartupWMClass=ELM11 IDE
+StartupWMClass=Arvore

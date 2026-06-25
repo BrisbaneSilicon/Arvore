@@ -1,11 +1,11 @@
 @echo off
-REM  Build the ELM11 IDE Windows installer.
+REM  Build the Arvore Windows installer.
 REM  Run from the repo root:   packaging\build-windows.bat
 REM
 REM  Prerequisites:
 REM    * Python 3.10+ with PyQt6, pyserial, pyinstaller (pip install).
 REM    * Inno Setup 6 (iscc.exe on PATH, or adjust the INNO variable below).
-REM    * ide\elm11-ide.ico present.
+REM    * ide\arvore.ico present.
 
 setlocal
 set HERE=%~dp0
@@ -26,26 +26,26 @@ if errorlevel 1 (
     )
 )
 
-if not exist "%ROOT%\ide\elm11-ide.png" (
-    echo error: %ROOT%\ide\elm11-ide.png missing.
+if not exist "%ROOT%\ide\arvore.png" (
+    echo error: %ROOT%\ide\arvore.png missing.
     exit /b 1
 )
 
-if not exist "%HERE%elm11-ide.ico" (
-    echo error: %HERE%elm11-ide.ico missing — convert the PNG to ICO first,
-    echo   e.g.  magick ide\elm11-ide.png -define icon:auto-resize ^
-packaging\elm11-ide.ico
+if not exist "%HERE%arvore.ico" (
+    echo error: %HERE%arvore.ico missing — convert the PNG to ICO first,
+    echo   e.g.  magick ide\arvore.png -define icon:auto-resize ^
+packaging\arvore.ico
     exit /b 1
 )
 
 echo [1/2] Running PyInstaller...
 cd /d "%ROOT%"
-python -m PyInstaller --clean --noconfirm packaging\elm11-ide.spec
+python -m PyInstaller --clean --noconfirm packaging\arvore.spec
 if errorlevel 1 exit /b 1
 
 echo [2/2] Running Inno Setup...
-%INNO% "%HERE%elm11-ide.iss"
+%INNO% "%HERE%arvore.iss"
 if errorlevel 1 exit /b 1
 
-echo Done. Installer in %DIST%\ELM11_IDE_Setup_*.exe
+echo Done. Installer in %DIST%\Arvore_Setup_*.exe
 endlocal

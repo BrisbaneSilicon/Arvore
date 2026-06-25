@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Build a self-contained .deb for the ELM11 IDE — bundles the PyInstaller
-# output into /opt/elm11-ide/ so the package has no Python runtime deps.
+# Build a self-contained .deb for the Arvore — bundles the PyInstaller
+# output into /opt/arvore/ so the package has no Python runtime deps.
 #
 # Prerequisites:
 #   pip install pyinstaller
 #   dpkg-deb (already present on Debian/Ubuntu).
 #
 # Output:
-#   dist/elm11-ide_<version>_<arch>.deb
+#   dist/arvore_<version>_<arch>.deb
 
 set -euo pipefail
 
@@ -17,10 +17,10 @@ DIST="$ROOT/dist"
 
 VERSION="${VERSION:-0.1.0}"
 ARCH="${ARCH:-$(dpkg --print-architecture)}"
-PKG="elm11-ide_${VERSION}_${ARCH}"
+PKG="arvore_${VERSION}_${ARCH}"
 STAGE="$DIST/$PKG"
 
-ICON_SRC="$ROOT/ide/elm11-ide.png"
+ICON_SRC="$ROOT/ide/arvore.png"
 if [[ ! -f "$ICON_SRC" ]]; then
     echo "error: icon missing at $ICON_SRC — drop a 256x256 PNG there." >&2
     exit 1
@@ -28,34 +28,34 @@ fi
 
 echo "[1/4] Running PyInstaller…"
 cd "$ROOT"
-pyinstaller --clean --noconfirm packaging/elm11-ide.spec
+pyinstaller --clean --noconfirm packaging/arvore.spec
 
 echo "[2/4] Staging $STAGE"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/DEBIAN"
-mkdir -p "$STAGE/opt/elm11-ide"
+mkdir -p "$STAGE/opt/arvore"
 mkdir -p "$STAGE/usr/bin"
 mkdir -p "$STAGE/usr/share/applications"
 mkdir -p "$STAGE/usr/share/icons/hicolor/256x256/apps"
 
-# PyInstaller output — everything goes under /opt/elm11-ide/
-cp -r "$DIST/elm11-ide/." "$STAGE/opt/elm11-ide/"
+# PyInstaller output — everything goes under /opt/arvore/
+cp -r "$DIST/arvore/." "$STAGE/opt/arvore/"
 
-# Launcher in /usr/bin so users can type `elm11-ide` from the terminal.
-cat > "$STAGE/usr/bin/elm11-ide" <<'SH'
+# Launcher in /usr/bin so users can type `arvore` from the terminal.
+cat > "$STAGE/usr/bin/arvore" <<'SH'
 #!/usr/bin/env bash
-exec /opt/elm11-ide/elm11-ide "$@"
+exec /opt/arvore/arvore "$@"
 SH
-chmod +x "$STAGE/usr/bin/elm11-ide"
+chmod +x "$STAGE/usr/bin/arvore"
 
 # Desktop entry + icon
-cp "$HERE/elm11-ide.desktop" "$STAGE/usr/share/applications/elm11-ide.desktop"
-cp "$ICON_SRC"               "$STAGE/usr/share/icons/hicolor/256x256/apps/elm11-ide.png"
+cp "$HERE/arvore.desktop" "$STAGE/usr/share/applications/arvore.desktop"
+cp "$ICON_SRC"               "$STAGE/usr/share/icons/hicolor/256x256/apps/arvore.png"
 
 # Control file — no Python deps since everything's bundled in /opt
 INSTALLED_KB="$(du -sk "$STAGE" --exclude=DEBIAN | cut -f1)"
 cat > "$STAGE/DEBIAN/control" <<EOF
-Package: elm11-ide
+Package: arvore
 Version: $VERSION
 Section: devel
 Priority: optional
@@ -67,7 +67,7 @@ Description: IDE for the ELM11 Embedded Lua Machine
  A graphical development environment for the ELM11 embedded Lua
  microcontroller: serial terminal with REPL, program upload, command-mode
  console, and integrated API documentation. Self-contained — Python
- and Qt libraries are bundled under /opt/elm11-ide.
+ and Qt libraries are bundled under /opt/arvore.
 EOF
 
 # postinst / postrm so GNOME picks up the new .desktop and icon caches.

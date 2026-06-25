@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build a light .deb for the ELM11 IDE — ships just the Python source and
+# Build a light .deb for the Arvore — ships just the Python source and
 # declares PyQt6 / pyserial as apt dependencies. Much smaller than the
 # bundled build, but requires the target system to have python3-pyqt6
 # and python3-serial available in the package index (Ubuntu 24.04+ or
 # Debian 12+ in universe/main).
 #
 # Output:
-#   dist/elm11-ide-system_<version>_all.deb
+#   dist/arvore-system_<version>_all.deb
 
 set -euo pipefail
 
@@ -15,10 +15,10 @@ ROOT="$(cd "$HERE/.." && pwd)"
 DIST="$ROOT/dist"
 
 VERSION="${VERSION:-0.1.0}"
-PKG="elm11-ide-system_${VERSION}_all"
+PKG="arvore-system_${VERSION}_all"
 STAGE="$DIST/$PKG"
 
-ICON_SRC="$ROOT/ide/elm11-ide.png"
+ICON_SRC="$ROOT/ide/arvore.png"
 if [[ ! -f "$ICON_SRC" ]]; then
     echo "error: icon missing at $ICON_SRC — drop a 256x256 PNG there." >&2
     exit 1
@@ -39,7 +39,7 @@ cp -r "$ROOT/ide/." "$STAGE/usr/lib/python3/dist-packages/ide/"
 # Shebang pinned to /usr/bin/python3 so it uses the distro's interpreter
 # (which has /usr/lib/python3/dist-packages on sys.path) rather than a
 # pip/conda/pyenv python that might have shadowed `python3` on PATH.
-cat > "$STAGE/usr/bin/elm11-ide" <<'SH'
+cat > "$STAGE/usr/bin/arvore" <<'SH'
 #!/usr/bin/python3
 import sys
 # Defensive — normally /usr/bin/python3 already has this in its path.
@@ -54,12 +54,12 @@ from ide.main_window import MainWindow
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName('ELM11 IDE')
-    app.setDesktopFileName('elm11-ide')
+    app.setApplicationName('Arvore')
+    app.setDesktopFileName('arvore')
     app.setOrganizationName('BrisbaneSilicon')
     QSettings.setDefaultFormat(QSettings.Format.IniFormat)
 
-    icon_path = Path('/usr/share/icons/hicolor/256x256/apps/elm11-ide.png')
+    icon_path = Path('/usr/share/icons/hicolor/256x256/apps/arvore.png')
     if icon_path.is_file():
         app.setWindowIcon(QIcon(str(icon_path)))
 
@@ -73,22 +73,22 @@ def main():
 if __name__ == '__main__':
     main()
 SH
-chmod +x "$STAGE/usr/bin/elm11-ide"
+chmod +x "$STAGE/usr/bin/arvore"
 
 # Desktop entry + icon
-cp "$HERE/elm11-ide.desktop" "$STAGE/usr/share/applications/elm11-ide.desktop"
-cp "$ICON_SRC"               "$STAGE/usr/share/icons/hicolor/256x256/apps/elm11-ide.png"
+cp "$HERE/arvore.desktop" "$STAGE/usr/share/applications/arvore.desktop"
+cp "$ICON_SRC"               "$STAGE/usr/share/icons/hicolor/256x256/apps/arvore.png"
 
 # Control file — declare the Python deps so apt pulls them in.
 INSTALLED_KB="$(du -sk "$STAGE" --exclude=DEBIAN | cut -f1)"
 cat > "$STAGE/DEBIAN/control" <<EOF
-Package: elm11-ide
+Package: arvore
 Version: $VERSION
 Section: devel
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.10), python3-pyqt6, python3-serial
-Conflicts: elm11-ide-bundled
+Conflicts: arvore-bundled
 Installed-Size: $INSTALLED_KB
 Maintainer: BrisbaneSilicon <admin@brisbanesilicon.com.au>
 Description: IDE for the ELM11 Embedded Lua Machine (system-python build)

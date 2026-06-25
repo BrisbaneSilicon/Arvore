@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ELM11 IDE — entry point."""
+"""Arvore — entry point."""
 import os
 import sys
 import logging
@@ -21,7 +21,7 @@ def _apply_ui_scale():
     offers to relaunch when the value changes. An externally-set
     QT_SCALE_FACTOR always wins, so power users can still override it."""
     settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope,
-                         'BrisbaneSilicon', 'ELM11 IDE')
+                         'BrisbaneSilicon', 'Arvore')
     try:
         scale = float(settings.value('ui/scale', 1.0))
     except (TypeError, ValueError):
@@ -36,7 +36,7 @@ def _icon_path() -> Path:
     PyInstaller bundle, or a system install."""
     # PyInstaller sets sys._MEIPASS to the bundle root at runtime.
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
-    for rel in ('ide/elm11-ide.png', 'elm11-ide.png'):
+    for rel in ('ide/arvore.png', 'arvore.png'):
         p = base / rel
         if p.is_file():
             return p
@@ -44,7 +44,7 @@ def _icon_path() -> Path:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ELM11 IDE')
+    parser = argparse.ArgumentParser(description='Arvore')
     parser.add_argument('--debug', action='store_true',
                         help='Enable verbose debug logging to stdout')
     args, remaining = parser.parse_known_args()
@@ -65,8 +65,8 @@ def main():
 
     # Only pass Qt-relevant args (not --debug) to QApplication
     app = QApplication([sys.argv[0]] + remaining)
-    app.setApplicationName('ELM11 IDE')
-    app.setDesktopFileName('elm11-ide')   # links the app to its .desktop file
+    app.setApplicationName('Arvore')
+    app.setDesktopFileName('arvore')   # links the app to its .desktop file
     app.setOrganizationName('BrisbaneSilicon')
     # Store settings in a plain .ini file next to the app (easy to inspect)
     QSettings.setDefaultFormat(QSettings.Format.IniFormat)
