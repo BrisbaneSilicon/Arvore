@@ -11,6 +11,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
     *   [Prerequisites](#prerequisites)
     *   [License Setup](#license-setup)
         *   [Public License Servers](#public-license-servers)
+    *   [Setup](#setup)
 <br><br>
 
 ## Overview
@@ -19,14 +20,14 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 
 ## Getting Started
 
-Fulfill the below pre-requisites.
+First, fulfill the below pre-requisites then complete the steps detailed in [Setup](#setup).
 
 ### Prerequisites
 
 1. A PC running an x64 compatible, Debian-based flavour of Linux or Windows 11.
    - Other flavours of Linux may work but aren't officially supported.
    - We recommend [Ubuntu](https://ubuntu.com/).
-2. Either a pre-built [binary](https://github.com/BrisbaneSilicon/Arvore/tree/master/bin/) or a copy of this repository (`git clone https://github.com/BrisbaneSilicon/Arvore.git`).
+2. Either install a pre-built [binary](https://github.com/BrisbaneSilicon/Arvore/tree/master/bin/) or a copy of this repository (`git clone https://github.com/BrisbaneSilicon/Arvore.git`).
    - If you are planning on running the IDE from source, you will require the following:
        - Python>=3.12.3
        - PyQt6>=6.4.0
@@ -70,7 +71,7 @@ Launch a bash terminal and perform the following:
 > [!WARNING]
 > Sometimes the first license check (step 4) will fail - simply repeat the step to validate the license.
 
-### Windows
+#### Windows
 
 To configure the license on Windows GOWIN EDA:
 
@@ -94,4 +95,20 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 | 106.55.34.119 | 10559 |
 | 43.128.7.128 | 10559 |
 
-<br>
+<br><br>
+
+### Setup
+
+1. Launch the Arvore IDE.
+2. Navigate to 'Tools' -> 'Settings'.
+3. If you are planning on extending the 'Driver Layer', setup the 'Compiler Path' in the 'C' tab.
+4. If you are planning on building your own 'Hardware Overlay', setup the following in the 'Hardware' tab:
+   - The 'Gowin IDE Path'.
+   - If you're using Linux, setup the 'libfreetype.so' path (typically '/lib/x86_64-linux-gnu/libfreetype.so').
+   - If you're using Linux, setup the 'libz.so.1' path (typically '/lib/x86_64-linux-gnu/libz.so.1').
+   - Potentially (likely only required on Linux) setup the 'Pre-program command' (to remove a loaded FTDI driver, i.e. 'pkexec modprobe -r ftdi_sio').
+   - Configure the remainder of the tabs as required.
+5. Modify the theme ('View' -> 'Theme') as desired.
+
+
+
