@@ -21,9 +21,17 @@ class _WorkspaceProxy(QSortFilterProxyModel):
         super().__init__(parent)
         self._workspace: Path | None = None
         self._status_provider = None
+        self._show_hidden = False
 
     def set_workspace(self, path: Path):
         self._workspace = path
+        self.invalidateFilter()
+
+    def set_show_hidden(self, show: bool):
+        show = bool(show)
+        if show == self._show_hidden:
+            return
+        self._show_hidden = show
         self.invalidateFilter()
 
     def set_status_provider(self, fn):
@@ -56,6 +64,16 @@ class _WorkspaceProxy(QSortFilterProxyModel):
         item = Path(item_path)
         ws   = self._workspace
 
+        # Hide dot-prefixed entries within the workspace (e.g. the generated
+        # `.build/` tree) unless the user opts in. We filter by name here
+        # rather than relying on QDir.Filter.Hidden because that only treats
+        # the dot prefix as "hidden" on Unix — on Windows hiddenness is a file
+        # attribute, so `.build/` would otherwise always show. The workspace
+        # root and the ancestors needed to reach it are never hidden.
+        if (not self._show_hidden and item != ws
+                and item.is_relative_to(ws) and item.name.startswith('.')):
+            return False
+
         # Accept: workspace itself, or anything inside it
         if item == ws or item.is_relative_to(ws):
             return True
@@ -87,6 +105,7 @@ class ProjectTree(QTreeView):
         self._model.setRootPath('')
 
         self._proxy = _WorkspaceProxy(self)
+        self._proxy.set_show_hidden(self._show_hidden)
         self._proxy.setSourceModel(self._model)
         self._proxy.setDynamicSortFilter(True)
         self.setModel(self._proxy)
@@ -136,6 +155,7 @@ class ProjectTree(QTreeView):
         if show == self._show_hidden:
             return
         self._show_hidden = show
+        self._proxy.set_show_hidden(show)
         self._apply_model_filter()
 
     def apply_theme(self):
