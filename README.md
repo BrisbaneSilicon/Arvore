@@ -154,6 +154,8 @@ These fields can be described as follows:
 | Default HDL | Set the HDL used as part of the Hardware Layer to either 'SystemVerilog' or 'VHDL' |
 | Customize Hardware Overlay | Install a custom hardware overlay instead of the default (will launch 'Hardware Overlay Config' mode - see below) |
 
+When a new workspace is created, it is populated with a default, example project, that demonstrates usage of each of the three programmable layers.
+
 <br><br>
 
 ## Hardware Overlay
