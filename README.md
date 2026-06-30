@@ -156,13 +156,12 @@ These fields can be described as follows:
 
 ## Hardware Overlay
 
-The IDE allows the user ...
-
+The Arvore IDE offers a mode, 'Hardware Overlay Config', that allows the user to select and install a custom Hardware Overlay. This mode can be enabled by selecting 'View' - 'Hardware Overlay Config' or by pressing 'F1'. The default view in this mode is a list of available Hardware Overlays, upon which the user can search based on its available features. The user can also filter on whether the Hardware Overlay has been downloaded (the full set of Hardware Overlays are hosted by BrisbaneSilicon, and are constantly being added to and updated). If a visual diagram of a Hardware Overlay is desired, the user can simply click the 'Diagram' button in the top right. See the image at the beginning of this README for an example of the 'Hardware Overlay Config' mode.
 <br><br>
 
 ## Code Editor
 
-The IDE code editor
+The Arvore IDE naturally offers a code editor...
 
 <br><br>
 
