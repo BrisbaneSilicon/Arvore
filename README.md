@@ -203,6 +203,7 @@ The user can also build and upload any of the Layer artefacts to the board, as p
 The IDE also can connect to the board for the purposes of interacting with the REPL. Once a user has connected to the board, they can simply input lines of Lua script into the REPL window, and press 'Send' or enter to execute the line of script. The resulting output will be present in the 'Serial Terminal' window of the IDE.
 
 Prior to connecting to the board, the user might need to reload the FTDI driver (if on Linux), simply press 'Reload FTDI driver' next to 'Port' to do so.
+<br><br>
 
 ## Command Mode
 
