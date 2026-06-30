@@ -49,7 +49,9 @@ First, fulfill the below pre-requisites then complete the steps detailed in [Ini
        - Python>=3.12.3
        - PyQt6>=6.4.0
        - pyserial
-4. If you are planning on extending the 'Driver Layer', an installation of the [RISC-V GCC toolchain](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack).
+4. If you are planning on extending the 'Driver Layer':
+      - On Linux, an installation of the [RISC-V GCC toolchain](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack).
+      - On Windows, an installation of [MSYS2](https://www.msys2.org/#installation)
 5. If you are planning on building your own 'Hardware Overlay', or extending the 'Hardware Layer', an installation of GOWIN EDA V1.9.12.
    - Available from the official GOWIN EDA [download page](https://www.gowinsemi.com/en/support/download_eda/) or via direct links, [Linux](https://cdn.gowinsemi.com.cn/Gowin_V1.9.12_linux.tar.gz) [Windows](https://cdn.gowinsemi.com.cn/Gowin_V1.9.12_x64_win.zip).
    - You may need to first register as a GOWIN member [here](https://www.gowinsemi.com/en/member/).
@@ -116,7 +118,9 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 
 1. Launch the Arvore IDE.
 2. Navigate to 'Tools' -> 'Settings'.
-3. If you are planning on extending the 'Driver Layer', setup the 'Compiler Path' in the 'C' tab.
+3. If you are planning on extending the 'Driver Layer':
+    - On Linux, setup the 'Compiler Path' in the 'C' tab.
+    - On Windows, setup the 'MSYS2 Path' in the 'C' tab.
 4. If you are planning on building your own 'Hardware Overlay', setup the following in the 'Hardware' tab:
    - The 'Gowin IDE Path'.
    - If you're using Linux, setup the 'libfreetype.so' path (typically '/lib/x86_64-linux-gnu/libfreetype.so').
@@ -124,6 +128,10 @@ A list of public GOWIN EDA license servers is below. These are community reporte
    - Potentially (likely only required on Linux) setup the 'Pre-program command' (to remove a loaded FTDI driver, i.e. 'pkexec modprobe -r ftdi_sio').
    - Configure the remainder of the tabs as required.
 5. Modify the theme ('View' -> 'Theme') as desired.
+
+On Windows, ensure 'MSYS2' includes, make:
+1. Launch MSYS2.
+2. Run 'pacman -S make'
 <br><br>
 
 ## Workspaces
