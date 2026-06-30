@@ -1,6 +1,9 @@
 # Arvore
 
-Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [ELM11-Feather](https://www.crowdsupply.com/brisbanesilicon/elm11-feather) Microcontroller boards by [BrisbaneSilicon](https://brisbanesilicon.com.au/).
+Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [ELM11-Feather](https://brisbanesilicon.com.au/elm11-feather/) Microcontroller boards by [BrisbaneSilicon](https://brisbanesilicon.com.au/).
+<br>
+
+![Hardware Overlay Selection](https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png)
 
 <br><br>
 
@@ -12,6 +15,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
     *   [License Setup](#license-setup)
         *   [Public License Servers](#public-license-servers)
     *   [Setup](#setup)
+*   [Workspaces](#workspaces)
 <br><br>
 
 ## Overview
@@ -110,5 +114,8 @@ A list of public GOWIN EDA license servers is below. These are community reporte
    - Configure the remainder of the tabs as required.
 5. Modify the theme ('View' -> 'Theme') as desired.
 
+## Workspaces
+
+Workspaces ...
 
 
