@@ -3,7 +3,8 @@
 Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [ELM11-Feather](https://brisbanesilicon.com.au/elm11-feather/) Microcontroller boards by [BrisbaneSilicon](https://brisbanesilicon.com.au/).
 <br>
 
-![Hardware Overlay Selection](https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png)
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png" width="75%">
+
 <br><br>
 
 ## Table of Contents
