@@ -5,13 +5,79 @@ log = logging.getLogger(__name__)
 from PyQt6.QtWidgets import (
     QTreeView, QMenu, QMessageBox, QAbstractItemView,
     QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox,
+    QFileIconProvider,
 )
-from PyQt6.QtGui import QFileSystemModel
-from PyQt6.QtCore import Qt, QDir, QTimer, pyqtSignal, QModelIndex, QSortFilterProxyModel
+from PyQt6.QtGui import (
+    QFileSystemModel, QIcon, QPixmap, QPainter, QColor, QFont,
+)
+from PyQt6.QtCore import (
+    Qt, QDir, QTimer, pyqtSignal, QModelIndex, QSortFilterProxyModel,
+    QFileInfo, QRectF,
+)
 from pathlib import Path
 import shutil
 
 from . import theme
+
+
+class _FileIconProvider(QFileIconProvider):
+    """Give the source files we care about a distinct icon.
+
+    Windows asks the shell for an icon by extension, and unregistered types
+    (`.lua`, `.vhd`, often `.c`) come back as a blank generic page. For those
+    we draw a small colour-coded badge (a rounded chip with the extension
+    label); every other file/folder falls back to the platform icon."""
+
+    # ext -> (chip colour, label)
+    _BADGES = {
+        '.lua': ('#4a7fd6', 'L'),
+        '.c':   ('#6d8ac0', 'C'),
+        '.h':   ('#9aa7c7', 'H'),
+        '.vhd': ('#4aa564', 'V'),
+        '.vhdl': ('#4aa564', 'V'),
+        '.sv':  ('#d98a36', 'SV'),
+        '.svh': ('#d98a36', 'SV'),
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._cache: dict[str, QIcon] = {}
+
+    def icon(self, info):
+        # QFileIconProvider.icon is overloaded: icon(IconType) for the generic
+        # Computer/Folder/File icons, and icon(QFileInfo) for a real path. We
+        # only customise the latter.
+        if isinstance(info, QFileInfo) and not info.isDir():
+            badge = self._BADGES.get('.' + info.suffix().lower())
+            if badge is not None:
+                return self._badge_icon(*badge)
+        return super().icon(info)
+
+    def _badge_icon(self, color: str, label: str) -> QIcon:
+        cached = self._cache.get(label)
+        if cached is not None:
+            return cached
+        px = 64
+        pm = QPixmap(px, px)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        rect = QRectF(6, 6, px - 12, px - 12)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(color))
+        p.drawRoundedRect(rect, 12, 12)
+        # Shrink the font as the label gets longer so it always fits the chip.
+        f = QFont()
+        f.setBold(True)
+        f.setPixelSize({1: 30, 2: 22}.get(len(label), 16))
+        p.setFont(f)
+        p.setPen(QColor('#ffffff'))
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
+        p.end()
+        icon = QIcon(pm)
+        self._cache[label] = icon
+        return icon
 
 
 class _WorkspaceProxy(QSortFilterProxyModel):
@@ -96,6 +162,10 @@ class ProjectTree(QTreeView):
         super().__init__(parent)
 
         self._model = QFileSystemModel()
+        # Custom icons for source types the OS doesn't recognise (notably on
+        # Windows, where .lua/.c/.vhd otherwise show as blank generic pages).
+        self._icon_provider = _FileIconProvider()
+        self._model.setIconProvider(self._icon_provider)
         self._show_hidden = False
         self._apply_model_filter()
         # Read-write so QFileSystemModel.dropMimeData can perform real
