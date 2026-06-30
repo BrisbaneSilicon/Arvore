@@ -50,7 +50,7 @@ First, fulfill the below pre-requisites then complete the steps detailed in [Ini
        - PyQt6>=6.4.0
        - pyserial
 4. If you are planning on extending the 'Driver Layer':
-      - An installation of the [RISC-V GCC toolchain](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack).
+      - An installation of the [RISC-V GCC toolchain](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases).
       - On Windows, an installation of [MSYS2](https://www.msys2.org/#installation)
 5. If you are planning on building your own 'Hardware Overlay', or extending the 'Hardware Layer', an installation of GOWIN EDA V1.9.12.
    - Available from the official GOWIN EDA [download page](https://www.gowinsemi.com/en/support/download_eda/) or via direct links, [Linux](https://cdn.gowinsemi.com.cn/Gowin_V1.9.12_linux.tar.gz) [Windows](https://cdn.gowinsemi.com.cn/Gowin_V1.9.12_x64_win.zip).
