@@ -22,6 +22,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 *   [Code Editor](#code-editor)
 *   [REPL](#repl)
 *   [Command Mode](#command-mode)
+*   [Further Documentation](#further-documentation)
 <br><br>
 
 ## Overview
@@ -175,22 +176,38 @@ The Arvore IDE naturally offers a code editor which allows the user to program a
 
 The user can also build and upload any of the Layer artefacts to the board, as per the following buttons:
 
-| Button | Description |
-| :------: | :------: |
-| Upload | Upload the active (i.e. selected) Application Layer file (Lua) to the board |
-| Run | Run the active Application Layer file on the board |
-| Stop | Stop any running application on the board |
-| Build | Build the Driver Layer |
-| Clean | Clean the Driver Layer |
-| Flash | Flash the Driver Layer to the board |
-| Synth | Synthesize the Hardware Layer |
-| Clean | Clean the Hardware Layer |
-| Program | Program the Hardware Layer to the board |
+| Button | Description | Connection Required |
+| :------: | :------: | :------: |
+| Upload | Upload the active (i.e. selected) Application Layer file (Lua) to the board | Yes |
+| Run | Run the active Application Layer file on the board | Yes |
+| Stop | Stop any running application on the board | Yes |
+| Build | Build the Driver Layer | No |
+| Clean | Clean the Driver Layer | No |
+| Flash | Flash the Driver Layer to the board | Yes |
+| Synth | Synthesize the Hardware Layer | No |
+| Clean | Clean the Hardware Layer | No |
+| Program | Program the Hardware Layer to the board | Yes |
 
 <br><br>
 
 ## REPL
 
+The IDE also can connect to the board for the purposes of interacting with the REPL. Once a user has connected to the board, they can simply input lines of Lua script into the REPL window, and press 'Send' or enter to execute the line of script. The resulting output will be present in the 'Serial Terminal' window of the IDE.
+
+Prior to connecting to the board, the user might need to reload the FTDI driver (if on Linux), simply press 'Reload FTDI driver' next to 'Port' to do so.
+
 ## Command Mode
+
+Once connected to the board, the user can access 'Command Mode' by pressing the top-level menu button. In this mode, they have access to all runtime configuration that the board offers. This includes I/O Type configuration, Boot Programs etc. For example:
+
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/command_mode.png" width="75%">
+<br><em>Setting PIN1 to be PWM via Command Mode</em>
+</p>
+<br>
+
+## Further Documentation
+
+Simply access 'View' - 'Documentation Panel' or press 'F2' to access the API documentation for the workspace target board.
 
 
