@@ -56,6 +56,14 @@ def _bundled_overlay_dir(board: str) -> Path:
     return _ide_base() / board / 'hardware_overlay'
 
 
+def _default_overlay_dir(board: str) -> Path:
+    """Bundled *default* overlay for `board`: a fixed `emblua.vg` (optionally
+    with a matching `timing.sdc` beside it), deployed into a new Lua workspace
+    when the user opts out of customising the hardware overlay. Unlike the
+    summary table this ships with the IDE so a default works offline."""
+    return _bundled_overlay_dir(board) / 'default'
+
+
 def _bundled_fw_dir(board: str) -> Path:
     """Bundled firmware dir holding `board`'s per-frequency timing constraints
     (`timing_<n>mhz.sdc`) alongside the HDL sources."""
@@ -1433,22 +1441,42 @@ class HardwareOverlayPanel(QWidget):
             int(base.green() * (1 - f) + sel.green() * f),
             int(base.blue() * (1 - f) + sel.blue() * f))
 
-    def deploy_default_overlay(self, overlay_id: str):
-        """Install `overlay_id` into the open workspace non-interactively — used
-        to seed a brand-new workspace with a default overlay. Quietly does
-        nothing if the workspace, row, or local `.vg` image isn't available."""
-        self.ensure_loaded()
-        row = self._row_by_id(overlay_id)
-        if row is None:
-            return
-        src = self._vg_path(self._rows_raw[row])
+    def deploy_default_overlay(self, overlay_id: str = '00001'):
+        """Deploy the bundled *default* overlay into the open workspace
+        non-interactively — used to seed a brand-new Lua workspace when the
+        user opts out of customising the hardware overlay.
+
+        The default ships as a fixed image
+        (`ide/<board>/hardware_overlay/default/emblua.vg`) so it works offline
+        without the downloaded summary table. The build templates already
+        deploy a default `timing.sdc` (66 MHz); a `default/timing.sdc` beside
+        the image is only needed to override that frequency. Quietly does
+        nothing if the workspace or the bundled default image isn't
+        available."""
         dest = (self.deploy_target_provider()
                 if self.deploy_target_provider else None)
-        if dest is None or not src.is_file():
+        if dest is None:
             return
-        # Copies the image to emblua.vg, deploys timing.sdc, and records it as
-        # the installed overlay (see _copy_overlay → _mark_installed).
-        self._copy_overlay(src, dest, overlay_id, self._row_clk(row))
+        src_dir = _default_overlay_dir(self._board)
+        src_vg = src_dir / 'emblua.vg'
+        if not src_vg.is_file():
+            return
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_vg, dest)
+        except OSError:
+            return
+        # An optional timing.sdc beside the image overrides the build-template
+        # default; if it's absent that default (66 MHz) stands.
+        src_sdc = src_dir / 'timing.sdc'
+        if src_sdc.is_file():
+            try:
+                shutil.copy2(src_sdc, dest.parent / 'timing.sdc')
+            except OSError:
+                pass
+        # Record it as the installed overlay (highlights the row / updates the
+        # diagram once the table is later refreshed). Safe with an empty table.
+        self._mark_installed(overlay_id)
 
     def _install_row(self, row: int):
         """Copy (or offer to download) the row's `.vg` image into the workspace

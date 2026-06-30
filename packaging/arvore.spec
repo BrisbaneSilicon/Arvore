@@ -24,6 +24,13 @@ a = Analysis(
         (str(ROOT / 'ide' / 'arvore.png'), 'ide'),
         # Bundled flash helper invoked by the toolbar Flash button.
         (str(ROOT / 'ide' / 'firmware_uploader.py'), 'ide'),
+        # Default hardware overlay (emblua.vg [+ timing.sdc]) seeded into a new
+        # Lua workspace when the user doesn't customise the overlay — one per
+        # target board.
+        (str(ROOT / 'ide' / 'elm11' / 'hardware_overlay' / 'default'),
+         'ide/elm11/hardware_overlay/default'),
+        (str(ROOT / 'ide' / 'elm11-feather' / 'hardware_overlay' / 'default'),
+         'ide/elm11-feather/hardware_overlay/default'),
         # Pre-built ELM11 C runtime objects — every user C program links
         # against these.
         (str(ROOT / 'ide' / 'elm11' / 'c' / 'runtime'), 'ide/elm11/c/runtime'),
