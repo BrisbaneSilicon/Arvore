@@ -1,10 +1,12 @@
 # Arvore
 
 Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [ELM11-Feather](https://brisbanesilicon.com.au/elm11-feather/) Microcontroller boards by [BrisbaneSilicon](https://brisbanesilicon.com.au/).
-<br>
+<br><br>
 
+<p align="center">
 <img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png" width="75%">
-
+<br><em>Selecting and installing a custom 'Hardware Overlay'</em>
+</p>
 <br><br>
 
 ## Table of Contents
@@ -127,18 +129,28 @@ The 'Workspace' abstraction allows the user to organise modules into a single, u
 
 To create a workspace, simply select (or create) a target workspace folder in the directory tree at left, right-click it and select 'New Workspace'.
 
-<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/workspace_creation.png" width="50%">
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/workspace_creation.png" width="75%">
+<br><em>Workspace creation</em>
+</p>
+<br>
 
-A popup will then appear, allowing you to tailor the new workspace as per your target board and usage.
+A popup will then appear, allowing you to tailor the new workspace as per your target board and usage.<br>
 
-<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/workspace_configuration.png" width="50%">
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/workspace_configuration.png" width="25%">
+<br><em>Workspace settings</em>
+</p>
+<br>
+
+These fields can be described as follows:
 
 | Field | Description |
 | :------: | :------: |
 | Target Board | Set the workspace target board to either ELM11 or ELM11-Feather |
 | Language Mode | Set the top-level language mode to either 'Lua' or 'C'. If 'C', no REPL usage is permitted. |
 | Default HDL | Set the HDL used as part of the Hardware Layer to either 'SystemVerilog' or 'VHDL' |
-| Customize Hardware Overlay | Install a custom hardware overlay instead of the default (will launch 'Hardware Overlay Config' IDE mode |
+| Customize Hardware Overlay | Install a custom hardware overlay instead of the default (will launch 'Hardware Overlay Config' mode - see below) |
 
 <br><br>
 
