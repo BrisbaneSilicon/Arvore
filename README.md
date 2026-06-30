@@ -16,6 +16,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
         *   [Public License Servers](#public-license-servers)
     *   [Setup](#setup)
 *   [Workspaces](#workspaces)
+*   [Hardware Overlay](#hardware-overlay)
 <br><br>
 
 ## Overview
@@ -115,6 +116,8 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 5. Modify the theme ('View' -> 'Theme') as desired.
 
 ## Workspaces
+
+## Hardware Overlay
 
 Workspaces ...
 
