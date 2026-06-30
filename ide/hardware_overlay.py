@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
     QStylePainter, QStyleOptionComboBox, QStyle, QStyledItemDelegate,
     QSplitter, QScrollArea,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QRectF, QPointF, QTimer
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QRectF, QPointF, QTimer, QEvent
 from PyQt6.QtGui import QColor, QPixmap, QPainter, QPen, QFont
 
 from . import theme
@@ -51,13 +51,9 @@ def _ide_base() -> Path:
 
 
 def _bundled_overlay_dir(board: str) -> Path:
-    """Bundled overlay dir for `board` (holds summary.csv + cached `.vg`s)."""
+    """Overlay dir for `board` — holds the cached `.vg` images downloaded on
+    demand (the summary CSV is fetched from the website, never bundled)."""
     return _ide_base() / board / 'hardware_overlay'
-
-
-def _bundled_csv(board: str) -> Path:
-    """Path to `board`'s CSV shipped with the IDE (dev, PyInstaller, install)."""
-    return _bundled_overlay_dir(board) / 'summary.csv'
 
 
 def _bundled_fw_dir(board: str) -> Path:
@@ -962,6 +958,20 @@ class HardwareOverlayPanel(QWidget):
         # Selecting a row updates the diagram side-panel.
         self._table.itemSelectionChanged.connect(self._on_row_selected)
 
+        # Placeholder shown (centred over the table) when there are no entries
+        # — e.g. before the first successful Refresh. It's parented to the
+        # viewport so it floats above the empty grid; an event filter keeps it
+        # centred as the viewport resizes (panel resize, splitter drag, …).
+        self._empty_label = QLabel(
+            "Please click 'Refresh' to update the list of "
+            "available Hardware Overlays",
+            self._table.viewport())
+        self._empty_label.setObjectName('OverlayEmptyHint')
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setWordWrap(True)
+        self._empty_label.hide()
+        self._table.viewport().installEventFilter(self)
+
         # Side-panel layout: the table fills the page, and an I/O diagram for
         # the selected row can be toggled in on the right (see _diagram_btn).
         # The diagram sits in a scroll area so its outward labels can be reached
@@ -1014,13 +1024,14 @@ class HardwareOverlayPanel(QWidget):
     def set_board(self, target: str):
         """Select which board's overlay data is shown. `target` is the board
         name ('ELM11', 'ELM11-Feather'); it maps directly to the bundle dir
-        when lowercased. Reloads the table if it's already populated."""
+        when lowercased. Clears the table if it was already populated — the
+        new board's list must be fetched with Refresh."""
         board = (target or 'ELM11').lower()
         if board == self._board:
             return
         self._board = board
         self._diagram.set_board(board)  # swap the photo + pin map
-        if self._loaded:                # re-populate from the new board's bundle
+        if self._loaded:                # drop the old board's rows
             self._loaded = False
             self.ensure_loaded()
 
@@ -1031,22 +1042,18 @@ class HardwareOverlayPanel(QWidget):
         return _overlay_web_base(self._board)
 
     def ensure_loaded(self):
-        """On first reveal, load the CSV bundled with the IDE. Pressing
-        Refresh fetches the latest copy from the website instead."""
+        """The overlay list is fetched on demand — no summary is bundled with
+        the IDE. Until the user presses Refresh (and again after switching
+        boards) the table is empty and shows a prompt to Refresh."""
         if not self._loaded:
-            self._load_bundled()
+            self._show_empty()
 
-    def _load_bundled(self):
-        """Read the shipped summary CSV synchronously (it's tiny and local)."""
-        path = _bundled_csv(self._board)
-        try:
-            raw = path.read_text(encoding='utf-8-sig', errors='replace')
-            rows = list(csv.reader(io.StringIO(raw)))
-        except Exception as exc:                       # noqa: BLE001
-            self._on_failed(f'{path}: {exc}')
-            return
-        if self._on_rows(rows):
-            self._status.setText('Bundled')
+    def _show_empty(self):
+        """Clear the table and show the 'press Refresh' placeholder."""
+        self._table.setRowCount(0)
+        self._table.setColumnCount(0)
+        self._status.setText('')
+        self._update_empty_hint()
 
     def refresh(self):
         """Download the latest summary CSV from the website and repopulate."""
@@ -1079,9 +1086,11 @@ class HardwareOverlayPanel(QWidget):
             self._table.setRowCount(0)
             self._table.setColumnCount(0)
             self._status.setText('No data')
+            self._update_empty_hint()
             return False
         self._populate(headers, data)
         self._status.setText(f'{len(data)} entries')
+        self._update_empty_hint()
         return True
 
     def _populate(self, headers: list, data: list):
@@ -1253,6 +1262,32 @@ class HardwareOverlayPanel(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._sync_filter_geometry()
+
+    def eventFilter(self, obj, event):
+        # Keep the empty-state placeholder centred when the table viewport
+        # resizes (the panel's own resizeEvent doesn't fire on splitter drags).
+        if (obj is self._table.viewport()
+                and event.type() == QEvent.Type.Resize
+                and self._empty_label.isVisible()):
+            self._position_empty_hint()
+        return super().eventFilter(obj, event)
+
+    def _update_empty_hint(self):
+        """Show the 'press Refresh' placeholder iff the table has no rows."""
+        empty = self._table.rowCount() == 0
+        self._empty_label.setVisible(empty)
+        if empty:
+            self._position_empty_hint()
+            self._empty_label.raise_()
+
+    def _position_empty_hint(self):
+        vp = self._table.viewport()
+        width = max(80, min(vp.width() - 40, 420))
+        self._empty_label.setFixedWidth(width)
+        self._empty_label.adjustSize()
+        x = (vp.width() - self._empty_label.width()) // 2
+        y = (vp.height() - self._empty_label.height()) // 2
+        self._empty_label.move(max(0, x), max(0, y))
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -1564,8 +1599,9 @@ class HardwareOverlayPanel(QWidget):
         return ', '.join(parts)
 
     def _on_failed(self, message: str):
-        # Keep whatever is already displayed (e.g. the bundled data) and just
-        # flag the failure in the status, with the detail as a tooltip.
+        # Keep whatever is already displayed (the empty placeholder, or a
+        # previously downloaded list) and just flag the failure in the status,
+        # with the detail as a tooltip.
         self._refresh_btn.setEnabled(True)
         self._status.setText('Download failed')
         self._status.setToolTip(message)
@@ -1596,6 +1632,8 @@ class HardwareOverlayPanel(QWidget):
             f'QComboBox QAbstractItemView {{ background:{t["menubar_bg"]}; '
             f'color:{t["dlg_input_fg"]}; '
             f'selection-background-color:{t["selection"]}; }}'
+            f'#OverlayEmptyHint {{ color:{t["syn_comment"]}; font-size:13pt; '
+            f'background:transparent; }}'
         )
         # Re-tint the installed row for the new theme (no-op before populate).
         self._highlight_installed_row()
