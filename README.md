@@ -4,7 +4,6 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 <br>
 
 ![Hardware Overlay Selection](https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png)
-
 <br><br>
 
 ## Table of Contents
@@ -14,18 +13,25 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
     *   [Prerequisites](#prerequisites)
     *   [License Setup](#license-setup)
         *   [Public License Servers](#public-license-servers)
-    *   [Setup](#setup)
+    *   [Initial Setup](#initial-setup)
 *   [Workspaces](#workspaces)
 *   [Hardware Overlay](#hardware-overlay)
+*   [Code Editor](#code-editor)
 <br><br>
 
 ## Overview
 
+The Arvore IDE provides a graphical user interface for developing with the ELM11 and ELM11-Feather Microcontroller boards. It features the following:
+
+* A simple workspace abstraction for organizing modules into a single, unified project (see [Workspaces](#workspaces)).
+* A standard code editor for software or firmware development at any of the Application, Driver or Hardware layers (see [Code Editor](#code-editor)).
+* A mode for selecting and installing a ‘Hardware Overlay’ (see [Hardware Overlay](#hardware-overlay)).
+* A dynamic runtime mode in which it can be connected to the ELM11 or ELM11-Feather boards via USB-UART, for the purposes of uploading Application, Driver or Hardware layer modules, or interacting with the boards’ REPL.
 <br><br>
 
 ## Getting Started
 
-First, fulfill the below pre-requisites then complete the steps detailed in [Setup](#setup).
+First, fulfill the below pre-requisites then complete the steps detailed in [Initial Setup](#initial-setup).
 
 ### Prerequisites
 
@@ -55,8 +61,6 @@ There are two options (both free) for licensing GOWIN EDA.
 2. Using a floating license server.
 
 Option (1) requires applying for a license from GOWIN [here](https://www.gowinsemi.com/en/support/license/). It can take up to a few working days for GOWIN to provide you with a license, which will be valid for a period of one year. Option (2) requires the same initial step if you wish to host your own license server. Alternatively you can point the GOWIN license manager at a public license server; this is likely the quickest path forwards. See [Public License Servers](#public-license-servers) for a list of public license servers.
-
-<br><br>
 
 #### Linux
 
@@ -100,9 +104,9 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 | 106.55.34.119 | 10559 |
 | 43.128.7.128 | 10559 |
 
-<br><br>
+<br>
 
-### Setup
+### Initial Setup
 
 1. Launch the Arvore IDE.
 2. Navigate to 'Tools' -> 'Settings'.
@@ -114,11 +118,24 @@ A list of public GOWIN EDA license servers is below. These are community reporte
    - Potentially (likely only required on Linux) setup the 'Pre-program command' (to remove a loaded FTDI driver, i.e. 'pkexec modprobe -r ftdi_sio').
    - Configure the remainder of the tabs as required.
 5. Modify the theme ('View' -> 'Theme') as desired.
+<br><br>
 
 ## Workspaces
 
+Workspaces ...
+
+<br><br>
+
 ## Hardware Overlay
 
-Workspaces ...
+The IDE allows the user ...
+
+<br><br>
+
+## Code Editor
+
+The IDE code editor
+
+<br><br>
 
 
