@@ -117,17 +117,18 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 ### Initial Setup
 
 1. Launch the Arvore IDE.
+   - If you have cloned this repository, in a command prompt, run: **python main.py**
 2. Navigate to 'Tools' -> 'Settings'.
 3. If you are planning on extending the 'Driver Layer':
     - Setup the 'Compiler Path' in the 'C' tab.
     - On Windows, setup the 'MSYS2 Path' in the 'C' tab.
-4. If you are planning on building your own 'Hardware Overlay', setup the following in the 'Hardware' tab:
+5. If you are planning on building your own 'Hardware Overlay', setup the following in the 'Hardware' tab:
    - The 'Gowin IDE Path'.
    - If you're using Linux, setup the 'libfreetype.so' path (typically '/lib/x86_64-linux-gnu/libfreetype.so').
    - If you're using Linux, setup the 'libz.so.1' path (typically '/lib/x86_64-linux-gnu/libz.so.1').
    - Potentially (likely only required on Linux) setup the 'Pre-program command' (to remove a loaded FTDI driver, i.e. 'pkexec modprobe -r ftdi_sio').
    - Configure the remainder of the tabs as required.
-5. Modify the theme ('View' -> 'Theme') as desired.
+6. Modify the theme ('View' -> 'Theme') as desired.
 
 On Windows, ensure 'MSYS2' includes, make:
 1. Launch MSYS2.
