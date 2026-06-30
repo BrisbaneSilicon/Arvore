@@ -20,6 +20,8 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 *   [Workspaces](#workspaces)
 *   [Hardware Overlay](#hardware-overlay)
 *   [Code Editor](#code-editor)
+*   [REPL](#repl)
+*   [Command Mode](#command-mode)
 <br><br>
 
 ## Overview
@@ -161,8 +163,32 @@ The Arvore IDE offers a mode, 'Hardware Overlay Config', that allows the user to
 
 ## Code Editor
 
-The Arvore IDE naturally offers a code editor...
+The Arvore IDE naturally offers a code editor which allows the user to program at any of the Application, Driver or Hardware Layers. See the following diagram:
+
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/code_editor.png" width="75%">
+<br><em>Code editor</em>
+</p>
+<br>
+
+The user can also build and upload any of the Layer artefacts to the board, as per the following buttons:
+
+| Button | Description |
+| :------: | :------: |
+| Upload | Upload the active (i.e. selected) Application Layer file (Lua) to the board |
+| Run | Run the active Application Layer file on the board |
+| Stop | Stop any running application on the board |
+| Build | Build the Driver Layer |
+| Clean | Clean the Driver Layer |
+| Flash | Flash the Driver Layer to the board |
+| Synth | Synthesize the Hardware Layer |
+| Clean | Clean the Hardware Layer |
+| Program | Program the Hardware Layer to the board |
 
 <br><br>
+
+## REPL
+
+## Command Mode
 
 
