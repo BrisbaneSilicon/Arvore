@@ -27,8 +27,8 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 The Arvore IDE provides a graphical user interface for developing with the ELM11 and ELM11-Feather Microcontroller boards. It features the following:
 
 * A simple workspace abstraction for organizing modules into a single, unified project (see [Workspaces](#workspaces)).
-* A standard code editor for software or firmware development at any of the Application, Driver or Hardware layers (see [Code Editor](#code-editor)).
 * A mode for selecting and installing a ‘Hardware Overlay’ (see [Hardware Overlay](#hardware-overlay)).
+* A standard code editor for software or firmware development at any of the Application, Driver or Hardware layers (see [Code Editor](#code-editor)).
 * A dynamic runtime mode in which it can be connected to the ELM11 or ELM11-Feather boards via USB-UART, for the purposes of uploading Application, Driver or Hardware layer modules, or interacting with the boards’ REPL.
 <br><br>
 
