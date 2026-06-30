@@ -119,7 +119,7 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 1. Launch the Arvore IDE.
 2. Navigate to 'Tools' -> 'Settings'.
 3. If you are planning on extending the 'Driver Layer':
-    - On Linux, setup the 'Compiler Path' in the 'C' tab.
+    - Setup the 'Compiler Path' in the 'C' tab.
     - On Windows, setup the 'MSYS2 Path' in the 'C' tab.
 4. If you are planning on building your own 'Hardware Overlay', setup the following in the 'Hardware' tab:
    - The 'Gowin IDE Path'.
