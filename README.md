@@ -123,7 +123,22 @@ A list of public GOWIN EDA license servers is below. These are community reporte
 
 ## Workspaces
 
-Workspaces ...
+The 'Workspace' abstraction allows the user to organise modules into a single, unified project. It also allows different projects to be separated, and rapidly retrieved upon IDE launch.
+
+To create a workspace, simply select (or create) a target workspace folder in the directory tree at left, right-click it and select 'New Workspace'.
+
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/workspace_creation.png" width="50%">
+
+A popup will then appear, allowing you to tailor the new workspace as per your target board and usage.
+
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/workspace_configuration.png" width="50%">
+
+| Field | Description |
+| :------: | :------: |
+| Target Board | Set the workspace target board to either ELM11 or ELM11-Feather |
+| Language Mode | Set the top-level language mode to either 'Lua' or 'C'. If 'C', no REPL usage is permitted. |
+| Default HDL | Set the HDL used as part of the Hardware Layer to either 'SystemVerilog' or 'VHDL' |
+| Customize Hardware Overlay | Install a custom hardware overlay instead of the default (will launch 'Hardware Overlay Config' IDE mode |
 
 <br><br>
 
