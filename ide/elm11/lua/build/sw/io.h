@@ -11,6 +11,9 @@
 
 // ---------------------- Defines ----------------------
 
+#define STR_ADC     											"ADC"
+#define STR_DAC     											"DAC"
+
 #define PWM_VALUE_MAX                                           (256)
 
 #define DEFAULT_UART_BAUD                                       (9600)
@@ -200,6 +203,14 @@ typedef enum e_pin_enable_state
 #define FPGA_IO_CONF_SUPPORTS_SPI_IN_BITFLAG                    (1 << e_spi_in)
 #define FPGA_IO_CONF_SUPPORTS_I2C_BITFLAG                       (1 << e_i2c)
 
+#define FPGA_IO_CONF_SPI_ORDER_BITFLAG                          (1 << 13)
+
+#define FPGA_IO_CONF_SUPPORTS_SOFTWARE_INTERRUPTS_BITFLAG       (1 << 16)
+#define FPGA_IO_CONF_SUPPORTS_SMALL_HARDWARE_BUFFER_BITFLAG     (1 << 17)
+#define FPGA_IO_CONF_SUPPORTS_LARGE_HARDWARE_BUFFER_BITFLAG     (1 << 18)
+
+#define FPGA_SHARED_SPI_SUPPORTED_BITFLAG                       (1 << 0)
+#define FPGA_SHARED_SPI_PIN_ORDER_BITFLAG                       (1 << 1)
 
 // --------------- Function Prototypes ----------------
 
@@ -272,9 +283,13 @@ e_status uart_tx_int(uint32_t user_io_num, uint32_t tx_word) ATTRIB_F1CODE;
 e_status uart_rx_byte(uint32_t user_io_num, volatile uint8_t *uart_rx_val) ATTRIB_F1CODE;
 e_status uart_rx_byte_nonblocking(uint32_t user_io_num, volatile uint8_t *uart_rx_val, uint8_t *uart_rx_val_valid) ATTRIB_F1CODE;
 
+volatile uint32_t hw_read(uint32_t addr) ATTRIB_F1CODE;
+
 const char* standalone_io_type_tostring(e_iotype io_type) ATTRIB_F1CODE;
 const char* relational_io_type_tostring(e_relational_iotype rel_io_type) ATTRIB_F1CODE;
 const char* analog_io_type_tostring(e_analogtype analog_io_type) ATTRIB_F1CODE;
+
+const char* status_to_str(e_status status);
 
 e_status reset_io_type_config(uint32_t io_index);
 void reset_all_io_config(void);

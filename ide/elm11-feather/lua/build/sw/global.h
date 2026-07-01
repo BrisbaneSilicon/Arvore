@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "init.h"
 #include "printf.h"
 #include "ctype.h"
 
@@ -14,16 +15,35 @@
 
 // --------------------- Defines -----------------------
 
+#define FLASH_STORAGE_ENABLE
+
+#define STR_DEVICE_NAME_CAPS                                    "EMBLUA"
+#define STR_DEVICE_NAME                                         "embLua"
+#define STR_DEVICE_NAME_CAMELCASE                               "embLua"
+#define STR_CMD_UNSUPPORTED_FOR_STACK_SIZE_LESS_8K              "Command currently unsupported for stack size < 8192 bytes!"
+
 #define C_COMMAND_MODE_SEPARATOR                                '|'
 #define STR_COMMAND_MODE_SEPARATOR                              "|"
 
-#define MAX_NUM_IO_PINS                                         (32)
+#define MAX_NUM_IO_PINS                                         (24)
+#define MAX_NUM_ADC_PINS                                        (8)
+#define MAX_NUM_DAC_PINS                                        (8)
+
+#define NO_PRINT_PROGRESS                                       (0)
+#define PRINT_PROGRESS                                          (1)
+
+#define UNINTERRUPTIBLE_SLEEP                                   (0)
+#define INTERRUPTIBLE_SLEEP                                     (1)
+#define USER_CANCELLABLE_SLEEP                                  (2)
+    // REVISIT: change to enum
 
 #define USER_COMMS_RX_INTERRUPT_INTERRUPTIBLE_SLEEP_BITFLAG     (0x1)
 #define IO_SOFTWARE_INTERRUPT_INTERRUPTIBLE_SLEEP_BITFLAG       (0x2)
 #define SLEEP_IS_MICROSECONDS_BITFLAG                           (0x4)
 
 #define SLEEP_REMAINING_TIMEOUT_BITFLAGS                        (0x03FF)
+#define USER_EXIT_PROGRAM_INTERRUPT_BITFLAGS                    (0x6000)
+    // NOTE: covers both individual and shared comms
 
 #define COMMAND_MODE_DUMMY_ROWS_AT_TOP                          (2)
 #define PRINT_CODE_MODE_MIN_CONSOLE_HEIGHT                      (20)
@@ -388,6 +408,8 @@ typedef enum e_cores
 
 #define SPI_CLK_DIVIDER_FREQ_HZ                                 (1000000)
 
+#define USER_EXIT_PROGRAM_INTERRUPT_MASK                        (0x00000006)
+
 #define QSPI_IN_CFG_MODE_FLAG                                   (0x20)
 
 #define ANSI_COLOR_RED                                          "\x1b[31m"
@@ -417,9 +439,12 @@ typedef enum e_cores
 
 #define ANSI_BACKGROUND_COLOR_DARK                              "\x1b[48;5;232m"
 
+#define REPL_MODE                                               (0)
+#define COMMAND_MODE                                            (1)
 
 // --------------- Function Prototypes ----------------
 
+uint8_t user_exit_program_interrupt() ATTRIB_RUNTIMECODE;
 uint32_t get_cpu_addr_access_low_water_mark(void);
 uint32_t get_cpu_addr_access_high_water_mark(void);
 uint8_t print_cpu_access_trace(void);
@@ -565,5 +590,13 @@ uint8_t user_button_is_pressed(void) __attribute__ ((unused));
 
 void disable_user_comms_rx_esc_seq_filter(void);
 void enable_user_comms_rx_esc_seq_filter(void);
+
+void set_color_for_repl_mode(void);
+void set_color_for_command_mode(void);
+void set_color_for_command_mode_bright(void);
+void set_color_for_command_mode_category(void);
+void set_color_for_command_mode_error(void);
+void set_color_for_command_mode_command(void);
+void set_color_for_command_mode_highlighting(void);
 
 #endif

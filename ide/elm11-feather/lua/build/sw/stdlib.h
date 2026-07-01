@@ -72,4 +72,6 @@ int my_time(char *t) ATTRIB_F1CODE;
 
 struct lconv *localeconv(void) ATTRIB_F1CODE;
 
+char lua_getlocaledecpoint(void) ATTRIB_F1CODE;
+
 #endif
