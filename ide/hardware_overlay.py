@@ -544,11 +544,11 @@ class _OverlayDiagram(QWidget):
         # Nothing selected: just the prompt, centred — no board image.
         if not self._overlay_id:
             self._draw_message(painter, self._PROMPT)
-            self._fit_width(None)
+            self._fit_content(None)
             return
         if self._pixmap is None:
             self._draw_message(painter, 'No board diagram available.')
-            self._fit_width(None)
+            self._fit_content(None)
             return
         img = self._image_rect()
         self._xmin, self._xmax = img.left(), img.right()
@@ -571,25 +571,32 @@ class _OverlayDiagram(QWidget):
         if self._caption:
             painter.setFont(base)
             self._draw_caption(painter)
-        self._fit_width(img)
+        self._fit_content(img)
 
     def _grow(self, *xs):
         """Extend the tracked horizontal content bounds to include `xs`."""
         self._xmin = min(self._xmin, *xs)
         self._xmax = max(self._xmax, *xs)
 
-    def _fit_width(self, img):
-        """Size the widget to its content so the scroll area can scroll to any
-        labels that overflow the board. Width is symmetric about the centred
-        board (so neither side clips); a deferred set avoids re-entrant paints."""
+    def _fit_content(self, img):
+        """Size the widget to its content so the scroll area can scroll to
+        anything that overflows the pane — labels that stretch out to the sides
+        (width) or a board taller than the pane (height). Width is symmetric
+        about the centred board so neither side clips; height reserves the
+        board's native size plus a margin (and a little extra at the top for the
+        caption). A deferred set avoids re-entrant paints."""
         if img is None:
-            needed = 0
+            needed_w = needed_h = 0
         else:
             margin = 16
             ext = max(img.left() - self._xmin, self._xmax - img.right(), 0)
-            needed = int(self._pixmap.width() + 2 * ext + 2 * margin)
-        if needed != self.minimumWidth():
-            QTimer.singleShot(0, lambda n=needed: self.setMinimumWidth(n))
+            needed_w = int(self._pixmap.width() + 2 * ext + 2 * margin)
+            cap = 24 if self._caption else 0
+            needed_h = int(self._pixmap.height() + 2 * margin + cap)
+        if needed_w != self.minimumWidth():
+            QTimer.singleShot(0, lambda n=needed_w: self.setMinimumWidth(n))
+        if needed_h != self.minimumHeight():
+            QTimer.singleShot(0, lambda n=needed_h: self.setMinimumHeight(n))
 
     def _draw_caption(self, painter: QPainter):
         """Header text at the top-centre of the pane (e.g. the installed-overlay
@@ -993,7 +1000,7 @@ class HardwareOverlayPanel(QWidget):
         self._diagram_scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._diagram_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         # Keep the (centred) board in view as the content width / pane resizes.
         self._diagram_scroll.horizontalScrollBar().rangeChanged.connect(
             self._center_diagram)
