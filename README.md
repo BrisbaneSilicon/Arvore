@@ -4,7 +4,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 <br><br>
 
 <p align="center">
-<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png" width="75%">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img2.png" width="75%">
 <br><em>Selecting and installing a custom 'Hardware Overlay'</em>
 </p>
 <br><br>
@@ -168,9 +168,14 @@ When a new workspace is created, it is populated with a default, example project
 
 <br><br>
 
-## Hardware Overlay
+## Hardware Overlay Config
 
-The Arvore IDE offers a mode, 'Hardware Overlay Config', that allows the user to select and install a custom Hardware Overlay. This mode can be enabled by selecting 'View' - 'Hardware Overlay Config' or by pressing 'F1'. The default view in this mode is a list of available Hardware Overlays, upon which the user can search based on its available features. The user can also filter on whether the Hardware Overlay has been downloaded (the full set of Hardware Overlays are hosted by BrisbaneSilicon, and are constantly being added to and updated). If a visual diagram of a Hardware Overlay is desired, the user can simply click the 'Diagram' button in the top right. See the image at the beginning of this README for an example of the 'Hardware Overlay Config' mode.
+The Arvore IDE offers a mode, 'Hardware Overlay Config', that allows the user to select and install a custom Hardware Overlay. This mode can be enabled by selecting 'View' - 'Hardware Overlay Config' or by pressing 'F1'. The default view in this mode is a list of available Hardware Overlays, upon which the user can search based on its available features. The user can also filter on whether the Hardware Overlay has been downloaded (the full set of Hardware Overlays are hosted by BrisbaneSilicon, and are constantly being added to and updated). If a visual diagram of a Hardware Overlay is desired, the user can simply click the 'Diagram' button in the top right. See the image below or the image at the top of this README for an example of the 'Hardware Overlay Config' mode.
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/hw_overlay_img.png" width="75%">
+<br><em>Selecting and installing a custom 'Hardware Overlay'</em>
+</p>
+<br><br>
 <br><br>
 
 ## Code Editor
