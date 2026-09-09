@@ -18,7 +18,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
         *   [Public License Servers](#public-license-servers)
     *   [Initial Setup](#initial-setup)
 *   [Workspaces](#workspaces)
-*   [Hardware Overlay](#hardware-overlay)
+*   [Hardware Overlay Config](#hardware-overlay-config)
 *   [Code Editor](#code-editor)
 *   [REPL](#repl)
 *   [Command Mode](#command-mode)
