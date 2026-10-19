@@ -230,19 +230,19 @@ Once connected to the board, the user can access 'Command Mode' by pressing the 
 To debug the Hardware Layer of your design, perform the following steps.
 
 1. Launch the ELA configuration tool via 'Tools' - 'Generate Embedded Logic Analyzer'.
-2. Configure the ELA as per your debugging requirements, for example:
+2. Configure the ELA as per your debugging requirements, for example:<br>
 <p align="center">
 <img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/ela_config_popup.png" width="50%">
 <br><em>Configuring an ELA via Arvore</em>
 </p>
-3. Copy-paste the config and include it in 'user.sv', wiring up the clock and reset lines, for example:
+3. Copy-paste the config and include it in 'user.sv', wiring up the clock and reset lines, for example:<br>
 <p align="center">
 <img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/ela_config_integration.png" width="50%">
 <br><em>Integrating an ELA via Arvore</em>
 </p>
-4. Build and program the Hardware Layer.
-5. Start OpenOCD via the top menubar.
-6. Launch FCapZ Web via 'Tools' - 'Open FCapZ Web UI', you should now be able to interact and debug with your ELA. For example:
+4. Build and program the Hardware Layer.<br>
+5. Start OpenOCD via the top menubar.<br>
+6. Launch FCapZ Web via 'Tools' - 'Open FCapZ Web UI', you should now be able to interact and debug with your ELA. For example:<br>
 <p align="center">
 <img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/fcapz.png" width="50%">
 <br><em>Debugging with an ELA via FCapZ</em>
