@@ -22,6 +22,7 @@ Arvore is the IDE for the [ELM11](https://brisbanesilicon.com.au/elm11/) and [EL
 *   [Code Editor](#code-editor)
 *   [REPL](#repl)
 *   [Command Mode](#command-mode)
+*   [Embedded Logic Analyzer](#embedded-logic-analyzer)
 *   [Further Documentation](#further-documentation)
 <br><br>
 
@@ -60,7 +61,7 @@ First, fulfill the below pre-requisites then complete the steps detailed in [Ini
    - On Windows, please ensure that GOWIN EDA is installed to one of the following directories (or be prepared to modify the build script):
       - `C:\Gowin`, `C:\Program Files\Gowin`
    - A free license for GOWIN EDA. See section [License Setup](#license-setup) below.
-6. If you are planning on utilizing FCapZ to debug your designs, an installation of openocd and fcapz-web
+6. If you are planning on utilizing an Embedded Logic Analyzer (FCapZ) to debug your designs, an installation of Openocd and Fcapz-web
    - For openocd, follow the instructions [here](https://github.com/openocd-org/openocd/#installing-openocd).
    - For FCapZero, follow the 'Quick start' [here](https://github.com/lcapossio/fpgacapZero/). You should be able to run 'fcapz-web' from the command line when you are finished the installation.
    
@@ -223,6 +224,29 @@ Once connected to the board, the user can access 'Command Mode' by pressing the 
 <br><em>Setting PIN1 to be PWM via Command Mode</em>
 </p>
 <br>
+
+## Embedded Logic Analyzer
+
+To debug the Hardware Layer of your design, perform the following steps.
+
+1. Launch the ELA configuration tool via 'Tools' - 'Generate Embedded Logic Analyzer'.
+2. Configure the ELA as per your debugging requirements, for example:
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/ela_config_popup.png" width="50%">
+<br><em>Configuring an ELA via Arvore</em>
+</p>
+3. Copy-paste the config and include it in 'user.sv', wiring up the clock and reset lines, for example:
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/ela_config_integration.png" width="50%">
+<br><em>Integrating an ELA via Arvore</em>
+</p>
+4. Build and program the Hardware Layer.
+5. Start OpenOCD via the top menubar.
+6. Launch FCapZ Web via 'Tools' - 'Open FCapZ Web UI', you should now be able to interact and debug with your ELA. For example:
+<p align="center">
+<img src="https://github.com/BrisbaneSilicon/Arvore/blob/master/img/fcapz.png" width="50%">
+<br><em>Debugging with an ELA via FCapZ</em>
+</p>
 
 ## Further Documentation
 
