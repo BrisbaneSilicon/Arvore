@@ -776,7 +776,7 @@ class MainWindow(QMainWindow):
         tm.addAction(self._act('Clear &Build Output', None,  self._build_out.clear))
         tm.addAction(self._act('Clear &Flash Output', None,  self._flash_out.clear))
         tm.addSeparator()
-        tm.addAction(self._act('Generate &Logic Analyzer Core…', None,
+        tm.addAction(self._act('&Generate Embedded Logic Analyzer…', None,
                                 self._open_fcapz_gen))
 
         # Workspaces

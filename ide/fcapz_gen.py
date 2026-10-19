@@ -106,11 +106,10 @@ def _sv_snippet(p: FcapzParams) -> str:
     lines = [
         '// --- fpgacapZero Embedded Logic Analyzer ---------------------------',
         f'// {p.num_channels} channel(s) x {p.sample_width}-bit, depth {p.depth}.',
-        '// TODO: wire tms/tck/tdi/tdo to the JTAG pads once exposed by the',
-        '// `emblua` base image and added to this board\'s location.cst.',
+        '',
         f'wire [{probe_width - 1}:0] {p.instance_name}_probe;',
-        '// TODO: assign each channel slot, e.g.:',
-        f'//   assign {p.instance_name}_probe = {{ my_signal_b, my_signal_a }};',
+        '    // TODO: assign each channel slot, e.g.:',
+        f'    //   assign {p.instance_name}_probe = {{ my_signal_b, my_signal_a }};',
     ]
     if p.eio_enable:
         lines += [
@@ -125,7 +124,7 @@ def _sv_snippet(p: FcapzParams) -> str:
         f'    .TRIG_STAGES    ({p.trig_stages}),',
         f'    .NUM_CHANNELS   ({p.num_channels}){eio_params}',
         f') {p.instance_name} (',
-        '    .clk            (/* TODO: >= ~10x JTAG TCK, e.g. ~2 MHz min */),',
+        '    .clk            (/* TODO: >= ~10x JTAG TCK, e.g. ~20 MHz min */),',
         '',
         '    .jtag_activity  (),',
         '',
@@ -139,7 +138,6 @@ def _sv_snippet(p: FcapzParams) -> str:
         '    .tdi_pad_i      (tdi),',
         '    .tdo_pad_o      (tdo)',
         ');',
-        '// ---------------------------------------------------------------------',
     ]
     return '\n'.join(lines)
 
@@ -162,8 +160,7 @@ def _vhdl_snippet(p: FcapzParams) -> str:
     lines = [
         '-- --- fpgacapZero Embedded Logic Analyzer ----------------------------',
         f'-- {p.num_channels} channel(s) x {p.sample_width}-bit, depth {p.depth}.',
-        '-- TODO: wire tms/tck/tdi/tdo to the JTAG pads once exposed by the',
-        "-- `emblua` base image and added to this board's location.cst.",
+        '',
         '--',
         '-- Mixed-language binding: `fcapz_ela_gowin` is a Verilog module.',
         '-- Declare it as a VHDL component (once per file) so it can be',
@@ -191,8 +188,8 @@ def _vhdl_snippet(p: FcapzParams) -> str:
         'end component;',
         '',
         f'signal {p.instance_name}_probe : std_logic_vector({probe_width - 1} downto 0);',
-        '-- TODO: assign each channel slot, e.g.:',
-        f'--   {p.instance_name}_probe <= my_signal_b & my_signal_a;',
+        '    -- TODO: assign each channel slot, e.g.:',
+        f'    --   {p.instance_name}_probe <= my_signal_b & my_signal_a;',
     ]
     if p.eio_enable:
         lines += [
@@ -221,7 +218,7 @@ def _vhdl_snippet(p: FcapzParams) -> str:
     lines += [
         '    )',
         '    port map (',
-        '        clk             => ,  -- TODO: >= ~10x JTAG TCK, e.g. ~2 MHz min',
+        '        clk             => ,  -- TODO: >= ~10x JTAG TCK, e.g. ~20 MHz min',
         '',
         '        jtag_activity   => open,',
         '',
@@ -235,7 +232,6 @@ def _vhdl_snippet(p: FcapzParams) -> str:
         '        tdi_pad_i       => tdi,',
         '        tdo_pad_o       => tdo',
         '    );',
-        '-- ----------------------------------------------------------------------',
     ]
     return '\n'.join(lines)
 

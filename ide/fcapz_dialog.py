@@ -28,6 +28,7 @@ class FcapzGenDialog(QDialog):
         self.setWindowTitle('Generate Logic Analyzer Core')
         self.setStyleSheet(theme.dialog_stylesheet(theme.current()))
         self.setMinimumWidth(520)
+        self.resize(760, 860)
         self._build_ui(default_hdl)
 
     def _build_ui(self, default_hdl: str):
