@@ -60,6 +60,9 @@ First, fulfill the below pre-requisites then complete the steps detailed in [Ini
    - On Windows, please ensure that GOWIN EDA is installed to one of the following directories (or be prepared to modify the build script):
       - `C:\Gowin`, `C:\Program Files\Gowin`
    - A free license for GOWIN EDA. See section [License Setup](#license-setup) below.
+6. If you are planning on utilizing FCapZ to debug your designs, an installation of openocd and fcapz-web
+   - For openocd, follow the instructions [here](https://github.com/openocd-org/openocd/#installing-openocd).
+   - For FCapZero, follow the 'Quick start' [here](https://github.com/lcapossio/fpgacapZero/). You should be able to run 'fcapz-web' from the command line when you are finished the installation.
    
 
 ### License Setup
