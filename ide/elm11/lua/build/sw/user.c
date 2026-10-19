@@ -20,7 +20,7 @@
     // functions here.
 
 
-    // NOTE: Ensure that all API funcitons are
+    // NOTE: Ensure that all API functions are
     // included in the 'User API Registry' below,
     // in order for them to be callable from the
     // Lua appliction layer.

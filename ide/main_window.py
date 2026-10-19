@@ -345,6 +345,8 @@ class MainWindow(QMainWindow):
         self._synth_out.build_finished.connect(self._on_synth_finished)
         self._flash_out = BuildOutput()
         self._program_out = BuildOutput()
+        self._program_running = False
+        self._program_stop_requested = False
         self._openocd_out = BuildOutput()
         self._openocd_running = False
         self._openocd_out.build_finished.connect(self._on_openocd_finished)
@@ -955,9 +957,12 @@ class MainWindow(QMainWindow):
                   self._clean_btn, self._synth_btn, self._fw_clean_btn):
             w.setEnabled(True)
         # OpenOCD doesn't need the serial port released (unlike Program) —
-        # only mutual exclusion with Program itself, enforced in _fw_flash
-        # and _toggle_openocd directly rather than here.
-        self._openocd_btn.setEnabled(True)
+        # only mutual exclusion with Program itself. _fw_flash already
+        # disables this directly for the duration of a run, but guard here
+        # too in case this function runs while Program is still mid-flight
+        # (e.g. triggered by an unrelated connect/disconnect event) —
+        # otherwise this unconditional re-enable would undo that.
+        self._openocd_btn.setEnabled(not self._program_running)
         # Upload / Run / Stop act on a Lua program — only enabled when the
         # active editor tab holds a .lua file.
         cur = self._cur()
@@ -976,8 +981,10 @@ class MainWindow(QMainWindow):
         # Program (FPGA bitstream via Gowin programmer_cli) talks to the board
         # over JTAG, which needs the serial port released — only enabled while
         # the device is disconnected. It also can't run at the same time as
-        # OpenOCD (both want the JTAG adapter).
-        self._fw_flash_btn.setEnabled(not connected and not self._openocd_running)
+        # OpenOCD (both want the JTAG adapter). Stays enabled while running
+        # regardless of the above, since it's now also the Stop control.
+        self._fw_flash_btn.setEnabled(
+            self._program_running or (not connected and not self._openocd_running))
 
     def _on_cmd_btn_toggled(self, checked: bool):
         # Toolbar trigger. Drives device activation; the resulting
@@ -1682,7 +1689,12 @@ class MainWindow(QMainWindow):
 
     def _fw_flash(self):
         """Program the synthesised bitstream onto the FPGA via the Gowin
-        `programmer_cli`."""
+        `programmer_cli`. Toggles like Synth: click while running kills it —
+        see the pre-program-chain guard below for why that needs care."""
+        if self._program_running:
+            self._program_stop_requested = True
+            self._program_out.stop()
+            return
         if self._workspace_root is None:
             QMessageBox.warning(self, 'No Workspace',
                 'Open a workspace to program the device.')
@@ -1719,12 +1731,20 @@ class MainWindow(QMainWindow):
         # OpenOCD and Program both need exclusive JTAG access — block
         # starting OpenOCD for the duration of this run.
         self._openocd_btn.setEnabled(False)
+        self._program_running = True
+        self._program_stop_requested = False
+        self._fw_flash_btn.setText('Stop')
+
+        def _end_program():
+            self._program_running = False
+            self._fw_flash_btn.setText('Program')
+            self._openocd_btn.setEnabled(True)
 
         def _run_programmer(*_):
-            def _reenable_openocd(_code):
-                self._program_out.build_finished.disconnect(_reenable_openocd)
-                self._openocd_btn.setEnabled(True)
-            self._program_out.build_finished.connect(_reenable_openocd)
+            def _on_programmer_done(_code):
+                self._program_out.build_finished.disconnect(_on_programmer_done)
+                _end_program()
+            self._program_out.build_finished.connect(_on_programmer_done)
             self._program_out.run_command(
                 str(prog),
                 ['--device', 'GW1NR-9C', '--operation_index', '5',
@@ -1744,12 +1764,19 @@ class MainWindow(QMainWindow):
             except ValueError as exc:
                 QMessageBox.warning(self, 'Invalid Pre-program Command',
                     f'Could not parse the pre-program command:\n{pre}\n\n{exc}')
+                _end_program()
                 return
 
             def _after_pre(_code):
                 # One-shot: detach, then program regardless of the unload's
-                # exit code (e.g. "module not loaded" is harmless).
+                # exit code (e.g. "module not loaded" is harmless) — unless
+                # the user clicked Stop during this step, in which case the
+                # whole operation ends here rather than chaining into the
+                # real programmer.
                 self._program_out.build_finished.disconnect(_after_pre)
+                if self._program_stop_requested:
+                    _end_program()
+                    return
                 _run_programmer()
 
             self._program_out.build_finished.connect(_after_pre)
@@ -2660,11 +2687,14 @@ class MainWindow(QMainWindow):
         self._save_tree_state()
         self._cmd_mode.shutdown()
         self._overlay.shutdown()
-        # Unlike Build/Synth/Program (run to completion quickly), OpenOCD and
-        # fcapz-web are long-lived background servers — stop them explicitly
-        # so they don't outlive the IDE and hold the JTAG adapter/port.
+        # OpenOCD and fcapz-web are long-lived background servers; Program
+        # can also still be mid-flight (it's user-stoppable too) — stop all
+        # three explicitly so none outlive the IDE and hold the JTAG
+        # adapter/port. Build/Synth are quick run-to-completion ops, left
+        # as-is.
         self._openocd_out.stop()
         self._fcapz_web_out.stop()
+        self._program_out.stop()
         port = self._port_combo.currentText()
         if port:
             self._terminal.disconnect_port(port)
