@@ -28,6 +28,7 @@ from .settings import SettingsDialog
 from .docs_panel import DocsPanel
 from .command_mode import CommandModePanel
 from .hardware_overlay import HardwareOverlayPanel
+from .fcapz_dialog import FcapzGenDialog
 from . import theme
 
 
@@ -774,6 +775,9 @@ class MainWindow(QMainWindow):
         tm.addAction(self._act('Clear &Upload Status', None, self._upload_out.clear))
         tm.addAction(self._act('Clear &Build Output', None,  self._build_out.clear))
         tm.addAction(self._act('Clear &Flash Output', None,  self._flash_out.clear))
+        tm.addSeparator()
+        tm.addAction(self._act('Generate &Logic Analyzer Core…', None,
+                                self._open_fcapz_gen))
 
         # Workspaces
         self._ws_menu = mb.addMenu('&Workspaces')
@@ -1584,6 +1588,22 @@ class MainWindow(QMainWindow):
         self._synth_out.run_command(
             str(gw_sh), ['build.tcl', str(self._workspace_root)],
             cwd=str(synth_dir), env=env)
+
+    def _open_fcapz_gen(self):
+        """'Generate Logic Analyzer Core…' — see `fcapz_dialog.py`. Guesses
+        the dialog's default target HDL from whichever of user.sv/user.vhd
+        is actually present in the open workspace (falling back to the HDL
+        chosen at workspace creation, then 'SystemVerilog')."""
+        default_hdl = 'SystemVerilog'
+        if self._workspace_root is not None:
+            hw = self._workspace_root / 'hardware'
+            if (hw / 'user.vhd').is_file() and not (hw / 'user.sv').is_file():
+                default_hdl = 'VHDL'
+            else:
+                default_hdl = QSettings().value(
+                    f'workspaces/hdl/{self._workspace_root}', 'SystemVerilog')
+        dlg = FcapzGenDialog(self._workspace_root, default_hdl, self)
+        dlg.exec()
 
     def _fw_clean(self):
         if self._workspace_root is None:

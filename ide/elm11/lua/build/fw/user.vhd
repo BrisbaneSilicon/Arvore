@@ -22,9 +22,16 @@ entity user is
         m_iobus_wren    : out std_logic;
         m_iobus_wrdata  : out std_logic_vector(15 downto 0);
         m_iobus_rddata  : in  std_logic_vector(15 downto 0);
-        m_iobus_tuser   : out std_logic_vector(15 downto 0)
+        m_iobus_tuser   : out std_logic_vector(15 downto 0);
             -- NOTE: downstream interface,
             -- i.e. to/from physical pins
+
+
+        tms             : in  std_logic;
+        tck             : in  std_logic;
+        tdi             : in  std_logic;
+        tdo             : out std_logic
+            -- NOTE: JTAG (FCapZ Debugging)
     );
 end entity user;
 
@@ -98,5 +105,11 @@ begin
             end if;
         end if;
     end process;
+
+
+    ------- Debugging -------
+
+    tdo <= '0';
+        -- NOTE: remove if instantiating FCapZ ELA
 
 end architecture rtl;

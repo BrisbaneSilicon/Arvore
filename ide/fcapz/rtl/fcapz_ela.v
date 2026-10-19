@@ -1,0 +1,2083 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Leonardo Capossio - bard0 design - <hello@bard0.com>
+
+`timescale 1ns/1ps
+
+// Project-wide version + per-core identity defines.  AUTO-generated from
+// the canonical VERSION file at the repo root by tools/sync_version.py.
+// CI verifies this header is in sync (`python tools/sync_version.py --check`).
+`include "fcapz_version.vh"
+
+// ELA-style capture core with optional advanced features.
+//
+// Parameters:
+//   SAMPLE_W     - probe width (1 to 256+ bits) per channel
+//   DEPTH        - sample buffer depth
+//   TRIG_STAGES  - trigger sequencer stages (1 = simple, 2-4 = sequencer)
+//   STOR_QUAL    - storage qualification (0 = off, 1 = on)
+//   NUM_CHANNELS - number of mutually-exclusive probe buses (default 1)
+//   INPUT_PIPE   - number of pipeline register stages on probe_in (0 = none;
+//                  built as 1 when EXT_TRIG_EN, to match the trigger_in sync)
+//   TIMESTAMP_W  - timestamp counter width (0 = disabled, 32 or 48 = enabled)
+//   NUM_SEGMENTS - number of capture segments (1 = single capture, >1 = segmented)
+//   REL_COMPARE  - 1 enables relational trigger modes (<, >, <=, >=)
+//   RLE_W        - run-length capture count width (0 = off, 1..16)
+//
+// When NUM_CHANNELS=1, probe_in width is unchanged (backward compatible).
+// All optional features are gated by parameters. The smallest core uses:
+//   TRIG_STAGES=1, STOR_QUAL=0, DECIM_EN=0, EXT_TRIG_EN=0,
+//   TIMESTAMP_W=0, NUM_SEGMENTS=1
+// and all extra logic optimizes away in synthesis.
+
+module fcapz_ela #(
+    parameter SAMPLE_W    = 32,
+    parameter DEPTH       = 1024,
+    parameter TRIG_STAGES = 1,      // 1 = simple, 2-4 = sequencer
+    parameter STOR_QUAL   = 0,      // 0 = off, 1 = storage qualification
+    parameter NUM_CHANNELS = 1,     // probe mux channels (1 = single bus)
+    parameter INPUT_PIPE  = 0,      // input pipeline stages (0 = none)
+    parameter DECIM_EN    = 0,      // 0 = no decimation, 1 = enable
+    parameter EXT_TRIG_EN = 0,      // 0 = no ext trigger ports, 1 = enable
+    parameter TIMESTAMP_W = 0,      // timestamp width (0=off, 32 or 48)
+    parameter NUM_SEGMENTS = 1,     // capture segments (1 = normal)
+    parameter PROBE_MUX_W = 0,      // 0=disabled, >0=total probe width for runtime mux
+    parameter STARTUP_ARM = 0,      // 1 = arm automatically after reset/programming
+    parameter DEFAULT_TRIG_EXT = 0, // reset/default external trigger mode
+    parameter REL_COMPARE = 0,      // 0=small/faster trigger, 1=enable < > <= >=
+    parameter DUAL_COMPARE = 1,     // 0=A-only trigger compare, 1=enable comparator B
+    parameter USER1_DATA_EN = 1,    // 0=disable slow USER1 DATA window readback
+    parameter RLE_W = 0,            // 0=no run-length capture, 1..16=run-count width
+    parameter WIDE_TRIG = 0         // 0=trigger A value/mask are the low 32 bits only
+                                    // (upper bits masked to 0); 1=make comparator A
+                                    // programmable across the full SAMPLE_W via the
+                                    // WIDE_SEL/WIDE_DATA indexed-word window.
+) (
+    input  wire                              sample_clk,
+    input  wire                              sample_rst,
+    input  wire [(PROBE_MUX_W > 0 ? PROBE_MUX_W : NUM_CHANNELS*SAMPLE_W)-1:0] probe_in,
+
+    // External trigger I/O
+    input  wire                 trigger_in,
+    output wire                 trigger_out,
+    output wire                 armed_out,
+
+    input  wire                 jtag_clk,
+    input  wire                 jtag_rst,
+    input  wire                 jtag_wr_en,
+    input  wire                 jtag_rd_en,
+    input  wire [15:0]          jtag_addr,
+    input  wire [31:0]          jtag_wdata,
+    output reg  [31:0]          jtag_rdata,
+
+    // Burst read port (jtag_clk domain, active when done=1)
+    input  wire                      burst_rd_active,
+    input  wire [$clog2(DEPTH)-1:0] burst_rd_addr,
+    output wire [SAMPLE_W-1:0]      burst_rd_data,
+    // Timestamps, or run counts when the burst asks for them (BURST_PTR[30]).
+    output wire [((TIMESTAMP_W > 0) ? TIMESTAMP_W : (RLE_W > 0) ? RLE_W : 1)-1:0] burst_rd_ts_data,
+    output reg                       burst_start,
+    output reg                       burst_timestamp,
+    output reg  [$clog2(DEPTH)-1:0]  burst_start_ptr
+);
+
+    // ---- Address map -------------------------------------------------------
+    localparam ADDR_VERSION     = 16'h0000;
+    localparam ADDR_CTRL        = 16'h0004;
+    localparam ADDR_STATUS      = 16'h0008;
+    localparam ADDR_SAMPLE_W    = 16'h000C;
+    localparam ADDR_DEPTH       = 16'h0010;
+    localparam ADDR_PRETRIG     = 16'h0014;
+    localparam ADDR_POSTTRIG    = 16'h0018;
+    localparam ADDR_CAPTURE_LEN = 16'h001C;
+    localparam ADDR_TRIG_MODE   = 16'h0020;
+    localparam ADDR_TRIG_VALUE  = 16'h0024;
+    localparam ADDR_TRIG_MASK   = 16'h0028;
+    localparam ADDR_BURST_PTR   = 16'h002C;
+    // Storage qualification registers (only used when STOR_QUAL=1)
+    localparam ADDR_SQ_MODE     = 16'h0030;
+    localparam ADDR_SQ_VALUE    = 16'h0034;
+    localparam ADDR_SQ_MASK     = 16'h0038;
+    localparam ADDR_FEATURES    = 16'h003C;
+    // Sequencer stage registers (only used when TRIG_STAGES > 1)
+    // Stage N: CFG       = 0x0040 + N*20
+    //          VALUE_A   = 0x0044 + N*20
+    //          MASK_A    = 0x0048 + N*20
+    //          VALUE_B   = 0x004C + N*20
+    //          MASK_B    = 0x0050 + N*20
+    localparam ADDR_SEQ_BASE    = 16'h0040;
+    localparam SEQ_STRIDE       = 20;  // 5 registers x 4 bytes
+    // Channel mux registers
+    localparam ADDR_CHAN_SEL    = 16'h00A0;  // RW: active channel (0..NUM_CHANNELS-1)
+    localparam ADDR_NUM_CHAN    = 16'h00A4;  // RO: NUM_CHANNELS parameter value
+    // Phase 1: decimation
+    localparam ADDR_DECIM       = 16'h00B0;  // RW: 24-bit decimation ratio
+    // Phase 2: external trigger
+    localparam ADDR_TRIG_EXT    = 16'h00B4;  // RW: [1:0] ext trigger mode
+    // Phase 4: segmented memory
+    localparam ADDR_NUM_SEGMENTS = 16'h00B8; // RO
+    localparam ADDR_SEG_STATUS  = 16'h00BC;  // RO
+    localparam ADDR_SEG_SEL     = 16'h00C0;  // RW
+    localparam ADDR_SEG_START   = 16'h00C8;  // RO: seg_start_ptr[seg_sel] (CDC readback)
+    // Phase 3: timestamp
+    localparam ADDR_TIMESTAMP_W = 16'h00C4;  // RO
+    // Probe mux registers (only used when PROBE_MUX_W > 0)
+    localparam ADDR_PROBE_SEL   = 16'h00AC;  // RW: [7:0] slice index
+    localparam ADDR_PROBE_MUX_W = 16'h00D0;  // RO: PROBE_MUX_W parameter
+    localparam ADDR_TRIG_DELAY  = 16'h00D4;  // RW: [15:0] post-trigger delay
+                                             // (sample-clock cycles between
+                                             // trigger event and committed
+                                             // trigger sample; default 0)
+    localparam ADDR_STARTUP_ARM = 16'h00D8;  // RW: [0] auto-arm after reset
+    localparam ADDR_TRIG_HOLDOFF = 16'h00DC; // RW: [15:0] ignore triggers for
+                                             // sample-clock cycles after arm/re-arm
+    localparam ADDR_COMPARE_CAPS = 16'h00E0; // RO: compare modes implemented
+    // Wide-trigger indexed-word window (only used when WIDE_TRIG=1).  Program
+    // comparator A's value/mask beyond the low 32 bits: write WIDE_SEL to pick
+    // {word index, value-or-mask}, then WIDE_DATA to load that 32-bit word.
+    localparam ADDR_WIDE_SEL    = 16'h00E4;  // RW: [0]=mask(1)/value(0), [7:4]=word
+    localparam ADDR_WIDE_DATA   = 16'h00F0;  // WO: 32-bit word -> selected slot
+    // Run-length capture (RLE_W > 0).  RLE_CTRL[0] enables it (taken on
+    // arm); RLE_CTRL[1] makes the timestamp DATA window return run counts.
+    localparam ADDR_RLE_CTRL    = 16'h00A8;  // RW
+    localparam ADDR_RLE_W       = 16'h00CC;  // RO: RLE_W (0 = no RLE)
+    // RLE only: also end the post-trigger window this many sample clocks
+    // after the trigger commit (0 = entries only).  Taken on arm.
+    localparam ADDR_RLE_POST_CLKS = 16'h0090;  // RW
+
+    localparam ADDR_DATA_BASE   = 16'h0100;
+    localparam [1:0] DEFAULT_TRIG_EXT_MODE = DEFAULT_TRIG_EXT[1:0];
+
+    // ---- Parameter assertions (simulation) ------------------------------------
+    initial begin
+        if (DEPTH & (DEPTH - 1))
+            $error("fcapz_ela: DEPTH must be a power of 2 (got %0d)", DEPTH);
+        if (NUM_SEGMENTS > 1 && (DEPTH % NUM_SEGMENTS != 0))
+            $error("fcapz_ela: DEPTH must be divisible by NUM_SEGMENTS (%0d)", NUM_SEGMENTS);
+        if (TRIG_STAGES < 1 || TRIG_STAGES > 4)
+            $error("fcapz_ela: TRIG_STAGES must be 1-4 (got %0d)", TRIG_STAGES);
+        if (SAMPLE_W < 1)
+            $error("fcapz_ela: SAMPLE_W must be >= 1");
+        if (SAMPLE_W > 256)
+            $error("fcapz_ela: SAMPLE_W must be <= 256 (got %0d)", SAMPLE_W);
+        if (DEFAULT_TRIG_EXT < 0 || DEFAULT_TRIG_EXT > 3)
+            $error("fcapz_ela: DEFAULT_TRIG_EXT must be 0-3 (got %0d)", DEFAULT_TRIG_EXT);
+        if (RLE_W < 0 || RLE_W > 16)
+            $error("fcapz_ela: RLE_W must be 0-16 (got %0d)", RLE_W);
+        if (TIMESTAMP_W > 0 && RLE_W > TIMESTAMP_W)
+            $error("fcapz_ela: RLE_W (%0d) must not exceed TIMESTAMP_W (%0d)",
+                   RLE_W, TIMESTAMP_W);
+    end
+
+    // Synthesis-safe upper-bound trap for SAMPLE_W
+    generate
+        if (SAMPLE_W > 256)
+            SAMPLE_W_must_be_at_most_256 _sample_w_check_FAILED();
+        // Counts share the timestamp lane of a core that has one, so they
+        // must fit it.
+        if (RLE_W > 16)
+            RLE_W_must_be_at_most_16 _rle_w_check_FAILED();
+        if (TIMESTAMP_W > 0 && RLE_W > TIMESTAMP_W)
+            RLE_W_must_not_exceed_TIMESTAMP_W _rle_ts_w_check_FAILED();
+    endgenerate
+
+    localparam PTR_W = $clog2(DEPTH);
+    localparam LEN_W = $clog2(DEPTH+1);
+    localparam [LEN_W-1:0] LEN_ONE = 1;
+    localparam [LEN_W-1:0] LEN_TWO = 2;
+    // Used by the single-segment pre-arm rolling buffer. Keep this explicit
+    // instead of slicing DEPTH, because power-of-two DEPTH would truncate to 0.
+    localparam [PTR_W-1:0] DEPTH_LAST = DEPTH - 1;
+    localparam WORDS_PER_SAMPLE = (SAMPLE_W + 31) / 32;
+    localparam SEQ_STATE_W = (TRIG_STAGES > 1) ? $clog2(TRIG_STAGES) : 1;
+    // Probe pipeline stages actually built.  The external trigger needs a
+    // 2-FF synchronizer, so it reaches the capture decision 2 samples after
+    // its edge; a probe path of PROBE_PIPE input stages plus the registered
+    // compare must be at least that long for the trigger to mark the sample
+    // driven with it.  A core with EXT_TRIG_EN and INPUT_PIPE = 0 is
+    // therefore built with one input stage.
+    localparam PROBE_PIPE = (EXT_TRIG_EN != 0 && INPUT_PIPE == 0) ? 1 : INPUT_PIPE;
+    // PROBE_PIPE also registers compare hits so REL_COMPARE comparators stay
+    // off the capture-control critical path. This adds one trigger-decision
+    // cycle whenever probe input pipelining is enabled.
+    localparam COMPARE_PIPE = (PROBE_PIPE >= 1) ? 1 : 0;
+    // Extra trigger_in stages beyond the 2-FF synchronizer so an external
+    // trigger reaches the capture decision with the same latency as the probe
+    // sample it marks (PROBE_PIPE + COMPARE_PIPE, at least 2 with EXT_TRIG_EN).
+    localparam EXT_ALIGN = (PROBE_PIPE + COMPARE_PIPE > 2) ? (PROBE_PIPE + COMPARE_PIPE - 2) : 0;
+    // Sample clocks after an arm that switches channel or probe slice before
+    // the stored sample and both compare operands come from the new one.
+    localparam SEL_FLUSH_LEN = PROBE_PIPE + COMPARE_PIPE + 1;
+    localparam SEL_FLUSH_W = $clog2(SEL_FLUSH_LEN + 1);
+    localparam HAS_DUAL_COMPARE = (DUAL_COMPARE != 0);
+    localparam HAS_USER1_DATA = (USER1_DATA_EN != 0);
+    localparam HAS_SEQUENCER = (TRIG_STAGES > 1);
+    localparam HAS_STOR_QUAL = (STOR_QUAL != 0);
+    // Wide programmable comparator A only makes sense above 32 bits.
+    localparam HAS_WIDE_TRIG = (WIDE_TRIG != 0) && (SAMPLE_W > 32);
+    localparam HAS_DECIM = (DECIM_EN != 0);
+    localparam HAS_EXT_TRIG = (EXT_TRIG_EN != 0);
+    localparam HAS_SEGMENTS = (NUM_SEGMENTS > 1);
+    localparam HAS_CHANNEL_MUX = (NUM_CHANNELS > 1);
+    localparam HAS_PROBE_MUX = (PROBE_MUX_W > 0);
+    localparam TS_MUX_W = (TIMESTAMP_W > 0) ? TIMESTAMP_W : 1;
+    localparam HAS_RLE = (RLE_W > 0);
+    localparam RLE_DATA_W = HAS_RLE ? RLE_W : 1;
+    // Aux lane (timestamp burst lane and DATA window): timestamps, or run
+    // counts on a core without timestamps.
+    localparam AUX_W = (TIMESTAMP_W > 0) ? TIMESTAMP_W : RLE_W;
+    // RLE_POST_CLKS width: the most clocks a post-trigger window of entries
+    // can span ((DEPTH - 1) * 2^RLE_W < 2^(LEN_W + RLE_W)), capped at 32.
+    localparam POST_CLK_W = !HAS_RLE ? 1 : (LEN_W + RLE_W > 32) ? 32 : LEN_W + RLE_W;
+    localparam [POST_CLK_W:0] POST_CLK_TWO = 2;
+    // A clock limit can end a segment short, so segmented RLE builds keep
+    // each segment's entry count for CAPTURE_LEN.
+    localparam HAS_RLE_SEG_LEN = HAS_RLE && HAS_SEGMENTS;
+    localparam HAS_AUX = (AUX_W > 0);
+    localparam AUX_DATA_W = HAS_AUX ? AUX_W : 1;
+
+    // Phase 4: segment derived params
+    localparam SEG_DEPTH = DEPTH / NUM_SEGMENTS;
+    localparam SEG_PTR_W = $clog2(SEG_DEPTH);
+    localparam SEG_IDX_W = (NUM_SEGMENTS > 1) ? $clog2(NUM_SEGMENTS) : 1;
+    localparam [PTR_W-1:0] SEG_DEPTH_LAST = SEG_DEPTH - 1;
+    localparam [PTR_W-1:0] SEG_DEPTH_MASK = SEG_DEPTH - 1;
+
+    // Static assert: SEG_DEPTH must be a power-of-two (bitmask wrap arithmetic)
+    generate
+        if (SEG_DEPTH != 0 && (SEG_DEPTH & (SEG_DEPTH - 1)) != 0) begin : g_bad_seg_depth
+            SEG_DEPTH_must_be_power_of_two invalid();
+        end
+    endgenerate
+
+    // Phase 3: timestamp data base address.  Compared at full width: a deep
+    // core pushes it past 0xFFFF, and a truncated compare would alias the
+    // timestamp window onto sample data.
+    localparam ADDR_TS_DATA_BASE = ADDR_DATA_BASE + DEPTH * WORDS_PER_SAMPLE * 4;
+    // Timestamp words per entry
+    localparam TS_WORDS = (TIMESTAMP_W > 0) ? ((TIMESTAMP_W + 31) / 32) : 0;
+    localparam TS_WORDS_SAFE = (TIMESTAMP_W > 0) ? ((TIMESTAMP_W + 31) / 32) : 1;
+    localparam AUX_WORDS_SAFE = HAS_AUX ? ((AUX_W + 31) / 32) : 1;
+
+    // Probe mux derived params
+    localparam PROBE_MUX_SLICES = (PROBE_MUX_W > 0) ? (PROBE_MUX_W / SAMPLE_W) : 0;
+
+    // Feature flags: [3:0]=TRIG_STAGES, [4]=STOR_QUAL, [5]=HAS_DECIM,
+    //                [6]=HAS_EXT_TRIG, [7]=HAS_TIMESTAMP,
+    //                [15:8]=NUM_CHANNELS, [23:16]=NUM_SEGMENTS, [31:24]=TIMESTAMP_W
+    localparam [31:0] FEATURES = {TIMESTAMP_W[7:0], NUM_SEGMENTS[7:0], NUM_CHANNELS[7:0],
+                                  (TIMESTAMP_W > 0) ? 1'b1 : 1'b0,
+                                  HAS_EXT_TRIG ? 1'b1 : 1'b0,
+                                  HAS_DECIM ? 1'b1 : 1'b0,
+                                  STOR_QUAL[0], TRIG_STAGES[3:0]};
+    localparam [31:0] COMPARE_MODE_CAPS =
+        (REL_COMPARE != 0) ? 32'h0000_01FF : 32'h0000_01C3;
+    localparam [31:0] COMPARE_CAPS =
+        COMPARE_MODE_CAPS | 32'h0002_0000 |
+        (HAS_DUAL_COMPARE ? 32'h0001_0000 : 32'h0000_0000) |
+        (HAS_WIDE_TRIG ? 32'h0004_0000 : 32'h0000_0000) |  // bit18: wide comparator A
+        32'h0008_0000 |  // bit19: timestamp window base decoded at full width
+        32'h0040_0000;   // bit22: SQ_MODE is compare mode + 1
+
+    // ---- Compare mode encoding -----------------------------------------------
+    // CMP_MODE[3:0]: 0=EQ 1=NEQ 2=LT 3=GT 4=LEQ 5=GEQ 6=RISING 7=FALLING 8=CHANGED
+    // COMBINE[1:0]:  0=A_only 1=B_only 2=A_AND_B 3=A_OR_B
+
+    // ---- JTAG-domain registers ---------------------------------------------
+    reg [31:0] jtag_ctrl;
+    reg [31:0] jtag_pretrig_len;
+    reg [31:0] jtag_posttrig_len;
+    reg [31:0] jtag_trig_mode;   // legacy: [0]=value_match [1]=edge_detect
+    reg [31:0] jtag_trig_value;  // legacy: comparator A value (stage 0)
+    reg [31:0] jtag_trig_mask;   // legacy: comparator A mask (stage 0)
+    reg        jtag_startup_arm;
+    reg [15:0] jtag_trig_holdoff;
+    reg [15:0] jtag_trig_delay;  // post-trigger delay (sample clocks)
+    // Zero-extended to SAMPLE_W for sync pipeline.
+    // SAMPLE_W <= 32: direct truncation (Verilog replication count cannot be 0,
+    //   so the ternary trick is avoided — assign from a wider intermediate).
+    // SAMPLE_W > 32:  zero-pad upper bits.
+    // Wide comparator-A words (only meaningful when HAS_WIDE_TRIG).  Word 0
+    // mirrors the legacy 32-bit ADDR_TRIG_VALUE/MASK registers; higher words
+    // are loaded through the WIDE_SEL/WIDE_DATA window.  Unused when WIDE_TRIG=0
+    // (no readers/writers -> optimized away).
+    reg [7:0]  jtag_wide_sel;                       // [0]=mask/value, [7:4]=word
+    reg [31:0] wide_va [0:WORDS_PER_SAMPLE-1];      // comparator A value words
+    reg [31:0] wide_ma [0:WORDS_PER_SAMPLE-1];      // comparator A mask words
+
+    wire [SAMPLE_W-1:0] jtag_trig_value_w;
+    wire [SAMPLE_W-1:0] jtag_trig_mask_w;
+    generate
+        if (SAMPLE_W <= 32) begin : g_trig_narrow
+            assign jtag_trig_value_w = jtag_trig_value[SAMPLE_W-1:0];
+            assign jtag_trig_mask_w  = jtag_trig_mask[SAMPLE_W-1:0];
+        end else if (HAS_WIDE_TRIG) begin : g_trig_wideprog
+            // Assemble the full-width value/mask from the per-word registers.
+            wire [WORDS_PER_SAMPLE*32-1:0] va_flat, ma_flat;
+            genvar wk;
+            for (wk = 0; wk < WORDS_PER_SAMPLE; wk = wk + 1) begin : g_wide_words
+                assign va_flat[wk*32 +: 32] = wide_va[wk];
+                assign ma_flat[wk*32 +: 32] = wide_ma[wk];
+            end
+            assign jtag_trig_value_w = va_flat[SAMPLE_W-1:0];
+            assign jtag_trig_mask_w  = ma_flat[SAMPLE_W-1:0];
+        end else begin : g_trig_wide
+            // Legacy: only the low 32 bits are programmable; upper bits masked 0.
+            assign jtag_trig_value_w = {{(SAMPLE_W-32){1'b0}}, jtag_trig_value};
+            assign jtag_trig_mask_w  = {{(SAMPLE_W-32){1'b0}}, jtag_trig_mask};
+        end
+    endgenerate
+
+    reg [7:0] jtag_chan_sel;   // active channel (jtag_clk domain)
+
+    reg arm_toggle_jtag;
+    reg reset_toggle_jtag;
+
+    // Storage qualification JTAG registers
+    reg [31:0] jtag_sq_mode;   // [3:0]=compare mode + 1, 0=off
+    reg [31:0] jtag_sq_value;
+    reg [31:0] jtag_sq_mask;
+    wire [SAMPLE_W-1:0] jtag_sq_value_w;
+    wire [SAMPLE_W-1:0] jtag_sq_mask_w;
+    generate
+        if (SAMPLE_W <= 32) begin : g_sq_narrow
+            assign jtag_sq_value_w = jtag_sq_value[SAMPLE_W-1:0];
+            assign jtag_sq_mask_w  = jtag_sq_mask[SAMPLE_W-1:0];
+        end else begin : g_sq_wide
+            assign jtag_sq_value_w = {{(SAMPLE_W-32){1'b0}}, jtag_sq_value};
+            assign jtag_sq_mask_w  = {{(SAMPLE_W-32){1'b0}}, jtag_sq_mask};
+        end
+    endgenerate
+
+    // Per-stage sequencer JTAG registers
+    reg [31:0] jtag_seq_cfg     [0:TRIG_STAGES-1];
+    reg [31:0] jtag_seq_value_a [0:TRIG_STAGES-1];
+    reg [31:0] jtag_seq_mask_a  [0:TRIG_STAGES-1];
+    reg [31:0] jtag_seq_value_b [0:TRIG_STAGES-1];
+    reg [31:0] jtag_seq_mask_b  [0:TRIG_STAGES-1];
+    // Zero-extended per-stage wires (same generate pattern as trig/sq above)
+    wire [SAMPLE_W-1:0] jtag_seq_value_a_w [0:TRIG_STAGES-1];
+    wire [SAMPLE_W-1:0] jtag_seq_mask_a_w  [0:TRIG_STAGES-1];
+    wire [SAMPLE_W-1:0] jtag_seq_value_b_w [0:TRIG_STAGES-1];
+    wire [SAMPLE_W-1:0] jtag_seq_mask_b_w  [0:TRIG_STAGES-1];
+    genvar gi;
+    generate
+        for (gi = 0; gi < TRIG_STAGES; gi = gi + 1) begin : g_seq_w
+            if (SAMPLE_W <= 32) begin : g_narrow
+                assign jtag_seq_value_a_w[gi] = jtag_seq_value_a[gi][SAMPLE_W-1:0];
+                assign jtag_seq_mask_a_w[gi]  = jtag_seq_mask_a[gi][SAMPLE_W-1:0];
+                assign jtag_seq_value_b_w[gi] = jtag_seq_value_b[gi][SAMPLE_W-1:0];
+                assign jtag_seq_mask_b_w[gi]  = jtag_seq_mask_b[gi][SAMPLE_W-1:0];
+            end else begin : g_wide
+                assign jtag_seq_value_a_w[gi] = {{(SAMPLE_W-32){1'b0}}, jtag_seq_value_a[gi]};
+                assign jtag_seq_mask_a_w[gi]  = {{(SAMPLE_W-32){1'b0}}, jtag_seq_mask_a[gi]};
+                assign jtag_seq_value_b_w[gi] = {{(SAMPLE_W-32){1'b0}}, jtag_seq_value_b[gi]};
+                assign jtag_seq_mask_b_w[gi]  = {{(SAMPLE_W-32){1'b0}}, jtag_seq_mask_b[gi]};
+            end
+        end
+    endgenerate
+
+    // Phase 1: decimation register
+    reg [23:0] jtag_decim;
+
+    // Phase 2: external trigger mode register
+    reg [1:0] jtag_trig_ext;
+
+    // Phase 4: segment select register
+    reg [SEG_IDX_W-1:0] jtag_seg_sel;
+
+    // Probe mux: slice select register (jtag_clk domain)
+    reg [7:0] jtag_probe_sel;
+
+    // Run-length capture: [0]=enable, [1]=DATA window reads counts
+    reg [1:0] jtag_rle_ctrl;
+    reg       burst_rle;      // this burst reads run counts
+    reg [POST_CLK_W-1:0] jtag_rle_post_clks;  // 0 = no clock limit
+
+    // ---- CDC sync registers ------------------------------------------------
+    // sync1 -> sync2 synchronize the toggles.  A toggle reaching sync2 stages
+    // the settings (cfg_stage_en); sync3 ^ sync4 then pulses with them in place.
+    reg arm_toggle_sync1, arm_toggle_sync2, arm_toggle_sync3, arm_toggle_sync4;
+    reg reset_toggle_sync1, reset_toggle_sync2, reset_toggle_sync3, reset_toggle_sync4;
+
+    // Settings snapshot on ARM / RESET (*_hold, jtag_clk) and its sample_clk
+    // copy (*_stage), narrowed to the bits used on the sample side.
+    reg [LEN_W-1:0]    pretrig_len_hold,  pretrig_len_stage;
+    reg [LEN_W-1:0]    posttrig_len_hold, posttrig_len_stage;
+    reg [1:0]          trig_mode_hold,    trig_mode_stage;
+    reg [SAMPLE_W-1:0] trig_value_hold,   trig_value_stage;
+    reg [SAMPLE_W-1:0] trig_mask_hold,    trig_mask_stage;
+    reg [7:0]          chan_sel_hold,     chan_sel_stage;
+    reg [7:0]          probe_sel_hold,   probe_sel_stage;
+    reg [23:0]         decim_hold,       decim_stage;
+    reg [1:0]          trig_ext_hold,    trig_ext_stage;
+    reg                startup_arm_hold, startup_arm_stage;
+    reg [15:0]         trig_holdoff_hold, trig_holdoff_stage;
+    reg [15:0]         trig_delay_hold,   trig_delay_stage;
+    reg                rle_en_hold,       rle_en_stage;
+    reg [POST_CLK_W-1:0] rle_post_clks_hold, rle_post_clks_stage;
+    reg [3:0]          sq_mode_hold, sq_mode_stage;
+    // SQ_MODE 0 turns qualification off; 1..9 select compare mode 0..8
+    // (EQ..CHANGED).  Other values turn it off too.
+    wire sq_mode_on = HAS_STOR_QUAL && (sq_mode_stage != 4'd0) && (sq_mode_stage <= 4'd9);
+    reg [SAMPLE_W-1:0] sq_value_hold, sq_value_stage;
+    reg [SAMPLE_W-1:0] sq_mask_hold, sq_mask_stage;
+    reg [31:0]         seq_cfg_hold     [0:TRIG_STAGES-1];
+    reg [31:0]         seq_cfg_stage     [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_value_a_hold [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_value_a_stage [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_mask_a_hold  [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_mask_a_stage  [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_value_b_hold [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_value_b_stage [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_mask_b_hold  [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0] seq_mask_b_stage  [0:TRIG_STAGES-1];
+
+    // ---- Channel mux (sample_clk domain) -----------------------------------
+    reg [7:0] chan_sel;   // active channel, latched on arm
+    reg [7:0] probe_sel;  // runtime probe mux slice, latched on arm
+
+    // Mux probe_in to the active channel slice or runtime probe mux slice.
+    wire [SAMPLE_W-1:0] probe_muxed;
+    generate
+        if (HAS_PROBE_MUX) begin : g_probe_mux
+            assign probe_muxed = probe_in[probe_sel * SAMPLE_W +: SAMPLE_W];
+        end else if (HAS_CHANNEL_MUX) begin : g_chan_mux
+            assign probe_muxed = probe_in[chan_sel * SAMPLE_W +: SAMPLE_W];
+        end else begin : g_no_probe_mux
+            assign probe_muxed = probe_in[SAMPLE_W-1:0];
+        end
+    endgenerate
+
+    // Optional input pipeline
+    wire [SAMPLE_W-1:0] active_probe;
+    generate
+        if (PROBE_PIPE == 0) begin : g_nopipe
+            assign active_probe = probe_muxed;
+        end else begin : g_pipe
+            reg [SAMPLE_W-1:0] pipe [0:PROBE_PIPE-1];
+            genvar pi;
+            for (pi = 0; pi < PROBE_PIPE; pi = pi + 1) begin : g_stage
+                always @(posedge sample_clk or posedge sample_rst) begin
+                    if (sample_rst)
+                        pipe[pi] <= {SAMPLE_W{1'b0}};
+                    else if (pi == 0)
+                        pipe[pi] <= probe_muxed;
+                    else
+                        pipe[pi] <= pipe[pi-1];
+                end
+            end
+            assign active_probe = pipe[PROBE_PIPE-1];
+        end
+    endgenerate
+
+    // ---- Sample-domain state -----------------------------------------------
+    reg armed, triggered, done, overflow;
+    reg [LEN_W-1:0]  pretrig_len, posttrig_len;
+    reg [3:0] trig_cmp_mode_a, trig_cmp_mode_b;
+    reg [1:0] trig_combine;
+    reg [SAMPLE_W-1:0] trig_value, trig_mask;
+    reg [SAMPLE_W-1:0] trig_value_b, trig_mask_b;
+    reg [PTR_W-1:0] wr_ptr, trig_ptr, start_ptr;
+    // Post-trigger samples still to store, loaded with posttrig_len at the
+    // trigger commit and counted down.  post_left_zero / post_left_one are
+    // registered (post_left == 0) / (post_left == 1), so the
+    // segment-complete decision starts at a flop, not a counter compare.
+    reg [LEN_W-1:0] post_left;
+    reg post_left_zero, post_left_one;
+    reg [LEN_W-1:0] pre_count;
+    reg [LEN_W-1:0] capture_len;  // can equal DEPTH
+    // RLE clock limit on the post-trigger window, latched on arm.  The
+    // trigger commit is clock 0; post_clk_left counts the clocks still
+    // allowed after it, and post_clk_last is registered
+    // (post_clk_left == 1), so the stop starts at a flop.
+    reg [POST_CLK_W-1:0] rle_post_clks;
+    reg                  post_clk_en;   // RLE on and a limit set
+    reg                  post_clk_one;  // the limit is 1
+    reg [POST_CLK_W-1:0] post_clk_left;
+    reg                  post_clk_last;
+    // Entries in each completed segment (HAS_RLE_SEG_LEN only); cleared on
+    // arm.  Read back only for captures with a clock limit.
+    reg [LEN_W-1:0] seg_len [0:NUM_SEGMENTS-1];
+    reg [SAMPLE_W-1:0] probe_prev;
+    // Trigger delay: when the comparator fires, count down trig_delay
+    // sample-clock cycles before committing trig_ptr.  During the
+    // countdown the FSM stays in the "armed, not yet triggered" branch,
+    // so the circular buffer keeps recording.  trig_delay = 0 reproduces
+    // the legacy zero-delay behavior exactly.
+    reg [15:0] trig_delay;
+    reg [15:0] trig_delay_count;
+    reg        trig_delay_pending;
+    reg [15:0] trig_holdoff;
+    reg [15:0] trig_holdoff_count;
+    reg        trig_holdoff_active;
+    reg        startup_arm_pending;
+
+    // Xilinx GSR loads flip-flop INIT values at configuration time.  Keep the
+    // startup-arm path explicit so a bitstream can come up armed without first
+    // relying on a user reset pulse.
+    initial begin
+        jtag_startup_arm   = (STARTUP_ARM != 0);
+        jtag_trig_ext      = DEFAULT_TRIG_EXT_MODE;
+        startup_arm_pending = (STARTUP_ARM != 0);
+        armed              = 1'b0;
+        triggered          = 1'b0;
+        done               = 1'b0;
+    end
+
+    // Phase 1: decimation state (sample domain)
+    // When DECIM_EN=0, decim_tick is tied high and all counter logic optimizes away.
+    reg [23:0] decim_ratio;
+    reg [23:0] decim_count;
+    wire       decim_tick = !HAS_DECIM ? 1'b1 : (decim_count == 0);
+
+    // Phase 2: external trigger sync + state
+    // When EXT_TRIG_EN=0, all ext trigger state ties to constant 0
+    // and optimizes away in synthesis.
+    reg trig_in_sync1, trig_in_sync2;
+    wire trig_in_aligned;
+    reg [1:0] ext_trig_mode;
+    reg trigger_out_r;
+    assign trigger_out = HAS_EXT_TRIG ? trigger_out_r : 1'b0;
+    assign armed_out = armed;
+
+    // Phase 4: segmented memory state
+    reg [SEG_IDX_W-1:0] cur_segment;
+    reg [SEG_IDX_W-1:0] seg_count;            // number of completed segments
+    reg                  all_seg_done;
+    reg                  segment_wrapped;
+    // Per-segment start_ptr storage
+    reg [PTR_W-1:0] seg_start_ptr [0:NUM_SEGMENTS-1];
+
+    // Readback metadata snapshot. The sample clock domain captures these once
+    // the capture is complete, then toggles a settled-before-toggle handshake
+    // so DATA-window decode in jtag_clk never depends on live sample state.
+    reg                rb_done_d;
+    reg [SEG_IDX_W-1:0] rb_seg_count_d;
+    reg                rb_meta_toggle_sample;
+    reg [LEN_W-1:0]    rb_capture_len_sample;
+    reg [PTR_W-1:0]    rb_start_ptr_sample;
+    reg [PTR_W-1:0]    rb_seg_start_ptr_sample [0:NUM_SEGMENTS-1];
+    reg [LEN_W-1:0]    rb_seg_len_sample [0:NUM_SEGMENTS-1];
+    reg                rb_meta_toggle_sync1;
+    reg                rb_meta_toggle_sync2;
+    reg                rb_meta_toggle_sync3;
+    reg                rb_meta_ack_toggle_jtag;
+    reg                rb_meta_ack_sync1;
+    reg                rb_meta_ack_sync2;
+    reg                rb_meta_pending_sample;
+    reg                rb_done_sample;
+    // {arm, reset} toggles the sample domain had processed when the snapshot
+    // was taken; see the jtag-side copy.
+    reg [1:0]          rb_gen_sample;
+    reg [LEN_W-1:0]    rb_capture_len_jtag;
+    reg [PTR_W-1:0]    rb_start_ptr_jtag;
+    reg [PTR_W-1:0]    rb_seg_start_ptr_jtag [0:NUM_SEGMENTS-1];
+    reg [LEN_W-1:0]    rb_seg_len_jtag [0:NUM_SEGMENTS-1];
+    reg                rb_done_jtag;
+
+    // ---- Sample buffer (dual-port RAM) -------------------------------------
+    localparam TS_DATA_W = (TIMESTAMP_W > 0) ? TIMESTAMP_W : 1;
+    reg                  mem_we_a_q;
+    reg  [PTR_W-1:0]     mem_wr_addr_q;
+    reg  [SAMPLE_W-1:0]  mem_wr_data_q;
+    reg  [TS_DATA_W-1:0] mem_wr_ts_q;
+    wire [PTR_W-1:0]     mem_addr_a;
+    wire [PTR_W-1:0]     mem_addr_b;
+    wire [SAMPLE_W-1:0]  mem_dout_b;
+    wire                 mem_we_a;
+    wire                 mem_we_a_ram;
+    wire [SAMPLE_W-1:0]  mem_din_a_ram;
+    wire [TS_DATA_W-1:0] mem_ts_din_a_ram;
+    wire [TS_DATA_W-1:0] ts_counter_cur;
+
+    assign mem_we_a_ram   = (PROBE_PIPE >= 1) ? mem_we_a_q : mem_we_a;
+    assign mem_din_a_ram  = (PROBE_PIPE >= 1) ? mem_wr_data_q : active_probe;
+    assign mem_ts_din_a_ram = (PROBE_PIPE >= 1) ? mem_wr_ts_q : ts_counter_cur;
+
+    dpram #(.WIDTH(SAMPLE_W), .DEPTH(DEPTH)) u_samplebuf (
+        .clk_a  (sample_clk),
+        .we_a   (mem_we_a_ram),
+        .addr_a (mem_addr_a),
+        .din_a  (mem_din_a_ram),
+        .dout_a (),
+        .clk_b  (jtag_clk),
+        .addr_b (mem_addr_b),
+        .dout_b (mem_dout_b)
+    );
+
+    // ---- Phase 3: Timestamp DPRAM ------------------------------------------
+    wire [TS_DATA_W-1:0] ts_dout_b;
+    generate
+        if (TIMESTAMP_W > 0) begin : g_ts
+            reg [TS_DATA_W-1:0] ts_counter;
+
+            assign ts_counter_cur = ts_counter;
+
+            // Free-running counter in sample_clk when timestamping is enabled.
+            always @(posedge sample_clk or posedge sample_rst) begin
+                if (sample_rst)
+                    ts_counter <= {TS_DATA_W{1'b0}};
+                else
+                    ts_counter <= ts_counter + 1'b1;
+            end
+
+            dpram #(.WIDTH(TS_DATA_W), .DEPTH(DEPTH)) u_tsbuf (
+                .clk_a  (sample_clk),
+                .we_a   (mem_we_a_ram),
+                .addr_a (mem_addr_a),
+                .din_a  (mem_ts_din_a_ram[TS_DATA_W-1:0]),
+                .dout_a (),
+                .clk_b  (jtag_clk),
+                .addr_b (mem_addr_b),
+                .dout_b (ts_dout_b)
+            );
+        end else begin : g_no_ts
+            assign ts_counter_cur = {TS_DATA_W{1'b0}};
+            assign ts_dout_b = {TS_DATA_W{1'b0}};
+        end
+    endgenerate
+
+    // ---- Sequencer state (sample domain) -----------------------------------
+    reg [SEQ_STATE_W-1:0] seq_state;
+    reg [15:0] seq_counter;
+    reg [3:0]            seq_mode_a   [0:TRIG_STAGES-1];
+    reg [3:0]            seq_mode_b   [0:TRIG_STAGES-1];
+    reg [1:0]            seq_combine  [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0]  seq_value_a  [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0]  seq_mask_a   [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0]  seq_value_b  [0:TRIG_STAGES-1];
+    reg [SAMPLE_W-1:0]  seq_mask_b   [0:TRIG_STAGES-1];
+    reg [15:0]           seq_count_target [0:TRIG_STAGES-1];
+    reg [SEQ_STATE_W-1:0] seq_next_state [0:TRIG_STAGES-1];
+    reg                  seq_is_final [0:TRIG_STAGES-1];
+
+    // ---- Storage qualification state (sample domain) -----------------------
+    reg sq_enable;
+    // ---- Run-length capture state (sample domain) ---------------------------
+    reg                  rle_active;  // latched on arm
+    reg                  rle_open;    // the newest entry can still be extended
+    reg [SAMPLE_W-1:0]   rle_value;   // the newest entry's sample
+    reg [RLE_DATA_W-1:0] rle_count;   // its run length - 1
+    reg [PTR_W-1:0]      rle_addr;    // its address
+    reg [3:0] sq_cmp_mode;
+    reg [SAMPLE_W-1:0] sq_value, sq_mask;
+
+    // ---- Burst read port (via dpram port B) --------------------------------
+    assign burst_rd_data = mem_dout_b;
+
+    // DATA-window Port-B readback (jtag_clk domain)
+    wire datawin_req_now;
+    reg                 datawin_is_ts_comb;
+    reg                 datawin_oob_comb;
+    reg [PTR_W-1:0]     datawin_mem_addr_comb;
+    reg [31:0]          datawin_chunk_comb;
+    reg [31:0]          datawin_word_index_comb;
+    reg [31:0]          datawin_sample_index_comb;
+    reg [PTR_W-1:0]     datawin_start_ptr_comb;
+    reg [PTR_W-1:0]     datawin_seg_base_comb;
+    reg                 datawin_reply_q;
+    reg                 datawin_oob_q;
+    reg                 datawin_is_ts_q;
+    reg [31:0]          datawin_chunk_q;
+
+    // ---- Trigger logic (combinational) -------------------------------------
+    wire arm_pulse   = arm_toggle_sync3 ^ arm_toggle_sync4;
+    wire startup_arm_pulse = startup_arm_pending;
+    wire any_arm_pulse = arm_pulse | startup_arm_pulse;
+    wire reset_pulse = reset_toggle_sync3 ^ reset_toggle_sync4;
+    // An arm or soft reset restarts the capture on this edge and takes
+    // priority over every decision of the capture already running.
+    wire capture_restart = any_arm_pulse | reset_pulse;
+
+    // ---- Selection flush ---------------------------------------------------
+    // chan_sel / probe_sel change only on arm, and the probe pipe, probe_prev
+    // and the registered hits still hold the old selection's samples for
+    // SEL_FLUSH_LEN sample clocks after it.  While sel_flush_active the
+    // capture neither stores nor evaluates the trigger, so no old-selection
+    // sample is captured, counted as pre-trigger history, compared, or used
+    // as the previous sample of an edge.  Arms that keep the selection pay
+    // nothing.
+    wire [7:0] chan_sel_next = (HAS_CHANNEL_MUX && chan_sel_stage < NUM_CHANNELS)
+                               ? chan_sel_stage : 8'h0;
+    wire [7:0] probe_sel_next = (HAS_PROBE_MUX && probe_sel_stage < PROBE_MUX_SLICES)
+                                ? probe_sel_stage : 8'h0;
+    wire arm_sel_change = HAS_PROBE_MUX   ? (probe_sel_next != probe_sel) :
+                          HAS_CHANNEL_MUX ? (chan_sel_next != chan_sel) : 1'b0;
+    wire sel_flush_start = any_arm_pulse && arm_sel_change;
+    // Arming clears the registered storage-qualification hit, so with
+    // COMPARE_PIPE and qualification on, the sample right after the arm is
+    // not stored and the rolling history gets a hole.
+    wire arm_sq_bubble = (COMPARE_PIPE != 0) && sq_mode_on;
+    // Run-length capture is on only without decimation and qualification,
+    // so a count always means consecutive sample clocks.  Turning it on or
+    // off on an arm changes what the history entries mean.
+    wire rle_active_next = HAS_RLE && rle_en_stage && (decim_stage == 24'h0) && !sq_mode_on;
+    wire arm_rle_change = HAS_RLE && (rle_active_next != rle_active);
+    // Arms after which the rolling pre-arm history cannot be trusted.
+    wire arm_voids_history = arm_sel_change || arm_sq_bubble || arm_rle_change;
+    reg                   sel_flush_active;
+    reg [SEL_FLUSH_W-1:0] sel_flush_count;
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            sel_flush_active <= 1'b0;
+            sel_flush_count  <= {SEL_FLUSH_W{1'b0}};
+        end else if (sel_flush_start) begin
+            sel_flush_active <= 1'b1;
+            sel_flush_count  <= SEL_FLUSH_LEN - 1;
+        end else if (sel_flush_active) begin
+            if (sel_flush_count == {SEL_FLUSH_W{1'b0}})
+                sel_flush_active <= 1'b0;
+            else
+                sel_flush_count <= sel_flush_count - 1'b1;
+        end
+    end
+
+    // Simple trigger: uses stage-0 comparators (backward compatible)
+    wire simple_hit_a_raw, simple_hit_b_raw;
+    trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_simple_a (
+        .probe(active_probe), .probe_prev(probe_prev),
+        .value(trig_value), .mask(trig_mask),
+        .mode(trig_cmp_mode_a), .hit(simple_hit_a_raw)
+    );
+    generate
+        if (HAS_DUAL_COMPARE) begin : g_simple_b_cmp
+            trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_simple_b (
+                .probe(active_probe), .probe_prev(probe_prev),
+                .value(trig_value_b), .mask(trig_mask_b),
+                .mode(trig_cmp_mode_b), .hit(simple_hit_b_raw)
+            );
+        end else begin : g_no_simple_b_cmp
+            assign simple_hit_b_raw = 1'b0;
+        end
+    endgenerate
+    reg simple_hit_a_q, simple_hit_b_q;
+    wire simple_hit_a = (COMPARE_PIPE != 0) ? simple_hit_a_q : simple_hit_a_raw;
+    wire simple_hit_b = (COMPARE_PIPE != 0) ? simple_hit_b_q : simple_hit_b_raw;
+    reg simple_trigger_hit;
+    always @(*) begin
+        if (!HAS_DUAL_COMPARE) begin
+            simple_trigger_hit = simple_hit_a;
+        end else begin
+            case (trig_combine)
+                2'd0: simple_trigger_hit = simple_hit_a;
+                2'd1: simple_trigger_hit = simple_hit_b;
+                2'd2: simple_trigger_hit = simple_hit_a & simple_hit_b;
+                2'd3: simple_trigger_hit = simple_hit_a | simple_hit_b;
+            endcase
+        end
+    end
+
+    // Sequencer trigger: stage comparators A and B.
+    //
+    // With COMPARE_PIPE every stage's A/B compare runs on each sample and is
+    // registered; the decision selects the registered hits of the stage that
+    // is active when they are consumed.  All entries of the hit vectors
+    // describe the same sample, so a stage change never applies the old
+    // stage's operands to the next sample, and adjacent-stage matches are
+    // exact.  Without COMPARE_PIPE the active stage's operands are selected
+    // and compared in the decision cycle.
+    wire seq_hit_a, seq_hit_b;
+    reg  [TRIG_STAGES-1:0] seq_hit_a_q, seq_hit_b_q;
+    wire [TRIG_STAGES-1:0] seq_hit_a_raw, seq_hit_b_raw;
+    generate
+        if (COMPARE_PIPE != 0 && TRIG_STAGES > 1) begin : g_seq_cmp_bank
+            for (gi = 0; gi < TRIG_STAGES; gi = gi + 1) begin : g_stage
+                trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_seq_a (
+                    .probe(active_probe), .probe_prev(probe_prev),
+                    .value(seq_value_a[gi]), .mask(seq_mask_a[gi]),
+                    .mode(seq_mode_a[gi]), .hit(seq_hit_a_raw[gi])
+                );
+                if (HAS_DUAL_COMPARE) begin : g_seq_b_cmp
+                    trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_seq_b (
+                        .probe(active_probe), .probe_prev(probe_prev),
+                        .value(seq_value_b[gi]), .mask(seq_mask_b[gi]),
+                        .mode(seq_mode_b[gi]), .hit(seq_hit_b_raw[gi])
+                    );
+                end else begin : g_no_seq_b_cmp
+                    assign seq_hit_b_raw[gi] = 1'b0;
+                end
+            end
+            assign seq_hit_a = seq_hit_a_q[seq_state];
+            assign seq_hit_b = seq_hit_b_q[seq_state];
+        end else begin : g_seq_cmp_active
+            trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_seq_a (
+                .probe(active_probe), .probe_prev(probe_prev),
+                .value(seq_value_a[seq_state]), .mask(seq_mask_a[seq_state]),
+                .mode(seq_mode_a[seq_state]), .hit(seq_hit_a)
+            );
+            if (HAS_DUAL_COMPARE) begin : g_seq_b_cmp
+                trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_seq_b (
+                    .probe(active_probe), .probe_prev(probe_prev),
+                    .value(seq_value_b[seq_state]), .mask(seq_mask_b[seq_state]),
+                    .mode(seq_mode_b[seq_state]), .hit(seq_hit_b)
+                );
+            end else begin : g_no_seq_b_cmp
+                assign seq_hit_b = 1'b0;
+            end
+            assign seq_hit_a_raw = {TRIG_STAGES{1'b0}};
+            assign seq_hit_b_raw = {TRIG_STAGES{1'b0}};
+        end
+    endgenerate
+    wire [1:0] seq_combine_cur = seq_combine[seq_state];
+    reg seq_stage_hit;
+    always @(*) begin
+        if (!HAS_DUAL_COMPARE) begin
+            seq_stage_hit = seq_hit_a;
+        end else begin
+            case (seq_combine_cur)
+                2'd0: seq_stage_hit = seq_hit_a;
+                2'd1: seq_stage_hit = seq_hit_b;
+                2'd2: seq_stage_hit = seq_hit_a & seq_hit_b;
+                2'd3: seq_stage_hit = seq_hit_a | seq_hit_b;
+            endcase
+        end
+    end
+
+    wire seq_count_reached = (seq_count_target[seq_state] == 16'h0) ||
+                             ((seq_counter + 16'h1) >= seq_count_target[seq_state]);
+    wire pretrigger_ready = pre_count >= pretrig_len;
+    wire trigger_holdoff_done = !trig_holdoff_active;
+
+    // Internal trigger signal (before ext trigger combination)
+    wire internal_trigger_hit = (TRIG_STAGES == 1) ? simple_trigger_hit :
+                       (seq_stage_hit && seq_is_final[seq_state] && seq_count_reached);
+
+    wire seq_advance = (TRIG_STAGES > 1) && seq_stage_hit &&
+                       !seq_is_final[seq_state] && seq_count_reached;
+
+    // Phase 2: combine with external trigger
+    reg trigger_hit;
+    always @(*) begin
+        case (ext_trig_mode)
+            2'd0: trigger_hit = internal_trigger_hit;                          // disabled
+            2'd1: trigger_hit = internal_trigger_hit | trig_in_aligned;        // OR
+            2'd2: trigger_hit = internal_trigger_hit & trig_in_aligned;        // AND
+            default: trigger_hit = internal_trigger_hit;
+        endcase
+    end
+
+    // Storage qualification comparator (only instantiated when STOR_QUAL=1)
+    wire sq_hit_raw;
+    generate
+        if (STOR_QUAL != 0) begin : g_sq_cmp
+            trig_compare #(.W(SAMPLE_W), .REL_COMPARE(REL_COMPARE)) u_sq_cmp (
+                .probe(active_probe), .probe_prev(probe_prev),
+                .value(sq_value), .mask(sq_mask),
+                .mode(sq_cmp_mode), .hit(sq_hit_raw)
+            );
+        end else begin : g_no_sq_cmp
+            assign sq_hit_raw = 1'b1;  // STOR_QUAL=0: always store
+        end
+    endgenerate
+    reg sq_hit_q;
+    wire sq_hit_w = (COMPARE_PIPE != 0) ? sq_hit_q : sq_hit_raw;
+    wire store_sample = (STOR_QUAL == 0) || !sq_enable || sq_hit_w;
+
+    // Register compare hits when the input path is already pipelined.  This
+    // keeps wide relational comparators off the capture-control critical path.
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            simple_hit_a_q <= 1'b0;
+            simple_hit_b_q <= 1'b0;
+            seq_hit_a_q    <= {TRIG_STAGES{1'b0}};
+            seq_hit_b_q    <= {TRIG_STAGES{1'b0}};
+            sq_hit_q       <= 1'b0;
+        end else if (reset_pulse || any_arm_pulse) begin
+            simple_hit_a_q <= 1'b0;
+            simple_hit_b_q <= 1'b0;
+            seq_hit_a_q    <= {TRIG_STAGES{1'b0}};
+            seq_hit_b_q    <= {TRIG_STAGES{1'b0}};
+            sq_hit_q       <= 1'b0;
+        end else begin
+            simple_hit_a_q <= simple_hit_a_raw;
+            simple_hit_b_q <= simple_hit_b_raw;
+            seq_hit_a_q    <= seq_hit_a_raw;
+            seq_hit_b_q    <= seq_hit_b_raw;
+            sq_hit_q       <= sq_hit_raw;
+        end
+    end
+
+    // Phase 1: combined store enable (storage qualification AND decimation)
+    wire store_enable_base = store_sample & decim_tick & !sel_flush_active;
+    // Run-length capture: the sample the RAM would store, and whether it
+    // only extends the newest entry instead of opening a new one.
+    wire [SAMPLE_W-1:0] rle_sample = (PROBE_PIPE >= 1) ? probe_prev : active_probe;
+    wire rle_repeat = rle_active && rle_open && (rle_sample == rle_value) &&
+                      (rle_count != {RLE_DATA_W{1'b1}});
+    wire store_enable = store_enable_base & !rle_repeat;
+
+    // ---- JTAG-domain register writes ---------------------------------------
+    wire jtag_rd_data_window = HAS_USER1_DATA && (
+        (jtag_addr >= ADDR_DATA_BASE) ||
+        (HAS_AUX && {16'h0, jtag_addr} >= ADDR_TS_DATA_BASE));
+    assign datawin_req_now = jtag_rd_en && jtag_rd_data_window;
+
+    wire [SEG_IDX_W-1:0] jtag_seg_sel_clamped =
+        (HAS_SEGMENTS && jtag_seg_sel < NUM_SEGMENTS) ? jtag_seg_sel : {SEG_IDX_W{1'b0}};
+    wire [PTR_W-1:0] jtag_seg_start_ptr = rb_seg_start_ptr_jtag[jtag_seg_sel_clamped];
+    // Entries the DATA window and CAPTURE_LEN cover: on segmented RLE builds
+    // the selected segment's, since a clock limit can end segments short
+    // (the capture length for every segment without a limit).
+    wire [LEN_W-1:0] rb_window_len_jtag = HAS_RLE_SEG_LEN
+        ? rb_seg_len_jtag[jtag_seg_sel_clamped] : rb_capture_len_jtag;
+    wire [PTR_W-1:0] datawin_start_ptr_w = HAS_SEGMENTS ? jtag_seg_start_ptr : rb_start_ptr_jtag;
+    wire [PTR_W-1:0] datawin_seg_base_w;
+    generate
+        if (NUM_SEGMENTS > 1) begin : g_datawin_seg_base
+            assign datawin_seg_base_w = {datawin_start_ptr_w[PTR_W-1:SEG_PTR_W], {SEG_PTR_W{1'b0}}};
+        end else begin : g_datawin_no_seg_base
+            assign datawin_seg_base_w = {PTR_W{1'b0}};
+        end
+    endgenerate
+
+    always @(*) begin
+        datawin_is_ts_comb = HAS_AUX && ({16'h0, jtag_addr} >= ADDR_TS_DATA_BASE);
+        datawin_oob_comb = 1'b0;
+        datawin_mem_addr_comb = {PTR_W{1'b0}};
+        datawin_chunk_comb = 32'h0;
+        datawin_word_index_comb = 32'h0;
+        datawin_sample_index_comb = 32'h0;
+        datawin_start_ptr_comb = datawin_start_ptr_w;
+        datawin_seg_base_comb = datawin_seg_base_w;
+
+        if (datawin_is_ts_comb) begin
+            datawin_word_index_comb = (jtag_addr - ADDR_TS_DATA_BASE[15:0]) >> 2;
+            datawin_sample_index_comb = datawin_word_index_comb / AUX_WORDS_SAFE;
+            datawin_chunk_comb = datawin_word_index_comb % AUX_WORDS_SAFE;
+        end else begin
+            datawin_word_index_comb = (jtag_addr - ADDR_DATA_BASE) >> 2;
+            datawin_sample_index_comb = datawin_word_index_comb / WORDS_PER_SAMPLE;
+            datawin_chunk_comb = datawin_word_index_comb % WORDS_PER_SAMPLE;
+        end
+
+        if (datawin_sample_index_comb >= rb_window_len_jtag) begin
+            datawin_oob_comb = 1'b1;
+        end else begin
+            datawin_mem_addr_comb = datawin_seg_base_comb
+                + ((datawin_start_ptr_comb - datawin_seg_base_comb
+                    + datawin_sample_index_comb[PTR_W-1:0]) & SEG_DEPTH_MASK);
+        end
+    end
+
+    assign mem_addr_b = burst_rd_active ? burst_rd_addr :
+                        (datawin_req_now && !datawin_oob_comb) ? datawin_mem_addr_comb :
+                        {PTR_W{1'b0}};
+
+    integer s;
+    integer rb_sample_i;
+    integer rb_jtag_i;
+    reg [31:0] jtag_rdata_mux;
+
+    always @(posedge jtag_clk or posedge jtag_rst) begin
+        if (jtag_rst) begin
+            jtag_ctrl          <= 32'h0;
+            jtag_pretrig_len   <= 32'h0;
+            jtag_posttrig_len  <= 32'h0;
+            jtag_trig_mode     <= 32'h1;
+            jtag_trig_value    <= 32'h0;
+            jtag_trig_mask     <= 32'hFFFF_FFFF;
+            jtag_sq_mode       <= 32'h0;
+            jtag_sq_value      <= 32'h0;
+            jtag_sq_mask       <= 32'h0;
+            jtag_chan_sel      <= 8'h0;
+            jtag_decim         <= 24'h0;
+            jtag_trig_ext      <= DEFAULT_TRIG_EXT_MODE;
+            jtag_seg_sel       <= {SEG_IDX_W{1'b0}};
+            jtag_probe_sel     <= 8'h0;
+            jtag_rle_ctrl      <= 2'b00;
+            jtag_rle_post_clks <= {POST_CLK_W{1'b0}};
+            burst_rle          <= 1'b0;
+            jtag_startup_arm   <= (STARTUP_ARM != 0);
+            jtag_trig_holdoff  <= 16'h0;
+            jtag_trig_delay    <= 16'h0;
+            arm_toggle_jtag    <= 1'b0;
+            reset_toggle_jtag  <= 1'b0;
+            burst_start        <= 1'b0;
+            burst_timestamp    <= 1'b0;
+            burst_start_ptr    <= {PTR_W{1'b0}};
+            for (s = 0; s < TRIG_STAGES; s = s + 1) begin
+                jtag_seq_cfg[s]     <= (s == 0) ? 32'h0000_1000 : 32'h0;
+                jtag_seq_value_a[s] <= 32'h0;
+                jtag_seq_mask_a[s]  <= 32'hFFFF_FFFF;
+                jtag_seq_value_b[s] <= 32'h0;
+                jtag_seq_mask_b[s]  <= 32'hFFFF_FFFF;
+            end
+            // Wide comparator-A words: default matches the legacy zero-extend
+            // (word 0 = the 32-bit value/mask defaults, upper words = 0 so the
+            // upper sample bits are don't-care until the host programs them).
+            jtag_wide_sel <= 8'h0;
+            for (s = 0; s < WORDS_PER_SAMPLE; s = s + 1) begin
+                wide_va[s] <= 32'h0;
+                wide_ma[s] <= (s == 0) ? 32'hFFFF_FFFF : 32'h0;
+            end
+        end else begin
+            if (jtag_wr_en) begin
+                case (jtag_addr)
+                    ADDR_CTRL: begin
+                        jtag_ctrl <= jtag_wdata;
+                        if (jtag_wdata[0]) arm_toggle_jtag <= ~arm_toggle_jtag;
+                        if (jtag_wdata[1]) reset_toggle_jtag <= ~reset_toggle_jtag;
+                        // Arm and reset return the DATA window to timestamps.
+                        if (jtag_wdata[0] || jtag_wdata[1]) jtag_rle_ctrl[1] <= 1'b0;
+                    end
+                    ADDR_PRETRIG:    jtag_pretrig_len  <= jtag_wdata;
+                    ADDR_POSTTRIG:   jtag_posttrig_len <= jtag_wdata;
+                    ADDR_TRIG_MODE:  jtag_trig_mode    <= jtag_wdata;
+                    ADDR_TRIG_VALUE: begin
+                        jtag_trig_value <= jtag_wdata;
+                        if (HAS_WIDE_TRIG) wide_va[0] <= jtag_wdata;  // mirror word 0
+                    end
+                    ADDR_TRIG_MASK: begin
+                        jtag_trig_mask <= jtag_wdata;
+                        if (HAS_WIDE_TRIG) wide_ma[0] <= jtag_wdata;
+                    end
+                    ADDR_WIDE_SEL: if (HAS_WIDE_TRIG) jtag_wide_sel <= jtag_wdata[7:0];
+                    ADDR_WIDE_DATA: if (HAS_WIDE_TRIG &&
+                                        jtag_wide_sel[7:4] < WORDS_PER_SAMPLE) begin
+                        if (jtag_wide_sel[0]) wide_ma[jtag_wide_sel[7:4]] <= jtag_wdata;
+                        else                  wide_va[jtag_wide_sel[7:4]] <= jtag_wdata;
+                    end
+                    ADDR_SQ_MODE:    if (HAS_STOR_QUAL) jtag_sq_mode <= jtag_wdata;
+                    ADDR_SQ_VALUE:   if (HAS_STOR_QUAL) jtag_sq_value <= jtag_wdata;
+                    ADDR_SQ_MASK:    if (HAS_STOR_QUAL) jtag_sq_mask <= jtag_wdata;
+                    ADDR_CHAN_SEL:   if (HAS_CHANNEL_MUX) jtag_chan_sel <= jtag_wdata[7:0];
+                    ADDR_DECIM:      if (HAS_DECIM) jtag_decim <= jtag_wdata[23:0];
+                    ADDR_TRIG_EXT:   if (HAS_EXT_TRIG) jtag_trig_ext <= jtag_wdata[1:0];
+                    ADDR_PROBE_SEL:  if (HAS_PROBE_MUX) jtag_probe_sel <= jtag_wdata[7:0];
+                    ADDR_RLE_CTRL:   if (HAS_RLE) jtag_rle_ctrl <= jtag_wdata[1:0];
+                    ADDR_RLE_POST_CLKS: if (HAS_RLE) jtag_rle_post_clks <= jtag_wdata[POST_CLK_W-1:0];
+                    ADDR_STARTUP_ARM: jtag_startup_arm <= jtag_wdata[0];
+                    ADDR_TRIG_HOLDOFF: jtag_trig_holdoff <= jtag_wdata[15:0];
+                    ADDR_TRIG_DELAY: jtag_trig_delay   <= jtag_wdata[15:0];
+                    ADDR_SEG_SEL:    if (HAS_SEGMENTS) jtag_seg_sel <= jtag_wdata[SEG_IDX_W-1:0];
+                    ADDR_BURST_PTR: begin
+                        // Use the completed-capture snapshot; start pointers
+                        // are written in sample_clk and must not feed USER2
+                        // directly.
+                        burst_start_ptr <= HAS_SEGMENTS
+                            ? jtag_seg_start_ptr
+                            : rb_start_ptr_jtag;
+                        burst_timestamp <= jtag_wdata[31];
+                        burst_rle       <= HAS_RLE && jtag_wdata[31] && jtag_wdata[30];
+                        burst_start     <= ~burst_start;
+                    end
+                    default: begin
+                        // Sequencer stage registers (5 regs x 4 bytes per stage)
+                        if (HAS_SEQUENCER &&
+                            jtag_addr >= ADDR_SEQ_BASE &&
+                            jtag_addr < ADDR_SEQ_BASE + TRIG_STAGES * SEQ_STRIDE) begin
+                            s = (jtag_addr - ADDR_SEQ_BASE) / SEQ_STRIDE;
+                            case ((jtag_addr - ADDR_SEQ_BASE) % SEQ_STRIDE)
+                                0:  jtag_seq_cfg[s]     <= HAS_DUAL_COMPARE
+                                                           ? jtag_wdata
+                                                           : (jtag_wdata & ~32'h0000_03F0);
+                                4:  jtag_seq_value_a[s] <= jtag_wdata;
+                                8:  jtag_seq_mask_a[s]  <= jtag_wdata;
+                                12: if (HAS_DUAL_COMPARE) jtag_seq_value_b[s] <= jtag_wdata;
+                                16: if (HAS_DUAL_COMPARE) jtag_seq_mask_b[s]  <= jtag_wdata;
+                                default: ;
+                            endcase
+                        end
+                    end
+                endcase
+            end
+
+        end
+    end
+
+    // ---- CDC: completed-capture metadata snapshot -------------------------
+    wire rb_meta_sample_busy = rb_meta_toggle_sample ^ rb_meta_ack_sync2;
+    wire rb_meta_event_sample = (done && !rb_done_d) ||
+                                (HAS_SEGMENTS && (seg_count != rb_seg_count_d));
+
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            rb_done_d <= 1'b0;
+            rb_seg_count_d <= {SEG_IDX_W{1'b0}};
+            rb_meta_toggle_sample <= 1'b0;
+            rb_meta_ack_sync1 <= 1'b0;
+            rb_meta_ack_sync2 <= 1'b0;
+            rb_meta_pending_sample <= 1'b0;
+            rb_done_sample <= 1'b0;
+            rb_gen_sample <= 2'b00;
+            rb_capture_len_sample <= {LEN_W{1'b0}};
+            rb_start_ptr_sample <= {PTR_W{1'b0}};
+            for (rb_sample_i = 0; rb_sample_i < NUM_SEGMENTS; rb_sample_i = rb_sample_i + 1) begin
+                rb_seg_start_ptr_sample[rb_sample_i] <= {PTR_W{1'b0}};
+                rb_seg_len_sample[rb_sample_i]       <= {LEN_W{1'b0}};
+            end
+        end else begin
+            rb_done_d <= done;
+            rb_seg_count_d <= seg_count;
+            rb_meta_ack_sync1 <= rb_meta_ack_toggle_jtag;
+            rb_meta_ack_sync2 <= rb_meta_ack_sync1;
+
+            if (rb_meta_event_sample)
+                rb_meta_pending_sample <= 1'b1;
+
+            // Hold the multi-bit snapshot stable until jtag_clk has copied it.
+            // Fast segment updates can otherwise overwrite the source while the
+            // three-flop toggle synchronizer is still in flight.
+            if (!rb_meta_sample_busy && (rb_meta_pending_sample || rb_meta_event_sample)) begin
+                rb_done_sample <= done;
+                rb_gen_sample <= {arm_toggle_sync4, reset_toggle_sync4};
+                rb_capture_len_sample <= capture_len;
+                rb_start_ptr_sample <= start_ptr;
+                for (rb_sample_i = 0; rb_sample_i < NUM_SEGMENTS; rb_sample_i = rb_sample_i + 1) begin
+                    rb_seg_start_ptr_sample[rb_sample_i] <= seg_start_ptr[rb_sample_i];
+                    // Without a clock limit every segment reads the
+                    // capture length, as on a core without seg_len.
+                    rb_seg_len_sample[rb_sample_i] <= !HAS_RLE_SEG_LEN ? {LEN_W{1'b0}}
+                                                    : post_clk_en ? seg_len[rb_sample_i]
+                                                    : capture_len;
+                end
+                rb_meta_toggle_sample <= ~rb_meta_toggle_sample;
+                rb_meta_pending_sample <= 1'b0;
+            end
+        end
+    end
+
+    always @(posedge jtag_clk or posedge jtag_rst) begin
+        if (jtag_rst) begin
+            rb_meta_toggle_sync1 <= 1'b0;
+            rb_meta_toggle_sync2 <= 1'b0;
+            rb_meta_toggle_sync3 <= 1'b0;
+            rb_meta_ack_toggle_jtag <= 1'b0;
+            rb_capture_len_jtag <= {LEN_W{1'b0}};
+            rb_start_ptr_jtag <= {PTR_W{1'b0}};
+            rb_done_jtag <= 1'b0;
+            for (rb_jtag_i = 0; rb_jtag_i < NUM_SEGMENTS; rb_jtag_i = rb_jtag_i + 1) begin
+                rb_seg_start_ptr_jtag[rb_jtag_i] <= {PTR_W{1'b0}};
+                rb_seg_len_jtag[rb_jtag_i]       <= {LEN_W{1'b0}};
+            end
+        end else begin
+            rb_meta_toggle_sync1 <= rb_meta_toggle_sample;
+            rb_meta_toggle_sync2 <= rb_meta_toggle_sync1;
+            rb_meta_toggle_sync3 <= rb_meta_toggle_sync2;
+            // Every snapshot is copied and acknowledged; a dropped ack would
+            // leave the sample side busy and stop all later snapshots.
+            if (rb_meta_toggle_sync2 ^ rb_meta_toggle_sync3) begin
+                rb_capture_len_jtag <= rb_capture_len_sample;
+                rb_start_ptr_jtag <= rb_start_ptr_sample;
+                for (rb_jtag_i = 0; rb_jtag_i < NUM_SEGMENTS; rb_jtag_i = rb_jtag_i + 1) begin
+                    rb_seg_start_ptr_jtag[rb_jtag_i] <= rb_seg_start_ptr_sample[rb_jtag_i];
+                    rb_seg_len_jtag[rb_jtag_i]       <= rb_seg_len_sample[rb_jtag_i];
+                end
+                rb_meta_ack_toggle_jtag <= rb_meta_toggle_sync2;
+                // Done counts only for the latest ARM / reset: a capture that
+                // completed while an ARM was still crossing is the previous
+                // one.  One bit per toggle suffices, since a JTAG write takes
+                // far longer than the toggle synchronizer.
+                rb_done_jtag <= rb_done_sample &&
+                                (rb_gen_sample == {arm_toggle_jtag, reset_toggle_jtag});
+            end
+            if (jtag_wr_en && jtag_addr == ADDR_CTRL && (jtag_wdata[0] || jtag_wdata[1]))
+                rb_done_jtag <= 1'b0;
+        end
+    end
+
+    // ---- CDC: arm/reset toggles --------------------------------------------
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            arm_toggle_sync1   <= 1'b0; arm_toggle_sync2   <= 1'b0;
+            arm_toggle_sync3   <= 1'b0; arm_toggle_sync4   <= 1'b0;
+            reset_toggle_sync1 <= 1'b0; reset_toggle_sync2 <= 1'b0;
+            reset_toggle_sync3 <= 1'b0; reset_toggle_sync4 <= 1'b0;
+            startup_arm_pending <= (STARTUP_ARM != 0);
+        end else begin
+            arm_toggle_sync1   <= arm_toggle_jtag;
+            arm_toggle_sync2   <= arm_toggle_sync1;
+            arm_toggle_sync3   <= arm_toggle_sync2;
+            arm_toggle_sync4   <= arm_toggle_sync3;
+            reset_toggle_sync1 <= reset_toggle_jtag;
+            reset_toggle_sync2 <= reset_toggle_sync1;
+            reset_toggle_sync3 <= reset_toggle_sync2;
+            reset_toggle_sync4 <= reset_toggle_sync3;
+            if (reset_pulse)
+                startup_arm_pending <= startup_arm_stage;
+            else if (startup_arm_pulse)
+                startup_arm_pending <= 1'b0;
+        end
+    end
+
+    // ---- CDC: config registers ---------------------------------------------
+    // A CTRL write that arms or soft-resets snapshots the settings into
+    // *_hold (jtag_clk), so a setting written after it does not reach that
+    // capture.  The toggle reaching sync2 copies the snapshot, unchanged
+    // since that write, into *_stage (sample_clk) one clock before the arm /
+    // reset pulse latches it: an ARM or RESET uses exactly the settings
+    // written before it, however slow sample_clk is.
+    wire cfg_snapshot = jtag_wr_en && jtag_addr == ADDR_CTRL &&
+                        (jtag_wdata[0] || jtag_wdata[1]);
+    wire cfg_stage_en = (arm_toggle_sync2 ^ arm_toggle_sync3) |
+                        (reset_toggle_sync2 ^ reset_toggle_sync3);
+    integer hi;
+    always @(posedge jtag_clk or posedge jtag_rst) begin
+        if (jtag_rst) begin
+            pretrig_len_hold  <= 0;
+            posttrig_len_hold <= 0;
+            trig_mode_hold    <= 0;
+            trig_value_hold   <= 0;
+            trig_mask_hold    <= 0;
+            chan_sel_hold     <= 0;
+            probe_sel_hold   <= 0;
+            decim_hold       <= 0;
+            trig_ext_hold    <= DEFAULT_TRIG_EXT_MODE;
+            startup_arm_hold <= (STARTUP_ARM != 0);
+            trig_holdoff_hold <= 0;
+            trig_delay_hold  <= 0;
+            rle_en_hold      <= 0;
+            rle_post_clks_hold <= 0;
+            sq_mode_hold     <= 0;
+            sq_value_hold    <= 0;
+            sq_mask_hold     <= 0;
+            for (hi = 0; hi < TRIG_STAGES; hi = hi + 1) begin
+                seq_cfg_hold[hi]     <= 32'h0;
+                seq_value_a_hold[hi] <= {SAMPLE_W{1'b0}};
+                seq_mask_a_hold[hi]  <= {SAMPLE_W{1'b0}};
+                seq_value_b_hold[hi] <= {SAMPLE_W{1'b0}};
+                seq_mask_b_hold[hi]  <= {SAMPLE_W{1'b0}};
+            end
+        end else if (cfg_snapshot) begin
+            pretrig_len_hold  <= jtag_pretrig_len[LEN_W-1:0];
+            posttrig_len_hold <= jtag_posttrig_len[LEN_W-1:0];
+            trig_mode_hold    <= jtag_trig_mode[1:0];
+            trig_value_hold   <= jtag_trig_value_w;
+            trig_mask_hold    <= jtag_trig_mask_w;
+            chan_sel_hold     <= HAS_CHANNEL_MUX ? jtag_chan_sel : 8'h0;
+            probe_sel_hold   <= HAS_PROBE_MUX ? jtag_probe_sel : 8'h0;
+            decim_hold       <= HAS_DECIM ? jtag_decim : 24'h0;
+            trig_ext_hold    <= HAS_EXT_TRIG ? jtag_trig_ext : 2'd0;
+            startup_arm_hold <= jtag_startup_arm;
+            trig_holdoff_hold <= jtag_trig_holdoff;
+            trig_delay_hold  <= jtag_trig_delay;
+            rle_en_hold      <= HAS_RLE && jtag_rle_ctrl[0];
+            rle_post_clks_hold <= HAS_RLE ? jtag_rle_post_clks : {POST_CLK_W{1'b0}};
+            sq_mode_hold     <= HAS_STOR_QUAL ? jtag_sq_mode[3:0] : 4'h0;
+            sq_value_hold    <= HAS_STOR_QUAL ? jtag_sq_value_w : {SAMPLE_W{1'b0}};
+            sq_mask_hold     <= HAS_STOR_QUAL ? jtag_sq_mask_w : {SAMPLE_W{1'b0}};
+            for (hi = 0; hi < TRIG_STAGES; hi = hi + 1) begin
+                if (HAS_SEQUENCER) begin
+                    seq_cfg_hold[hi]     <= jtag_seq_cfg[hi];
+                    seq_value_a_hold[hi] <= jtag_seq_value_a_w[hi];
+                    seq_mask_a_hold[hi]  <= jtag_seq_mask_a_w[hi];
+                end else begin
+                    seq_cfg_hold[hi]     <= 32'h0;
+                    seq_value_a_hold[hi] <= {SAMPLE_W{1'b0}};
+                    seq_mask_a_hold[hi]  <= {SAMPLE_W{1'b1}};
+                end
+                if (HAS_SEQUENCER && HAS_DUAL_COMPARE) begin
+                    seq_value_b_hold[hi] <= jtag_seq_value_b_w[hi];
+                    seq_mask_b_hold[hi]  <= jtag_seq_mask_b_w[hi];
+                end else begin
+                    seq_value_b_hold[hi] <= {SAMPLE_W{1'b0}};
+                    seq_mask_b_hold[hi]  <= {SAMPLE_W{1'b1}};
+                end
+            end
+        end
+    end
+
+    always @(posedge sample_clk or posedge sample_rst) begin : cdc_cfg
+        integer si;  // block-local: a shared one gets a driver per block
+        if (sample_rst) begin
+            pretrig_len_stage  <= 0;
+            posttrig_len_stage <= 0;
+            trig_mode_stage    <= 0;
+            trig_value_stage   <= 0;
+            trig_mask_stage    <= 0;
+            chan_sel_stage     <= 0;
+            probe_sel_stage   <= 0;
+            decim_stage       <= 0;
+            trig_ext_stage <= DEFAULT_TRIG_EXT_MODE;
+            startup_arm_stage <= (STARTUP_ARM != 0);
+            trig_holdoff_stage <= 0;
+            trig_delay_stage  <= 0;
+            rle_en_stage      <= 0;
+            rle_post_clks_stage <= 0;
+            sq_mode_stage     <= 0;
+            sq_value_stage    <= 0;
+            sq_mask_stage     <= 0;
+            for (si = 0; si < TRIG_STAGES; si = si + 1) begin
+                seq_cfg_stage[si]     <= 32'h0;
+                seq_value_a_stage[si] <= {SAMPLE_W{1'b0}};
+                seq_mask_a_stage[si]  <= {SAMPLE_W{1'b0}};
+                seq_value_b_stage[si] <= {SAMPLE_W{1'b0}};
+                seq_mask_b_stage[si]  <= {SAMPLE_W{1'b0}};
+            end
+        end else if (cfg_stage_en) begin
+            pretrig_len_stage <= pretrig_len_hold;
+            posttrig_len_stage <= posttrig_len_hold;
+            trig_mode_stage <= trig_mode_hold;
+            trig_value_stage <= trig_value_hold;
+            trig_mask_stage <= trig_mask_hold;
+            chan_sel_stage <= chan_sel_hold;
+            probe_sel_stage <= probe_sel_hold;
+            decim_stage <= decim_hold;
+            trig_ext_stage <= trig_ext_hold;
+            startup_arm_stage <= startup_arm_hold;
+            trig_holdoff_stage <= trig_holdoff_hold;
+            trig_delay_stage <= trig_delay_hold;
+            rle_en_stage <= rle_en_hold;
+            rle_post_clks_stage <= rle_post_clks_hold;
+            sq_mode_stage <= sq_mode_hold;
+            sq_value_stage <= sq_value_hold;
+            sq_mask_stage <= sq_mask_hold;
+            for (si = 0; si < TRIG_STAGES; si = si + 1) begin
+                seq_cfg_stage[si] <= seq_cfg_hold[si];
+                seq_value_a_stage[si] <= seq_value_a_hold[si];
+                seq_mask_a_stage[si] <= seq_mask_a_hold[si];
+                seq_value_b_stage[si] <= seq_value_b_hold[si];
+                seq_mask_b_stage[si] <= seq_mask_b_hold[si];
+            end
+        end
+    end
+
+    // Phase 2: external trigger_in synchronizer
+    generate
+        if (HAS_EXT_TRIG) begin : g_ext_trig_sync
+            always @(posedge sample_clk or posedge sample_rst) begin
+                if (sample_rst) begin
+                    trig_in_sync1 <= 1'b0;
+                    trig_in_sync2 <= 1'b0;
+                end else begin
+                    trig_in_sync1 <= trigger_in;
+                    trig_in_sync2 <= trig_in_sync1;
+                end
+            end
+        end else begin : g_no_ext_trig_sync
+            always @(posedge sample_clk) begin
+                trig_in_sync1 = 1'b0;
+                trig_in_sync2 = 1'b0;
+            end
+        end
+
+        if (HAS_EXT_TRIG && EXT_ALIGN > 0) begin : g_ext_trig_align
+            reg  [EXT_ALIGN-1:0] trig_in_dly;
+            wire [EXT_ALIGN:0]   trig_in_chain = {trig_in_dly, trig_in_sync2};
+            always @(posedge sample_clk or posedge sample_rst) begin
+                if (sample_rst)
+                    trig_in_dly <= {EXT_ALIGN{1'b0}};
+                else
+                    trig_in_dly <= trig_in_chain[EXT_ALIGN-1:0];
+            end
+            assign trig_in_aligned = trig_in_dly[EXT_ALIGN-1];
+        end else begin : g_no_ext_trig_align
+            assign trig_in_aligned = trig_in_sync2;
+        end
+    endgenerate
+
+    // ---- Latch config on arm -----------------------------------------------
+    always @(posedge sample_clk or posedge sample_rst) begin : latch_cfg
+        integer si;
+        if (sample_rst) begin
+            pretrig_len      <= 0;
+            posttrig_len     <= 0;
+            trig_cmp_mode_a  <= 4'd0;  // EQ
+            trig_cmp_mode_b  <= 4'd0;
+            trig_combine     <= 2'd0;  // A only
+            trig_value       <= {SAMPLE_W{1'b0}};
+            trig_mask        <= {SAMPLE_W{1'b1}};
+            trig_value_b     <= {SAMPLE_W{1'b0}};
+            trig_mask_b      <= {SAMPLE_W{1'b1}};
+            sq_enable        <= 1'b0;
+            sq_cmp_mode      <= 4'd0;
+            sq_value         <= {SAMPLE_W{1'b0}};
+            sq_mask          <= {SAMPLE_W{1'b0}};
+            rle_active       <= 1'b0;
+            rle_post_clks    <= {POST_CLK_W{1'b0}};
+            post_clk_en      <= 1'b0;
+            post_clk_one     <= 1'b0;
+            chan_sel         <= 8'h0;
+            probe_sel        <= 8'h0;
+            decim_ratio      <= 24'h0;
+            ext_trig_mode    <= DEFAULT_TRIG_EXT_MODE;
+            trig_delay       <= 16'h0;
+            for (si = 0; si < TRIG_STAGES; si = si + 1) begin
+                seq_mode_a[si]       <= 4'd0;
+                seq_mode_b[si]       <= 4'd0;
+                seq_combine[si]      <= 2'd0;
+                seq_value_a[si]      <= {SAMPLE_W{1'b0}};
+                seq_mask_a[si]       <= {SAMPLE_W{1'b1}};
+                seq_value_b[si]      <= {SAMPLE_W{1'b0}};
+                seq_mask_b[si]       <= {SAMPLE_W{1'b1}};
+                seq_count_target[si] <= 16'h0;
+                seq_next_state[si]   <= {SEQ_STATE_W{1'b0}};
+                seq_is_final[si]     <= 1'b0;
+            end
+        end else if (any_arm_pulse) begin
+            pretrig_len      <= pretrig_len_stage;
+            posttrig_len     <= posttrig_len_stage;
+            trig_value       <= trig_value_stage;
+            trig_mask        <= trig_mask_stage;
+            // Stage-0 compare modes
+            if (HAS_SEQUENCER && seq_cfg_stage[0][9:0] != 10'd0) begin
+                trig_cmp_mode_a <= seq_cfg_stage[0][3:0];
+                trig_cmp_mode_b <= HAS_DUAL_COMPARE ? seq_cfg_stage[0][7:4] : 4'd0;
+                trig_combine    <= HAS_DUAL_COMPARE ? seq_cfg_stage[0][9:8] : 2'd0;
+            end else begin
+                trig_cmp_mode_a <= trig_mode_stage[1] ? 4'd8 : 4'd0;
+                trig_cmp_mode_b <= (HAS_DUAL_COMPARE && trig_mode_stage == 2'b11) ? 4'd8 : 4'd0;
+                trig_combine    <= (HAS_DUAL_COMPARE && trig_mode_stage == 2'b11) ? 2'd3 : 2'd0;
+            end
+            trig_value_b     <= (HAS_SEQUENCER && HAS_DUAL_COMPARE)
+                                 ? seq_value_b_stage[0] : {SAMPLE_W{1'b0}};
+            trig_mask_b      <= (HAS_SEQUENCER && HAS_DUAL_COMPARE)
+                                 ? seq_mask_b_stage[0] : {SAMPLE_W{1'b1}};
+            // Channel select (clamped to valid range)
+            chan_sel         <= chan_sel_next;
+            // Probe mux select (clamped when enabled)
+            probe_sel        <= probe_sel_next;
+            // Storage qualification
+            sq_enable        <= sq_mode_on;
+            sq_cmp_mode      <= sq_mode_on ? sq_mode_stage - 4'd1 : 4'h0;
+            sq_value         <= HAS_STOR_QUAL ? sq_value_stage : {SAMPLE_W{1'b0}};
+            sq_mask          <= HAS_STOR_QUAL ? sq_mask_stage : {SAMPLE_W{1'b0}};
+            rle_active       <= rle_active_next;
+            rle_post_clks    <= rle_post_clks_stage;
+            post_clk_en      <= rle_active_next && (rle_post_clks_stage != {POST_CLK_W{1'b0}});
+            post_clk_one     <= (rle_post_clks_stage == {{(POST_CLK_W-1){1'b0}}, 1'b1});
+            // Phase 1: decimation
+            decim_ratio      <= HAS_DECIM ? decim_stage : 24'h0;
+            // Phase 2: external trigger
+            ext_trig_mode    <= HAS_EXT_TRIG ? trig_ext_stage : 2'd0;
+            // Trigger delay (sample clocks) — latched on arm
+            trig_delay       <= trig_delay_stage;
+            // Sequencer stages
+            for (si = 0; si < TRIG_STAGES; si = si + 1) begin
+                seq_mode_a[si]       <= HAS_SEQUENCER ? seq_cfg_stage[si][3:0] : 4'd0;
+                seq_mode_b[si]       <= (HAS_SEQUENCER && HAS_DUAL_COMPARE)
+                                         ? seq_cfg_stage[si][7:4] : 4'd0;
+                seq_combine[si]      <= (HAS_SEQUENCER && HAS_DUAL_COMPARE)
+                                         ? seq_cfg_stage[si][9:8] : 2'd0;
+                seq_next_state[si]   <= HAS_SEQUENCER
+                                         ? seq_cfg_stage[si][10 +: SEQ_STATE_W]
+                                         : {SEQ_STATE_W{1'b0}};
+                seq_is_final[si]     <= HAS_SEQUENCER ? seq_cfg_stage[si][12] : 1'b0;
+                seq_count_target[si] <= HAS_SEQUENCER ? seq_cfg_stage[si][31:16] : 16'h0;
+                seq_value_a[si]      <= HAS_SEQUENCER ? seq_value_a_stage[si] : {SAMPLE_W{1'b0}};
+                seq_mask_a[si]       <= HAS_SEQUENCER ? seq_mask_a_stage[si] : {SAMPLE_W{1'b1}};
+                seq_value_b[si]      <= (HAS_SEQUENCER && HAS_DUAL_COMPARE)
+                                         ? seq_value_b_stage[si] : {SAMPLE_W{1'b0}};
+                seq_mask_b[si]       <= (HAS_SEQUENCER && HAS_DUAL_COMPARE)
+                                         ? seq_mask_b_stage[si] : {SAMPLE_W{1'b1}};
+            end
+        end
+    end
+
+    // ---- Previous sample register ------------------------------------------
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) probe_prev <= {SAMPLE_W{1'b0}};
+        else            probe_prev <= active_probe;
+    end
+
+    // ---- Phase 1: Decimation counter (sample_clk domain) -------------------
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            decim_count <= 24'h0;
+        end else begin
+            if (!HAS_DECIM) begin
+                decim_count <= 24'h0;
+            end else if (any_arm_pulse || reset_pulse) begin
+                // A soft reset must not leave the count mid-ratio: idle
+                // prefill stores only on decim_tick, and idle holds the count.
+                decim_count <= 24'h0;
+            end else if (armed && !done) begin
+                if (decim_count >= decim_ratio)
+                    decim_count <= 24'h0;
+                else
+                    decim_count <= decim_count + 1'b1;
+            end
+        end
+    end
+
+    // ---- Capture state machine ---------------------------------------------
+    wire [LEN_W-1:0] post_store_limit = posttrig_len;
+    wire [LEN_W:0] config_capture_len =
+        {1'b0, pretrig_len_stage} + {1'b0, posttrig_len_stage} + {{LEN_W{1'b0}}, 1'b1};
+    wire [LEN_W:0] capture_len_next =
+        {1'b0, pretrig_len} + {1'b0, posttrig_len} + {{LEN_W{1'b0}}, 1'b1};
+    wire trigger_commit_now = armed && !done && !triggered && !capture_restart &&
+        pretrigger_ready && trigger_holdoff_done && !sel_flush_active &&
+        ((trig_delay_pending && (trig_delay_count == 16'h0)) ||
+         (!trig_delay_pending && trigger_hit && (trig_delay == 16'h0)));
+    wire post_store_now = armed && !done && triggered && store_enable &&
+                          !post_left_zero;
+    // RLE clock limit: this clock is the last the post-trigger window covers.
+    wire clk_stop_now = HAS_RLE && post_clk_en && post_clk_last;
+    // The post-trigger window (segment or capture) completes on this clock.
+    wire post_done_now = post_left_zero || (store_enable && post_left_one) || clk_stop_now;
+    // Entries in the window when it completes.  A clock stop ends it short:
+    // post_left entries are still missing, less this clock's if it opens one.
+    wire [LEN_W-1:0] capture_len_done = !clk_stop_now ? capture_len :
+        capture_len - post_left + {{(LEN_W-1){1'b0}}, (store_enable && !post_left_zero)};
+    wire pre_store_now = !done && !triggered &&
+                         (store_enable || trigger_commit_now);
+    assign mem_we_a = pre_store_now || post_store_now;
+    assign mem_addr_a = ((PROBE_PIPE >= 1) && mem_we_a_q) ? mem_wr_addr_q : wr_ptr;
+
+    // Register the RAM write command so address, data, and enable stay
+    // aligned and the trigger/WEA path does not have to reach the BRAM in
+    // the same cycle as trigger evaluation.
+    //
+    // A queued write always lands, arm and soft reset included.  It carries
+    // its own address, and the pointer that produced it has already advanced;
+    // cancelling it left that address holding a sample one buffer-length old,
+    // inside any pre-trigger window reaching back across the arm.  With
+    // PROBE_PIPE = 0 the same sample is written on the arm edge itself.
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            mem_we_a_q     <= 1'b0;
+            mem_wr_addr_q  <= {PTR_W{1'b0}};
+            mem_wr_data_q  <= {SAMPLE_W{1'b0}};
+            mem_wr_ts_q    <= {TS_DATA_W{1'b0}};
+        end else begin
+            mem_we_a_q <= mem_we_a;
+            if (mem_we_a) begin
+                mem_wr_addr_q <= wr_ptr;
+                // The registered compare and storage-qualification hits
+                // describe the previous sample, so that is the one stored.
+                mem_wr_data_q <= probe_prev;
+                mem_wr_ts_q   <= ts_counter_cur;
+            end
+        end
+    end
+
+    // ---- Run-length capture: count RAM ------------------------------------
+    // A store opens an entry with count 0.  A repeat of the newest entry's
+    // sample in a cycle that would have stored extends it instead: the
+    // count goes up and is rewritten at the entry's address.  The count
+    // write is registered so a new entry and the next cycle's extend of it
+    // reach the RAM in order whatever PROBE_PIPE is.
+    wire rle_extend = rle_repeat && store_enable_base && !trigger_commit_now &&
+                      ((!done && !triggered) ||
+                       (armed && !done && triggered && !post_left_zero));
+    // This cycle completes the segment (or the capture); the next segment's
+    // first sample must open its own entry.
+    wire rle_seg_end = armed && !done && !capture_restart && triggered && post_done_now;
+    reg                  rle_we_q;
+    reg [PTR_W-1:0]      rle_wr_addr_q;
+    reg [RLE_DATA_W-1:0] rle_wr_count_q;
+    wire [RLE_DATA_W-1:0] rle_dout_b;
+
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            rle_open       <= 1'b0;
+            rle_value      <= {SAMPLE_W{1'b0}};
+            rle_count      <= {RLE_DATA_W{1'b0}};
+            rle_addr       <= {PTR_W{1'b0}};
+            rle_we_q       <= 1'b0;
+            rle_wr_addr_q  <= {PTR_W{1'b0}};
+            rle_wr_count_q <= {RLE_DATA_W{1'b0}};
+        end else begin
+            rle_we_q       <= HAS_RLE && (mem_we_a || rle_extend);
+            rle_wr_addr_q  <= mem_we_a ? wr_ptr : rle_addr;
+            rle_wr_count_q <= mem_we_a ? {RLE_DATA_W{1'b0}} : rle_count + 1'b1;
+            if (!HAS_RLE || capture_restart || sel_flush_active || rle_seg_end) begin
+                rle_open <= 1'b0;
+            end else if (mem_we_a) begin
+                rle_open  <= rle_active;
+                rle_value <= rle_sample;
+                rle_count <= {RLE_DATA_W{1'b0}};
+                rle_addr  <= wr_ptr;
+            end else if (rle_extend) begin
+                rle_count <= rle_count + 1'b1;
+            end
+        end
+    end
+
+    generate
+        if (HAS_RLE) begin : g_rle
+            dpram #(.WIDTH(RLE_DATA_W), .DEPTH(DEPTH)) u_rlebuf (
+                .clk_a  (sample_clk),
+                .we_a   (rle_we_q),
+                .addr_a (rle_wr_addr_q),
+                .din_a  (rle_wr_count_q),
+                .dout_a (),
+                .clk_b  (jtag_clk),
+                .addr_b (mem_addr_b),
+                .dout_b (rle_dout_b)
+            );
+        end else begin : g_no_rle
+            assign rle_dout_b = {RLE_DATA_W{1'b0}};
+        end
+    endgenerate
+
+    // Aux lane: timestamps, or run counts.
+    wire [AUX_DATA_W-1:0] aux_ts_b;
+    wire [AUX_DATA_W-1:0] aux_rle_b;
+    generate
+        if (TIMESTAMP_W > 0) begin : g_aux_ts
+            assign aux_ts_b = ts_dout_b;  // AUX_W == TIMESTAMP_W
+        end else begin : g_aux_no_ts
+            assign aux_ts_b = {AUX_DATA_W{1'b0}};
+        end
+        if (HAS_RLE && AUX_DATA_W > RLE_DATA_W) begin : g_aux_rle_pad
+            assign aux_rle_b = {{(AUX_DATA_W - RLE_DATA_W){1'b0}}, rle_dout_b};
+        end else if (HAS_RLE) begin : g_aux_rle
+            assign aux_rle_b = rle_dout_b;
+        end else begin : g_aux_no_rle
+            assign aux_rle_b = {AUX_DATA_W{1'b0}};
+        end
+    endgenerate
+    assign burst_rd_ts_data = burst_rle ? aux_rle_b : aux_ts_b;
+
+    // Phase 2: trigger_out pulse
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst)
+            trigger_out_r <= 1'b0;
+        else
+            // One pulse per trigger: hits during the trigger-delay countdown
+            // are not evaluated, so they must not extend or repeat it.
+            trigger_out_r <= (armed && !triggered && !capture_restart &&
+                              !trig_delay_pending &&
+                              pretrigger_ready && trigger_holdoff_done &&
+                              !sel_flush_active && trigger_hit) ? 1'b1 : 1'b0;
+    end
+
+    // Phase 4: segment base address
+    wire [PTR_W-1:0] seg_base =
+        HAS_SEGMENTS ? (cur_segment * SEG_DEPTH[PTR_W-1:0]) : {PTR_W{1'b0}};
+    wire [PTR_W-1:0] wr_seg_off = wr_ptr - seg_base;
+    wire [PTR_W-1:0] trig_seg_off = trig_ptr - seg_base;
+    wire [PTR_W-1:0] capture_start_ptr =
+        (HAS_SEGMENTS && !segment_wrapped && {1'b0, trig_seg_off} < pretrig_len)
+            ? seg_base
+            : seg_base + ((trig_ptr - seg_base + SEG_DEPTH - pretrig_len[PTR_W-1:0]) & (SEG_DEPTH - 1));
+
+    integer seg_i;
+    always @(posedge sample_clk or posedge sample_rst) begin
+        if (sample_rst) begin
+            armed       <= 1'b0;
+            triggered   <= 1'b0;
+            done        <= 1'b0;
+            overflow    <= 1'b0;
+            wr_ptr      <= {PTR_W{1'b0}};
+            trig_ptr    <= {PTR_W{1'b0}};
+            start_ptr   <= {PTR_W{1'b0}};
+            post_left   <= {LEN_W{1'b0}};
+            post_left_zero <= 1'b1;
+            post_left_one  <= 1'b0;
+            pre_count   <= {LEN_W{1'b0}};
+            capture_len <= {LEN_W{1'b0}};
+            seq_state   <= {SEQ_STATE_W{1'b0}};
+            seq_counter <= 16'h0;
+            trig_holdoff       <= 16'h0;
+            trig_holdoff_active <= 1'b0;
+            trig_holdoff_count  <= 16'h0;
+            trig_delay_pending <= 1'b0;
+            trig_delay_count   <= 16'h0;
+            cur_segment <= {SEG_IDX_W{1'b0}};
+            seg_count   <= {SEG_IDX_W{1'b0}};
+            all_seg_done <= 1'b0;
+            segment_wrapped <= 1'b0;
+            post_clk_left <= {POST_CLK_W{1'b0}};
+            post_clk_last <= 1'b0;
+            for (seg_i = 0; seg_i < NUM_SEGMENTS; seg_i = seg_i + 1) begin
+                seg_start_ptr[seg_i] <= {PTR_W{1'b0}};
+                seg_len[seg_i]       <= {LEN_W{1'b0}};
+            end
+        end else begin
+            if (reset_pulse) begin
+                armed       <= 1'b0;
+                triggered   <= 1'b0;
+                done        <= 1'b0;
+                overflow    <= 1'b0;
+                wr_ptr      <= {PTR_W{1'b0}};
+                post_left   <= {LEN_W{1'b0}};
+                post_left_zero <= 1'b1;
+                post_left_one  <= 1'b0;
+                pre_count   <= {LEN_W{1'b0}};
+                capture_len <= {LEN_W{1'b0}};
+                trig_holdoff_active <= 1'b0;
+                trig_holdoff_count  <= 16'h0;
+                trig_delay_pending <= 1'b0;
+                trig_delay_count   <= 16'h0;
+                cur_segment <= {SEG_IDX_W{1'b0}};
+                seg_count   <= {SEG_IDX_W{1'b0}};
+                all_seg_done <= 1'b0;
+                segment_wrapped <= 1'b0;
+                for (seg_i = 0; seg_i < NUM_SEGMENTS; seg_i = seg_i + 1) begin
+                    seg_start_ptr[seg_i] <= {PTR_W{1'b0}};
+                    seg_len[seg_i]       <= {LEN_W{1'b0}};
+                end
+            end
+
+            if (done) begin
+                armed              <= 1'b0;
+                post_left   <= {LEN_W{1'b0}};
+                post_left_zero <= 1'b1;
+                post_left_one  <= 1'b0;
+                trig_delay_pending <= 1'b0;
+                trig_delay_count   <= 16'h0;
+                // Sample writes are frozen while done is held (the host is
+                // reading the buffer out), so the rolling pre-arm history now
+                // has a hole in it.  pre_count must stop vouching for it, or
+                // the next arm lets a trigger commit immediately and
+                // start_ptr reaches back across the freeze into the previous
+                // capture -- a window spliced from two moments with nothing
+                // marking the join.  Segmented builds already clear pre_count
+                // on arm and on segment auto-rearm, so this is single-segment
+                // only.
+                if (!HAS_SEGMENTS)
+                    pre_count <= {LEN_W{1'b0}};
+            end
+
+            if (any_arm_pulse) begin
+                armed       <= 1'b1;
+                triggered   <= 1'b0;
+                done        <= 1'b0;
+                if (HAS_RLE_SEG_LEN)
+                    for (seg_i = 0; seg_i < NUM_SEGMENTS; seg_i = seg_i + 1)
+                        seg_len[seg_i] <= {LEN_W{1'b0}};
+                if (HAS_SEGMENTS)
+                    wr_ptr  <= {PTR_W{1'b0}};
+                post_left   <= {LEN_W{1'b0}};
+                post_left_zero <= 1'b1;
+                post_left_one  <= 1'b0;
+                // A switched selection voids the rolling pre-arm history (it
+                // holds the old selection's samples), as does the
+                // qualification bubble above.  So does a restart of a
+                // capture that had triggered: once its post-trigger samples
+                // are in, it stops writing, leaving a hole.
+                if (HAS_SEGMENTS || arm_voids_history || triggered)
+                    pre_count <= {LEN_W{1'b0}};
+                seq_state   <= {SEQ_STATE_W{1'b0}};
+                seq_counter <= 16'h0;
+                trig_holdoff <= trig_holdoff_stage;
+                trig_holdoff_active <= (trig_holdoff_stage != 16'h0);
+                trig_holdoff_count  <= (trig_holdoff_stage != 16'h0)
+                    ? (trig_holdoff_stage - 16'h1) : 16'h0;
+                trig_delay_pending <= 1'b0;
+                trig_delay_count   <= 16'h0;
+                cur_segment <= {SEG_IDX_W{1'b0}};
+                seg_count   <= {SEG_IDX_W{1'b0}};
+                all_seg_done <= 1'b0;
+                segment_wrapped <= 1'b0;
+                // Overflow check: use SEG_DEPTH for segmented mode
+                if (NUM_SEGMENTS > 1)
+                    overflow <= (config_capture_len > SEG_DEPTH);
+                else
+                    overflow <= (config_capture_len > DEPTH);
+            end
+
+            // Issue #10: in single-segment mode, keep BRAM populated before
+            // arm so a fast trigger can use real pre-arm history instead of
+            // waiting for a post-arm prefill window.  Segmented captures reset
+            // the write pointer on each arm, so pre-arm writes there would only
+            // leak stale samples into segment 0 — gate the prefill on
+            // !HAS_SEGMENTS while still clearing trig-delay state every idle
+            // cycle.
+            // A soft reset restarts the ring; prefill must not override it.
+            if (!armed && !done && !reset_pulse) begin
+                trig_delay_pending <= 1'b0;
+                trig_delay_count   <= 16'h0;
+                if (!HAS_SEGMENTS) begin
+                    if (mem_we_a) begin
+                        wr_ptr <= wr_ptr + 1'b1;
+                        if (wr_ptr >= DEPTH_LAST)
+                            wr_ptr <= {PTR_W{1'b0}};
+                    end
+                    if (store_enable && !pretrigger_ready &&
+                        !(any_arm_pulse && arm_voids_history))
+                        pre_count <= pre_count + 1'b1;
+                end
+            end
+
+            // An arm or soft reset on this edge restarts the capture, so the
+            // running capture's decisions below must not override it.  Only
+            // the single-segment ring still advances past the sample stored
+            // on this edge, which keeps the rolling history contiguous.
+            //
+            // Store sample (qualified + decimated).  A trigger commit
+            // force-stores the anchor sample so samples[pretrig] remains
+            // the committed trigger sample even when decimation or storage
+            // qualification would otherwise skip that cycle.
+            if (armed && !done && mem_we_a && !reset_pulse &&
+                !(HAS_SEGMENTS && any_arm_pulse)) begin
+                wr_ptr <= wr_ptr + 1'b1;
+                // Phase 4: segment-aware wrap
+                if (NUM_SEGMENTS > 1) begin
+                    if (wr_seg_off >= SEG_DEPTH_LAST) begin
+                        wr_ptr <= seg_base;
+                        segment_wrapped <= 1'b1;
+                    end else begin
+                        wr_ptr <= wr_ptr + 1'b1;
+                    end
+                end
+            end
+
+            if (armed && !done && !capture_restart) begin
+                if (trig_holdoff_active) begin
+                    if (trig_holdoff_count == 16'h0)
+                        trig_holdoff_active <= 1'b0;
+                    else
+                        trig_holdoff_count <= trig_holdoff_count - 16'h1;
+                end
+                if (!triggered && !trigger_commit_now && store_enable && !pretrigger_ready)
+                    pre_count <= pre_count + 1'b1;
+
+                // Trigger / sequencer evaluation (runs every cycle, NOT gated by decimation)
+                if (!triggered) begin
+                    if (trig_holdoff_active || sel_flush_active) begin
+                        // Ignore trigger / sequencer activity until the
+                        // post-arm holdoff window and any selection flush
+                        // expire.
+                        if (!trig_delay_pending)
+                            trig_delay_count <= 16'h0;
+                    end else if (trig_delay_pending) begin
+                        // Counting down sample-clock cycles between the
+                        // trigger event and the committed trigger sample.
+                        // Buffer continues to record (gated by store_enable
+                        // above).  At terminal count, commit trig_ptr from
+                        // the *current* wr_ptr — this is now `trig_delay`
+                        // store events later than the original cause.
+                        if (trig_delay_count == 16'h0) begin
+                            triggered          <= 1'b1;
+                            trig_ptr           <= wr_ptr;
+                            post_left          <= post_store_limit;
+                            post_left_zero     <= (post_store_limit == {LEN_W{1'b0}});
+                            post_left_one      <= (post_store_limit == LEN_ONE);
+                            capture_len        <= capture_len_next[LEN_W-1:0];
+                            post_clk_left      <= rle_post_clks;
+                            post_clk_last      <= post_clk_one;
+                            trig_delay_pending <= 1'b0;
+                        end else begin
+                            trig_delay_count <= trig_delay_count - 1'b1;
+                        end
+                    end else if (pretrigger_ready && trigger_hit) begin
+                        if (trig_delay == 16'h0) begin
+                            // Zero delay: legacy behavior, commit immediately.
+                            triggered   <= 1'b1;
+                            trig_ptr    <= wr_ptr;
+                            post_left          <= post_store_limit;
+                            post_left_zero     <= (post_store_limit == {LEN_W{1'b0}});
+                            post_left_one      <= (post_store_limit == LEN_ONE);
+                            capture_len <= capture_len_next[LEN_W-1:0];
+                            post_clk_left      <= rle_post_clks;
+                            post_clk_last      <= post_clk_one;
+                        end else begin
+                            // Enter delay countdown.  trig_delay_count is
+                            // the number of *additional* cycles after this
+                            // one before commit, so subtract 1.
+                            trig_delay_pending <= 1'b1;
+                            trig_delay_count   <= trig_delay - 16'h1;
+                        end
+                    end else if (pretrigger_ready && seq_advance) begin
+                        trig_delay_count <= 16'h0;
+                        seq_state   <= seq_next_state[seq_state];
+                        seq_counter <= 16'h0;
+                    end else if (pretrigger_ready && TRIG_STAGES > 1 && seq_stage_hit) begin
+                        trig_delay_count <= 16'h0;
+                        seq_counter <= seq_counter + 1'b1;
+                    end else begin
+                        trig_delay_count <= 16'h0;
+                    end
+                end else begin
+                    trig_delay_pending <= 1'b0;
+                    trig_delay_count   <= 16'h0;
+                    // Post-trigger countdown (counts stored samples only).
+                    // With RLE a clock limit can end the window first.
+                    if (post_done_now) begin
+                        // Segment complete
+                        capture_len <= capture_len_done;
+                        if (NUM_SEGMENTS > 1) begin
+                            // Ring start within this segment. Before the
+                            // segment has wrapped, don't point pretrigger
+                            // history into unwritten tail addresses.
+                            seg_start_ptr[cur_segment] <= capture_start_ptr;
+                            if (HAS_RLE_SEG_LEN)
+                                seg_len[cur_segment] <= capture_len_done;
+                            if (cur_segment == NUM_SEGMENTS - 1) begin
+                                // All segments done
+                                done      <= 1'b1;
+                                armed     <= 1'b0;
+                                start_ptr <= seg_start_ptr[0];
+                                all_seg_done <= 1'b1;
+                                seg_count    <= seg_count + 1'b1;
+                            end else begin
+                                // Auto-rearm for next segment
+                                cur_segment <= cur_segment + 1'b1;
+                                seg_count   <= seg_count + 1'b1;
+                                triggered   <= 1'b0;
+                                post_left   <= {LEN_W{1'b0}};
+                                post_left_zero <= 1'b1;
+                                post_left_one  <= 1'b0;
+                                pre_count   <= {LEN_W{1'b0}};
+                                seq_state   <= {SEQ_STATE_W{1'b0}};
+                                seq_counter <= 16'h0;
+                                trig_holdoff_active <= (trig_holdoff != 16'h0);
+                                trig_holdoff_count  <= (trig_holdoff != 16'h0)
+                                    ? (trig_holdoff - 16'h1) : 16'h0;
+                                trig_delay_pending <= 1'b0;
+                                trig_delay_count   <= 16'h0;
+                                // Set wr_ptr to next segment base
+                                wr_ptr      <= (cur_segment + 1) * SEG_DEPTH[PTR_W-1:0];
+                                segment_wrapped <= 1'b0;
+                            end
+                        end else begin
+                            done      <= 1'b1;
+                            armed     <= 1'b0;
+                            start_ptr <= capture_start_ptr;
+                        end
+                    end else begin
+                        if (store_enable) begin
+                            post_left      <= post_left - 1'b1;
+                            post_left_zero <= 1'b0;
+                            post_left_one  <= (post_left == LEN_TWO);
+                        end
+                        if (HAS_RLE) begin
+                            post_clk_left <= post_clk_left - 1'b1;
+                            post_clk_last <= ({1'b0, post_clk_left} == POST_CLK_TWO);
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    always @(posedge jtag_clk or posedge jtag_rst) begin
+        if (jtag_rst) begin
+            jtag_rdata       <= 32'h0;
+            datawin_reply_q  <= 1'b0;
+            datawin_oob_q    <= 1'b0;
+            datawin_is_ts_q  <= 1'b0;
+            datawin_chunk_q  <= 32'h0;
+        end else begin
+            datawin_reply_q <= datawin_req_now;
+            datawin_oob_q   <= datawin_oob_comb | burst_rd_active;
+            datawin_is_ts_q <= datawin_is_ts_comb;
+            datawin_chunk_q <= datawin_chunk_comb;
+
+            if (jtag_rd_en && !jtag_rd_data_window)
+                jtag_rdata <= jtag_rdata_mux;
+            if (datawin_reply_q) begin
+                if (datawin_oob_q)
+                    jtag_rdata <= 32'h0;
+                else if (datawin_is_ts_q)
+                    jtag_rdata <= aux_chunk_word(jtag_rle_ctrl[1] ? aux_rle_b : aux_ts_b,
+                                                 datawin_chunk_q);
+                else
+                    jtag_rdata <= sample_chunk_word(mem_dout_b, datawin_chunk_q);
+            end
+        end
+    end
+
+    // ---- Register read mux -------------------------------------------------
+    integer seq_rd_stage, seq_rd_off;
+
+    wire seq_addr_hit = HAS_SEQUENCER && (jtag_addr >= ADDR_SEQ_BASE) &&
+                        (jtag_addr < ADDR_SEQ_BASE + TRIG_STAGES * SEQ_STRIDE);
+    wire [15:0] seq_addr_delta = jtag_addr - ADDR_SEQ_BASE;
+    wire [31:0] seq_rd_stage_w = seq_addr_hit ? (seq_addr_delta / SEQ_STRIDE) : 32'h0;
+    wire [31:0] seq_rd_off_w   = seq_addr_hit ? (seq_addr_delta % SEQ_STRIDE) : 32'h0;
+    wire [31:0] seq_cfg_r      = jtag_seq_cfg[seq_rd_stage_w];
+    wire [31:0] seq_value_a_r  = jtag_seq_value_a[seq_rd_stage_w];
+    wire [31:0] seq_mask_a_r   = jtag_seq_mask_a[seq_rd_stage_w];
+    wire [31:0] seq_value_b_r  = jtag_seq_value_b[seq_rd_stage_w];
+    wire [31:0] seq_mask_b_r   = jtag_seq_mask_b[seq_rd_stage_w];
+
+    function [31:0] sample_chunk_word;
+        input [SAMPLE_W-1:0] sample;
+        input integer chunk;
+        integer bit_i;
+        integer bit_base;
+        begin
+            sample_chunk_word = 32'h0;
+            bit_base = chunk * 32;
+            for (bit_i = 0; bit_i < 32; bit_i = bit_i + 1) begin
+                if (bit_base + bit_i < SAMPLE_W)
+                    sample_chunk_word[bit_i] = sample[bit_base + bit_i];
+            end
+        end
+    endfunction
+
+    function [31:0] aux_chunk_word;
+        input [AUX_DATA_W-1:0] sample;
+        input integer chunk;
+        integer bit_i;
+        integer bit_base;
+        begin
+            aux_chunk_word = 32'h0;
+            bit_base = chunk * 32;
+            for (bit_i = 0; bit_i < 32; bit_i = bit_i + 1) begin
+                if (bit_base + bit_i < AUX_DATA_W)
+                    aux_chunk_word[bit_i] = sample[bit_base + bit_i];
+            end
+        end
+    endfunction
+
+    always @(*) begin
+        // defaults
+        jtag_rdata_mux = 0;
+        seq_rd_stage = 0;
+        seq_rd_off = 0;
+
+        case (jtag_addr)
+            // VERSION layout (defined in rtl/fcapz_version.vh, generated
+            // from the repo-root VERSION file by tools/sync_version.py):
+            //   [31:24] = `FCAPZ_VERSION_MAJOR (8-bit)
+            //   [23:16] = `FCAPZ_VERSION_MINOR (8-bit)
+            //   [15:0]  = `FCAPZ_ELA_CORE_ID  = ASCII "LA" = 0x4C41
+            // Hosts must verify VERSION[15:0] equals the LA magic before
+            // trusting any other ELA register on this chain.
+            ADDR_VERSION:     jtag_rdata_mux = `FCAPZ_ELA_VERSION_REG;
+            ADDR_CTRL:        jtag_rdata_mux = jtag_ctrl;
+            ADDR_STATUS:      jtag_rdata_mux = {28'h0, overflow, rb_done_jtag, triggered, armed};
+            ADDR_SAMPLE_W:    jtag_rdata_mux = SAMPLE_W;
+            ADDR_DEPTH:       jtag_rdata_mux = DEPTH;
+            ADDR_PRETRIG:     jtag_rdata_mux = jtag_pretrig_len;
+            ADDR_POSTTRIG:    jtag_rdata_mux = jtag_posttrig_len;
+            ADDR_CAPTURE_LEN: jtag_rdata_mux = rb_window_len_jtag;
+            ADDR_TRIG_MODE:   jtag_rdata_mux = jtag_trig_mode;
+            ADDR_TRIG_VALUE:  jtag_rdata_mux = jtag_trig_value;
+            ADDR_TRIG_MASK:   jtag_rdata_mux = jtag_trig_mask;
+            ADDR_SQ_MODE:     jtag_rdata_mux = HAS_STOR_QUAL ? jtag_sq_mode : 32'h0;
+            ADDR_SQ_VALUE:    jtag_rdata_mux = HAS_STOR_QUAL ? jtag_sq_value : 32'h0;
+            ADDR_SQ_MASK:     jtag_rdata_mux = HAS_STOR_QUAL ? jtag_sq_mask : 32'h0;
+            ADDR_FEATURES:    jtag_rdata_mux = FEATURES;
+            ADDR_CHAN_SEL:    jtag_rdata_mux = HAS_CHANNEL_MUX ? {24'h0, jtag_chan_sel} : 32'h0;
+            ADDR_NUM_CHAN:    jtag_rdata_mux = NUM_CHANNELS;
+            ADDR_DECIM:       jtag_rdata_mux = HAS_DECIM ? {8'h0, jtag_decim} : 32'h0;
+            ADDR_TRIG_EXT:    jtag_rdata_mux = HAS_EXT_TRIG ? {30'h0, jtag_trig_ext} : 32'h0;
+            ADDR_NUM_SEGMENTS: jtag_rdata_mux = NUM_SEGMENTS;
+            ADDR_SEG_STATUS:  jtag_rdata_mux = HAS_SEGMENTS
+                                               ? {all_seg_done, {(31-SEG_IDX_W){1'b0}}, seg_count}
+                                               : 32'h8000_0000;
+            ADDR_SEG_SEL:     jtag_rdata_mux = HAS_SEGMENTS
+                                               ? {{(32-SEG_IDX_W){1'b0}}, jtag_seg_sel}
+                                               : 32'h0;
+            // seg_start_ptr is stable after all_seg_done (same CDC pattern
+            // as all_seg_done/seg_count on ADDR_SEG_STATUS above)
+            ADDR_SEG_START:   jtag_rdata_mux = HAS_SEGMENTS
+                                ? {{(32-PTR_W){1'b0}}, jtag_seg_start_ptr}
+                                : {{(32-PTR_W){1'b0}}, rb_start_ptr_jtag};
+            ADDR_PROBE_SEL:   jtag_rdata_mux = HAS_PROBE_MUX ? {24'h0, jtag_probe_sel} : 32'h0;
+            ADDR_PROBE_MUX_W: jtag_rdata_mux = PROBE_MUX_W;
+            ADDR_STARTUP_ARM: jtag_rdata_mux = {31'h0, jtag_startup_arm};
+            ADDR_TRIG_HOLDOFF: jtag_rdata_mux = {16'h0, jtag_trig_holdoff};
+            ADDR_TRIG_DELAY:  jtag_rdata_mux = {16'h0, jtag_trig_delay};
+            ADDR_TIMESTAMP_W: jtag_rdata_mux = TIMESTAMP_W;
+            ADDR_COMPARE_CAPS: jtag_rdata_mux = COMPARE_CAPS;
+            ADDR_WIDE_SEL:    jtag_rdata_mux = HAS_WIDE_TRIG ? {24'h0, jtag_wide_sel} : 32'h0;
+            ADDR_RLE_CTRL:    jtag_rdata_mux = HAS_RLE ? {30'h0, jtag_rle_ctrl} : 32'h0;
+            ADDR_RLE_W:       jtag_rdata_mux = RLE_W;
+            ADDR_RLE_POST_CLKS: jtag_rdata_mux = HAS_RLE ? jtag_rle_post_clks : {POST_CLK_W{1'b0}};
+
+            default: begin
+                if (seq_addr_hit) begin
+                    seq_rd_stage = seq_rd_stage_w;
+                    seq_rd_off   = seq_rd_off_w;
+                    case (seq_rd_off)
+                        0:  jtag_rdata_mux = seq_cfg_r;
+                        4:  jtag_rdata_mux = seq_value_a_r;
+                        8:  jtag_rdata_mux = seq_mask_a_r;
+                        12: jtag_rdata_mux = HAS_DUAL_COMPARE ? seq_value_b_r : 32'h0;
+                        16: jtag_rdata_mux = HAS_DUAL_COMPARE ? seq_mask_b_r : 32'hFFFF_FFFF;
+                        default: jtag_rdata_mux = 32'h0;
+                    endcase
+                end
+            end
+        endcase
+    end
+
+endmodule

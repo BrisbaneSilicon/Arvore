@@ -37,6 +37,9 @@ a = Analysis(
         # Makefile + linker script + helper tools deployed into each new
         # C workspace.
         (str(ROOT / 'ide' / 'elm11' / 'c' / 'build'), 'ide/elm11/c/build'),
+        # Vendored fpgacapZero RTL subset, copied into a workspace on demand
+        # by Tools -> "Generate Logic Analyzer Core..." (see ide/fcapz_gen.py).
+        (str(ROOT / 'ide' / 'fcapz'), 'ide/fcapz'),
     ],
     hiddenimports=['serial.tools.list_ports_linux'],
     hookspath=[],

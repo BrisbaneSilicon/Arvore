@@ -20,9 +20,16 @@ module user
     output  reg             m_iobus_wren,
     output  reg [15:0]      m_iobus_wrdata,
     input       [15:0]      m_iobus_rddata,
-    output  reg [15:0]      m_iobus_tuser
+    output  reg [15:0]      m_iobus_tuser,
         // NOTE: downstream interface,
         // i.e. to/from physical pins
+
+
+    input   wire            tms,
+    input   wire            tck,
+    input   wire            tdi,
+    output  wire            tdo
+        // NOTE: JTAG (FCapZ Debugging)
 );
 
     //  ------- Constants -------
@@ -82,5 +89,11 @@ module user
             end
         end
     end
+
+
+    //  ------- Debugging -------
+
+    assign tdo = 1'b0;
+        // NOTE: remove if instantiating FCapZ ELA
 
 endmodule

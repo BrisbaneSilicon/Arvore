@@ -26,6 +26,15 @@ if {[file exists "$hardware_path/user.vhd"]} {
     add_file "$hardware_path/user.vhd"
 }
 
+if {[file isdirectory "$hardware_path/fcapz"]} {
+    # fpgacapZero Embedded Logic Analyzer RTL, if generated into the
+    # workspace via Tools -> "Generate Logic Analyzer Core..." (see
+    # ide/fcapz_gen.py). Dynamic by presence -- no separate toggle.
+    foreach f [glob -nocomplain "$hardware_path/fcapz/*.v" "$hardware_path/fcapz/*/*.v"] {
+        add_file -type verilog $f
+    }
+}
+
 set_option -top_module emblua
 
 run all
