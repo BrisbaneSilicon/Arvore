@@ -40,6 +40,10 @@ a = Analysis(
         # Vendored fpgacapZero RTL subset, copied into a workspace on demand
         # by Tools -> "Generate Logic Analyzer Core..." (see ide/fcapz_gen.py).
         (str(ROOT / 'ide' / 'fcapz'), 'ide/fcapz'),
+        # Per-board OpenOCD configs for the "OpenOCD" toolbar button (JTAG
+        # access for probing a generated fpgacapZero core).
+        (str(ROOT / 'ide' / 'elm11' / 'openocd'), 'ide/elm11/openocd'),
+        (str(ROOT / 'ide' / 'elm11-feather' / 'openocd'), 'ide/elm11-feather/openocd'),
     ],
     hiddenimports=['serial.tools.list_ports_linux'],
     hookspath=[],

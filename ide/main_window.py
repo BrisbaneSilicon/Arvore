@@ -345,12 +345,16 @@ class MainWindow(QMainWindow):
         self._synth_out.build_finished.connect(self._on_synth_finished)
         self._flash_out = BuildOutput()
         self._program_out = BuildOutput()
+        self._openocd_out = BuildOutput()
+        self._openocd_running = False
+        self._openocd_out.build_finished.connect(self._on_openocd_finished)
         self._bottom.addTab(self._terminal, 'Serial Terminal')
         self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
         self._bottom.addTab(self._flash_out, 'Flash Output')
         self._bottom.addTab(self._synth_out, 'Synthesis Output')
         self._bottom.addTab(self._program_out, 'Program Output')
+        self._bottom.addTab(self._openocd_out, 'OpenOCD Output')
         self._centre.addWidget(self._bottom)
         self._centre.setChildrenCollapsible(False)
 
@@ -631,8 +635,15 @@ class MainWindow(QMainWindow):
         self._fw_flash_btn.setToolTip('Program hardware to device')
         self._fw_flash_btn.clicked.connect(self._fw_flash)
 
+        self._openocd_btn = QPushButton('OpenOCD')
+        self._openocd_btn.setToolTip(
+            'Start OpenOCD (for fpgacapZero JTAG probing) — can\'t run '
+            'at the same time as Program')
+        self._openocd_btn.clicked.connect(self._toggle_openocd)
+
         tb.addWidget(self._toolbar_group('Hardware',
-            [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn]))
+            [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn,
+             self._openocd_btn]))
         tb.addSeparator()
 
         self._cmd_btn = QPushButton('Command Mode')
@@ -915,7 +926,7 @@ class MainWindow(QMainWindow):
             self._upload_btn, self._run_btn, self._stop_btn,
             self._build_btn, self._clean_btn, self._flash_btn,
             self._synth_btn, self._fw_clean_btn, self._fw_flash_btn,
-            self._cmd_btn,
+            self._openocd_btn, self._cmd_btn,
         ]
 
     def _update_device_buttons(self):
@@ -938,6 +949,10 @@ class MainWindow(QMainWindow):
         for w in (self._port_combo, self._connect_btn, self._build_btn,
                   self._clean_btn, self._synth_btn, self._fw_clean_btn):
             w.setEnabled(True)
+        # OpenOCD doesn't need the serial port released (unlike Program) —
+        # only mutual exclusion with Program itself, enforced in _fw_flash
+        # and _toggle_openocd directly rather than here.
+        self._openocd_btn.setEnabled(True)
         # Upload / Run / Stop act on a Lua program — only enabled when the
         # active editor tab holds a .lua file.
         cur = self._cur()
@@ -955,8 +970,9 @@ class MainWindow(QMainWindow):
         self._flash_btn.setEnabled(usable)
         # Program (FPGA bitstream via Gowin programmer_cli) talks to the board
         # over JTAG, which needs the serial port released — only enabled while
-        # the device is disconnected.
-        self._fw_flash_btn.setEnabled(not connected)
+        # the device is disconnected. It also can't run at the same time as
+        # OpenOCD (both want the JTAG adapter).
+        self._fw_flash_btn.setEnabled(not connected and not self._openocd_running)
 
     def _on_cmd_btn_toggled(self, checked: bool):
         # Toolbar trigger. Drives device activation; the resulting
@@ -1632,6 +1648,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'No Workspace',
                 'Open a workspace to program the device.')
             return
+        if self._openocd_out.is_running():
+            QMessageBox.warning(self, 'OpenOCD Running',
+                'Stop OpenOCD before programming the device — both need '
+                'exclusive access to the JTAG adapter.')
+            return
         gowin = SettingsDialog.gowin_path()
         if not gowin:
             QMessageBox.warning(self, 'Gowin IDE Not Configured',
@@ -1656,8 +1677,15 @@ class MainWindow(QMainWindow):
             return
         self._program_out.clear()
         self._bottom.setCurrentWidget(self._program_out)
+        # OpenOCD and Program both need exclusive JTAG access — block
+        # starting OpenOCD for the duration of this run.
+        self._openocd_btn.setEnabled(False)
 
         def _run_programmer(*_):
+            def _reenable_openocd(_code):
+                self._program_out.build_finished.disconnect(_reenable_openocd)
+                self._openocd_btn.setEnabled(True)
+            self._program_out.build_finished.connect(_reenable_openocd)
             self._program_out.run_command(
                 str(prog),
                 ['--device', 'GW1NR-9C', '--operation_index', '5',
@@ -1690,6 +1718,48 @@ class MainWindow(QMainWindow):
                 parts[0], parts[1:], cwd=str(self._synth_dir()), clear=False)
         else:
             _run_programmer()
+
+    def _toggle_openocd(self):
+        """Start/stop OpenOCD against the JTAG adapter — used to probe an
+        fpgacapZero core generated via Tools -> 'Generate Embedded Logic
+        Analyzer…'. Toggles like Synth: click while running kills it.
+        Unlike Program, this doesn't need the serial port released; it
+        only needs mutual exclusion with Program itself (both want
+        exclusive JTAG access)."""
+        if self._openocd_running:
+            self._openocd_out.stop()
+            return
+        if self._workspace_root is None:
+            QMessageBox.warning(self, 'No Workspace',
+                'Open a workspace to start OpenOCD.')
+            return
+        if self._program_out.is_running():
+            QMessageBox.warning(self, 'Programming In Progress',
+                'Wait for programming to finish before starting OpenOCD — '
+                'both need exclusive access to the JTAG adapter.')
+            return
+        board = self._workspace_target.lower()
+        cfg = _ide_data_dir(f'{board}/openocd/{board}.cfg')
+        if not cfg.is_file():
+            QMessageBox.warning(self, 'No OpenOCD Config',
+                f'No bundled OpenOCD config found for '
+                f'{self._workspace_target}:\n{cfg}')
+            return
+        openocd = SettingsDialog.openocd_path() or 'openocd'
+        self._openocd_out.clear()
+        self._bottom.setCurrentWidget(self._openocd_out)
+        self._openocd_running = True
+        self._openocd_btn.setText('Stop')
+        self._update_device_buttons()
+        self._openocd_out.run_command(openocd, ['-f', str(cfg)])
+
+    def _on_openocd_finished(self, _exit_code: int):
+        """OpenOCD exited — stopped by the user, or a real error (e.g. the
+        adapter wasn't found). Either way, restore the button and re-allow
+        Program."""
+        self._openocd_running = False
+        self._openocd_btn.setText('OpenOCD')
+        self._update_device_buttons()
 
     def _build(self):
         # While a build is running the button reads 'Stop' — click = kill.

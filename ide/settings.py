@@ -121,6 +121,17 @@ class SettingsDialog(QDialog):
         self._preprogram.setPlaceholderText(_DEFAULT_PREPROGRAM)
         f.addRow('Pre-program command:', self._preprogram)
 
+        # OpenOCD binary, used to drive the fpgacapZero Embedded Logic
+        # Analyzer over JTAG. Empty means 'openocd' is resolved from PATH.
+        self._openocd = QLineEdit()
+        self._openocd.setPlaceholderText('openocd (resolved from PATH if empty)')
+        browse_openocd = QPushButton('Browse…')
+        browse_openocd.clicked.connect(self._browse_openocd)
+        row_openocd = QHBoxLayout()
+        row_openocd.addWidget(self._openocd)
+        row_openocd.addWidget(browse_openocd)
+        f.addRow('OpenOCD Path:', row_openocd)
+
         tabs.addTab(hw_w, 'Hardware')
 
         # ── Editor ────────────────────────────────────────────────────
@@ -203,6 +214,12 @@ class SettingsDialog(QDialog):
         if path:
             self._gowin.setText(path)
 
+    def _browse_openocd(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Select OpenOCD binary', '', 'All files (*)')
+        if path:
+            self._openocd.setText(path)
+
     def _browse_freetype(self):
         path, _ = QFileDialog.getOpenFileName(
             self, 'Select libfreetype.so', '/lib', 'Shared libraries (*.so*)')
@@ -231,6 +248,7 @@ class SettingsDialog(QDialog):
         self._libfreetype.setText(self._s.value('hw/libfreetype_path', _DEFAULT_FREETYPE))
         self._libz.setText(self._s.value('hw/libz_path', _DEFAULT_LIBZ))
         self._preprogram.setText(self._s.value('hw/preprogram_cmd', _DEFAULT_PREPROGRAM))
+        self._openocd.setText(self._s.value('hw/openocd_path', ''))
 
     def _save(self):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
@@ -245,6 +263,7 @@ class SettingsDialog(QDialog):
         self._s.setValue('hw/libfreetype_path',   self._libfreetype.text())
         self._s.setValue('hw/libz_path',          self._libz.text())
         self._s.setValue('hw/preprogram_cmd',     self._preprogram.text())
+        self._s.setValue('hw/openocd_path',       self._openocd.text())
 
     # ── Static helpers used by MainWindow ─────────────────────────────
     @staticmethod
@@ -295,6 +314,11 @@ class SettingsDialog(QDialog):
         """Shell command run (Linux) before programming, to release the FTDI
         driver. Empty string means 'skip'."""
         return QSettings().value('hw/preprogram_cmd', _DEFAULT_PREPROGRAM)
+
+    @staticmethod
+    def openocd_path() -> str:
+        """OpenOCD binary path. Empty string means 'resolve from PATH'."""
+        return QSettings().value('hw/openocd_path', '')
 
     @staticmethod
     def gowin_preload_libs() -> list[str]:
