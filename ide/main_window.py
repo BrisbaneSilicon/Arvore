@@ -12,8 +12,8 @@ from PyQt6.QtWidgets import (
     QStyledItemDelegate, QStyle, QStyleOptionViewItem,
     QStylePainter, QStyleOptionComboBox,
 )
-from PyQt6.QtCore import Qt, QSettings, QSize, QTimer, QEvent
-from PyQt6.QtGui import QAction, QKeySequence, QCursor, QColor
+from PyQt6.QtCore import Qt, QSettings, QSize, QTimer, QEvent, QUrl
+from PyQt6.QtGui import QAction, QKeySequence, QCursor, QColor, QDesktopServices
 from PyQt6.QtWidgets import QToolTip
 import serial.tools.list_ports
 from pathlib import Path
@@ -348,6 +348,7 @@ class MainWindow(QMainWindow):
         self._openocd_out = BuildOutput()
         self._openocd_running = False
         self._openocd_out.build_finished.connect(self._on_openocd_finished)
+        self._fcapz_web_out = BuildOutput()
         self._bottom.addTab(self._terminal, 'Serial Terminal')
         self._bottom.addTab(self._upload_out, 'Upload Status')
         self._bottom.addTab(self._build_out, 'Build Output')
@@ -355,6 +356,7 @@ class MainWindow(QMainWindow):
         self._bottom.addTab(self._synth_out, 'Synthesis Output')
         self._bottom.addTab(self._program_out, 'Program Output')
         self._bottom.addTab(self._openocd_out, 'OpenOCD Output')
+        self._bottom.addTab(self._fcapz_web_out, 'FCapZ Web Output')
         self._centre.addWidget(self._bottom)
         self._centre.setChildrenCollapsible(False)
 
@@ -642,8 +644,9 @@ class MainWindow(QMainWindow):
         self._openocd_btn.clicked.connect(self._toggle_openocd)
 
         tb.addWidget(self._toolbar_group('Hardware',
-            [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn,
-             self._openocd_btn]))
+            [self._synth_btn, self._fw_clean_btn, self._fw_flash_btn]))
+        tb.addWidget(self._toolbar_spacer(6))
+        tb.addWidget(self._openocd_btn)
         tb.addSeparator()
 
         self._cmd_btn = QPushButton('Command Mode')
@@ -789,6 +792,8 @@ class MainWindow(QMainWindow):
         tm.addSeparator()
         tm.addAction(self._act('&Generate Embedded Logic Analyzer…', None,
                                 self._open_fcapz_gen))
+        tm.addAction(self._act('&Open FCapZ Web UI', None,
+                                self._open_fcapz_web))
 
         # Workspaces
         self._ws_menu = mb.addMenu('&Workspaces')
@@ -1620,6 +1625,40 @@ class MainWindow(QMainWindow):
                     f'workspaces/hdl/{self._workspace_root}', 'SystemVerilog')
         dlg = FcapzGenDialog(self._workspace_root, default_hdl, self)
         dlg.exec()
+
+    _FCAPZ_WEB_PORT = 7373   # fcapz-web's own default
+
+    def _open_fcapz_web(self):
+        """Launch `fcapz-web` (if not already running) and open its UI in
+        the system's default browser — embedding a Chromium view would mean
+        re-enabling the QtWebEngine modules this build deliberately excludes
+        (see packaging/arvore.spec), so this just hands off to the browser
+        instead. Passes this board's bundled OpenOCD config (and the
+        configured OpenOCD binary, if set) so the web UI's own 'Start
+        OpenOCD' button works too."""
+        url = QUrl(f'http://127.0.0.1:{self._FCAPZ_WEB_PORT}/')
+        if self._fcapz_web_out.is_running():
+            QDesktopServices.openUrl(url)
+            return
+
+        fcapz_web = SettingsDialog.fcapz_web_path() or 'fcapz-web'
+        args = ['--port', str(self._FCAPZ_WEB_PORT)]
+        if self._workspace_root is not None:
+            board = self._workspace_target.lower()
+            cfg = _ide_data_dir(f'{board}/openocd/{board}.cfg')
+            if cfg.is_file():
+                args += ['--openocd-cfg', str(cfg)]
+        openocd = SettingsDialog.openocd_path()
+        if openocd:
+            args += ['--openocd', openocd]
+
+        self._fcapz_web_out.clear()
+        self._bottom.setCurrentWidget(self._fcapz_web_out)
+        self._fcapz_web_out.run_command(fcapz_web, args)
+        # uvicorn binds the port well under a second after launch; give it
+        # a moment before opening the browser rather than scanning its log
+        # output for a startup marker.
+        QTimer.singleShot(1200, lambda: QDesktopServices.openUrl(url))
 
     def _fw_clean(self):
         if self._workspace_root is None:
@@ -2621,6 +2660,11 @@ class MainWindow(QMainWindow):
         self._save_tree_state()
         self._cmd_mode.shutdown()
         self._overlay.shutdown()
+        # Unlike Build/Synth/Program (run to completion quickly), OpenOCD and
+        # fcapz-web are long-lived background servers — stop them explicitly
+        # so they don't outlive the IDE and hold the JTAG adapter/port.
+        self._openocd_out.stop()
+        self._fcapz_web_out.stop()
         port = self._port_combo.currentText()
         if port:
             self._terminal.disconnect_port(port)

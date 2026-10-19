@@ -132,6 +132,17 @@ class SettingsDialog(QDialog):
         row_openocd.addWidget(browse_openocd)
         f.addRow('OpenOCD Path:', row_openocd)
 
+        # fcapz-web binary (the fpgacapZero browser UI), launched by Tools ->
+        # "Open FCapZ Web UI". Empty means resolve 'fcapz-web' from PATH.
+        self._fcapz_web = QLineEdit()
+        self._fcapz_web.setPlaceholderText('fcapz-web (resolved from PATH if empty)')
+        browse_fcapz_web = QPushButton('Browse…')
+        browse_fcapz_web.clicked.connect(self._browse_fcapz_web)
+        row_fcapz_web = QHBoxLayout()
+        row_fcapz_web.addWidget(self._fcapz_web)
+        row_fcapz_web.addWidget(browse_fcapz_web)
+        f.addRow('FCapZ Web Path:', row_fcapz_web)
+
         tabs.addTab(hw_w, 'Hardware')
 
         # ── Editor ────────────────────────────────────────────────────
@@ -220,6 +231,12 @@ class SettingsDialog(QDialog):
         if path:
             self._openocd.setText(path)
 
+    def _browse_fcapz_web(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Select fcapz-web binary', '', 'All files (*)')
+        if path:
+            self._fcapz_web.setText(path)
+
     def _browse_freetype(self):
         path, _ = QFileDialog.getOpenFileName(
             self, 'Select libfreetype.so', '/lib', 'Shared libraries (*.so*)')
@@ -249,6 +266,7 @@ class SettingsDialog(QDialog):
         self._libz.setText(self._s.value('hw/libz_path', _DEFAULT_LIBZ))
         self._preprogram.setText(self._s.value('hw/preprogram_cmd', _DEFAULT_PREPROGRAM))
         self._openocd.setText(self._s.value('hw/openocd_path', ''))
+        self._fcapz_web.setText(self._s.value('hw/fcapz_web_path', ''))
 
     def _save(self):
         self._s.setValue('editor/font_family',    self._font_combo.currentText())
@@ -264,6 +282,7 @@ class SettingsDialog(QDialog):
         self._s.setValue('hw/libz_path',          self._libz.text())
         self._s.setValue('hw/preprogram_cmd',     self._preprogram.text())
         self._s.setValue('hw/openocd_path',       self._openocd.text())
+        self._s.setValue('hw/fcapz_web_path',     self._fcapz_web.text())
 
     # ── Static helpers used by MainWindow ─────────────────────────────
     @staticmethod
@@ -319,6 +338,11 @@ class SettingsDialog(QDialog):
     def openocd_path() -> str:
         """OpenOCD binary path. Empty string means 'resolve from PATH'."""
         return QSettings().value('hw/openocd_path', '')
+
+    @staticmethod
+    def fcapz_web_path() -> str:
+        """fcapz-web binary path. Empty string means 'resolve from PATH'."""
+        return QSettings().value('hw/fcapz_web_path', '')
 
     @staticmethod
     def gowin_preload_libs() -> list[str]:
